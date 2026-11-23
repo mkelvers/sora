@@ -1,8 +1,10 @@
 import { sql } from "drizzle-orm";
-import type { SQL, SQLWrapper } from "drizzle-orm";
+import type { SQLWrapper } from "drizzle-orm";
 
 import { viewerWaitingPriority } from "../anilist/client";
 import { db } from "../database/client";
+import { AiringJob } from "./airing-job";
+import { JobPriority } from "./job-priority";
 
 /** The graphile-worker task that follows one anime while it airs. */
 export const trackAiringTask = "track-airing";
@@ -28,34 +30,18 @@ export interface TrackAiringPayload {
 }
 
 /**
- * Each anime has at most one pending airing check, identified by this key.
- * It is also written in SQL by `reviveAiringChecks`.
- */
-const airingJobKey = (anilistId: number) => `airing:${anilistId}`;
-
-/**
- * Builds the payload in SQL, since the driver would send a serialized
- * payload as a JSON string rather than an object.
- */
-const payloadJson = (payload: TrackAiringPayload) =>
-	sql`json_build_object(
-    'anilistId', ${payload.anilistId}::int,
-    'awaitedEpisode', ${payload.awaitedEpisode}::float8,
-    'attempt', ${payload.attempt}::int
-  )`;
-
-/**
  * Schedules the next airing check for an anime, replacing any pending one.
  *
  * Called by the tracker at the end of each run.
  */
 export const scheduleAiringCheck = async (payload: TrackAiringPayload, runAt: Date) => {
+	const job = new AiringJob(payload);
 	await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${trackAiringTask},
-      payload => ${payloadJson(payload)},
+      payload => ${job.json},
       run_at => ${runAt.toISOString()}::timestamptz,
-      job_key => ${airingJobKey(payload.anilistId)},
+      job_key => ${job.key},
       job_key_mode => 'replace',
       priority => ${airingCheckPriority}::int
     )
@@ -69,15 +55,17 @@ export const scheduleAiringCheck = async (payload: TrackAiringPayload, runAt: Da
  * its time and progress.
  */
 export const startTrackingAiring = async (anilistId: number) => {
+	const job = new AiringJob({
+		anilistId,
+		attempt: 0,
+		awaitedEpisode: null,
+	});
+
 	await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${trackAiringTask},
-      payload => ${payloadJson({
-				anilistId,
-				attempt: 0,
-				awaitedEpisode: null,
-			})},
-      job_key => ${airingJobKey(anilistId)},
+      payload => ${job.json},
+      job_key => ${job.key},
       job_key_mode => 'unsafe_dedupe',
       priority => ${airingCheckPriority}::int
     )
@@ -105,6 +93,12 @@ export interface PollAniKotoPayload {
  * episode.
  */
 export const scheduleAniKotoPoll = async (payload: PollAniKotoPayload, runAt: Date) => {
+	let language = "";
+
+	if (payload.language === "dub") {
+		language = ":dub";
+	}
+
 	await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${pollAniKotoTask},
@@ -115,7 +109,7 @@ export const scheduleAniKotoPoll = async (payload: PollAniKotoPayload, runAt: Da
         'attempt', ${payload.attempt}::int
       ),
       run_at => ${runAt.toISOString()}::timestamptz,
-      job_key => ${`anikoto-poll:${payload.anilistId}${payload.language === "dub" ? ":dub" : ""}`},
+      job_key => ${`anikoto-poll:${payload.anilistId}${language}`},
       job_key_mode => 'replace',
       priority => ${airingCheckPriority}::int
     )
@@ -169,32 +163,14 @@ const rankedPlaces = 6;
  * viewers.
  */
 export const seriesStorePriority = (priority: SeriesStorePriority, rank = rankedPlaces - 1) => {
-	const urgency =
-		priority === "waiting" ? Math.min(rankedPlaces - 1, Math.max(0, rankedPlaces - 1 - rank)) : 0;
+	let urgency = 0;
+
+	if (priority === "waiting") {
+		urgency = Math.min(rankedPlaces - 1, Math.max(0, rankedPlaces - 1 - rank));
+	}
 
 	return seriesStorePriorities[priority] - urgency;
 };
-
-/** The higher of `priority` and that of a job already waiting under `jobKey`, since replacing a job resets its priority. */
-const keptPriority = (jobKey: string | SQL, priority: number) =>
-	sql`least(
-    ${priority}::int,
-    coalesce(
-      (select jobs.priority from graphile_worker.jobs where jobs.key = ${jobKey} and jobs.locked_at is null),
-      ${priority}::int
-    )
-  )`;
-
-const seriesJobKey = (anilistId: number) => `series:${anilistId}`;
-
-/**
- * The task a job runs as at `priority`: `waitedOn` when a viewer is waiting
- * on it, so a job raised to `waiting` moves to the workers kept free for
- * such jobs, and one already there stays when it is queued again at a lower
- * priority, since it keeps its priority too.
- */
-const taskAt = (priority: SQL, task: string, waitedOn: string) =>
-	sql`case when ${priority} <= ${seriesStorePriorities.waiting}::int then ${waitedOn} else ${task} end`;
 
 /**
  * Queues laying out and storing the series an AniList entry belongs to.
@@ -213,14 +189,15 @@ export const scheduleSeriesStore = async (
 	priority: SeriesStorePriority,
 	rank?: number,
 ) => {
-	const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriority(priority, rank));
+	const jobKey = `series:${anilistId}`;
+	const kept = JobPriority.kept(jobKey, seriesStorePriority(priority, rank));
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${taskAt(kept, storeSeriesTask, storeSeriesNowTask)},
+      identifier => ${kept.task(storeSeriesTask, storeSeriesNowTask)},
       payload => json_build_object('anilistId', ${anilistId}::int),
-      job_key => ${seriesJobKey(anilistId)},
+      job_key => ${jobKey},
       job_key_mode => 'preserve_run_at',
-      priority => ${kept}
+      priority => ${kept.sql}
     )
   `);
 };
@@ -235,14 +212,15 @@ export const scheduleStoredSeriesRefresh = async (
 	anilistId: number,
 	priority: Exclude<SeriesStorePriority, "waiting"> = "current",
 ) => {
-	const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriorities[priority]);
+	const jobKey = `series:${anilistId}`;
+	const kept = JobPriority.kept(jobKey, seriesStorePriorities[priority]);
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${taskAt(kept, storeSeriesTask, storeSeriesNowTask)},
+      identifier => ${kept.task(storeSeriesTask, storeSeriesNowTask)},
       payload => json_build_object('anilistId', ${anilistId}::int),
-      job_key => ${seriesJobKey(anilistId)},
+      job_key => ${jobKey},
       job_key_mode => 'preserve_run_at',
-      priority => ${kept}
+      priority => ${kept.sql}
     )
     where exists (select 1 from series where anilist_id = ${anilistId})
   `);
@@ -277,17 +255,21 @@ export const scheduleEpisodeLookups = async (
 		sql`, `,
 	)}]::int[]`;
 
-	const kept = keptPriority(sql`'episodes:' || listed.anilist_id`, seriesStorePriorities[priority]);
+	const kept = JobPriority.kept(
+		sql`'episodes:' || listed.anilist_id`,
+		seriesStorePriorities[priority],
+	);
+
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${taskAt(sql`entry.priority`, lookUpEpisodesTask, lookUpEpisodesNowTask)},
+      identifier => ${new JobPriority(sql`entry.priority`).task(lookUpEpisodesTask, lookUpEpisodesNowTask)},
       payload => json_build_object('anilistId', entry.anilist_id),
       job_key => 'episodes:' || entry.anilist_id,
       job_key_mode => 'preserve_run_at',
       priority => entry.priority
     )
     from (
-      select listed.anilist_id, ${kept} as priority
+      select listed.anilist_id, ${kept.sql} as priority
       from unnest(${ids}) as listed(anilist_id)
     ) as entry
   `);
@@ -394,12 +376,10 @@ export interface UpscaleBackdropPayload {
 	id: string;
 }
 
-const upscaleJobKey = (id: string | SQLWrapper) => sql`'upscale-backdrop:' || ${id}::text`;
-
 /** A job can still finish if it has an attempt left or is running its last attempt. */
 export const hasLiveUpscaleJob = (id: string | SQLWrapper) => sql<boolean>`exists (
     select 1 from graphile_worker.jobs
-    where key = ${upscaleJobKey(id)}
+    where key = 'upscale-backdrop:' || ${id}::text
       and task_identifier = ${upscaleBackdropTask}
       and (locked_at is not null or attempts < max_attempts)
   )`;
@@ -420,7 +400,7 @@ export const requestUpscale = async (
       identifier => ${upscaleBackdropTask},
       payload => json_build_object('id', ${payload.id}::text),
       queue_name => 'upscale-backdrop',
-      job_key => ${upscaleJobKey(payload.id)},
+      job_key => 'upscale-backdrop:' || ${payload.id}::text,
       job_key_mode => 'replace',
       max_attempts => 1,
       priority => 0
