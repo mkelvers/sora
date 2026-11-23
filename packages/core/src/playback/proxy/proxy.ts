@@ -6,7 +6,7 @@ import type { TimelineShift } from "../streams/align";
 import { rewrite } from "./playlist";
 import { readahead } from "./readahead";
 import { Resource } from "./resource";
-import { signStreamTarget, verify } from "./token";
+import { StreamToken } from "./token";
 import type { StreamTarget, StreamTargetKind } from "./token";
 import { fetchTarget, mirrorsFor, readTarget } from "./upstream";
 import { StreamUpstreamError } from "./upstream-error";
@@ -43,20 +43,17 @@ export const createStreamToken = (
 		refinement?: string;
 	},
 ) =>
-	signStreamTarget(
-		{
-			accountId,
-			audio,
-			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
-			headers,
-			kind,
-			mirrors,
-			refinement,
-			shifts,
-			url,
-		},
-		config.streamSigningSecret,
-	);
+	new StreamToken(config.streamSigningSecret).sign({
+		accountId,
+		audio,
+		expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
+		headers,
+		kind,
+		mirrors,
+		refinement,
+		shifts,
+		url,
+	});
 
 /**
  * Whether the proxy could serve `url`, from its own host or a mirror. A host
@@ -320,7 +317,7 @@ export const proxyStream = async (
 		signal?: AbortSignal;
 	},
 ): Promise<Response> => {
-	const target = verify(token, config.streamSigningSecret);
+	const target = new StreamToken(config.streamSigningSecret).verify(token);
 
 	if (target.accountId !== request.accountId) {
 		throw new StreamTokenError("Stream token was issued to another account");

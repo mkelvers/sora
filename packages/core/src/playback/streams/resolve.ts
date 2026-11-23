@@ -38,7 +38,7 @@ import { hasDubAudio, probeVideos } from "./dub-audio";
 import { Menu } from "./menu";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
-import { languageName, recordSubtitleLanguages, subtitleLanguagesOf } from "./subtitle-languages";
+import { LanguageTag, recordSubtitleLanguages, subtitleLanguagesOf } from "./subtitle-languages";
 
 /** Everything a player needs to play an episode, in every version it has. */
 export interface Playback {
@@ -566,7 +566,7 @@ class Resolution {
 				}
 
 				const kind = kinds.get(track.url);
-				const language = languageName(track.language) ?? track.label;
+				const language = new LanguageTag(track.language).name ?? track.label;
 				let named: string | undefined;
 
 				if (kind) {

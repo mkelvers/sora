@@ -5,28 +5,37 @@ import { db } from "../../database/client";
 import { seriesSubtitles } from "../../database/schema/playback";
 import type { ProviderVideo } from "../providers/provider";
 
-const languageNames = new Intl.DisplayNames(["en"], {
-	type: "language",
-});
+/** A BCP 47 language tag, such as `pt-BR`. */
+export class LanguageTag {
+	static readonly #names = new Intl.DisplayNames(["en"], {
+		type: "language",
+	});
 
-/**
- * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
- * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`;
- * `null` for a tag that names no language.
- */
-export const languageName = (tag: string) => {
-	const { data, error } = attempt(() => languageNames.of(tag), RangeError);
+	readonly #tag: string;
 
-	if (error) {
+	constructor(tag: string) {
+		this.#tag = tag;
+	}
+
+	/**
+	 * The language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
+	 * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`;
+	 * `null` for a tag that names no language.
+	 */
+	get name() {
+		const { data, error } = attempt(() => LanguageTag.#names.of(this.#tag), RangeError);
+
+		if (error) {
+			return null;
+		}
+
+		if (data && data !== this.#tag) {
+			return data;
+		}
+
 		return null;
 	}
-
-	if (data && data !== tag) {
-		return data;
-	}
-
-	return null;
-};
+}
 
 /** What resolving a version found, as far as its subtitle languages go. */
 interface ResolvedVersion {
