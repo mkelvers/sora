@@ -69,7 +69,7 @@
 				aria-label="Search categories"
 				placeholder="Search categories"
 				bind:value={query}
-				class="h-9 w-72 max-w-full border-x-0 border-t-0 px-0 focus-visible:border-muted"
+				class="h-9 min-w-0 basis-full border-x-0 border-t-0 px-0 focus-visible:border-muted sm:flex-1 sm:basis-0"
 			/>
 		</div>
 
