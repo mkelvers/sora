@@ -139,7 +139,11 @@ const titleOnlyReleaseWindowDays = 120;
 
 /** Days since the Unix epoch for a full `YYYY-MM-DD` date; partial dates yield `null`. */
 const dayNumber = (date: string | null) => {
-	const match = date ? /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/u.exec(date) : null;
+	if (!date) {
+		return null;
+	}
+
+	const match = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/u.exec(date);
 
 	if (!match) {
 		return null;
@@ -214,10 +218,17 @@ const romanValue = (word: string) => {
 
 	const values = Array.from(word, (letter) => romanValues.get(letter) ?? 0);
 
-	return values.reduce(
-		(total, value, index) => total + (value < (values[index + 1] ?? 0) ? -value : value),
-		0,
-	);
+	let total = 0;
+
+	for (const [index, value] of values.entries()) {
+		if (value < (values[index + 1] ?? 0)) {
+			total -= value;
+		} else {
+			total += value;
+		}
+	}
+
+	return total;
 };
 
 /** The title's numbers in order, such as `"2"` for "Infinity Castle Part 2". */
@@ -513,7 +524,12 @@ const overflowSpecials = (
 	subject: MatchSubject,
 	end: number | null,
 ) => {
-	const missing = subject.episodes === null ? 0 : subject.episodes - picked.length;
+	let missing = 0;
+
+	if (subject.episodes !== null) {
+		missing = subject.episodes - picked.length;
+	}
+
 	const lastAirDay = dayNumber(picked.at(-1)?.air_date ?? null);
 
 	const unplaceable = missing <= 0 || end === null || lastAirDay === null;
@@ -801,7 +817,11 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 };
 
 const yearOf = (date: string | null) => {
-	const match = date ? /^(?<year>\d{4})/u.exec(date) : null;
+	if (!date) {
+		return null;
+	}
+
+	const match = /^(?<year>\d{4})/u.exec(date);
 
 	if (match) {
 		return Number(match[1]);
@@ -828,7 +848,13 @@ const startsAlike = (
 	regularCount: number,
 	offset: number | null,
 ) => {
-	if (offset !== null && offset <= (subject.format === "ONA" ? 120 : 31)) {
+	let windowDays = 31;
+
+	if (subject.format === "ONA") {
+		windowDays = 120;
+	}
+
+	if (offset !== null && offset <= windowDays) {
 		return true;
 	}
 
@@ -925,7 +951,11 @@ const placeRunWithinBroadcast = (
 	});
 
 	const [first] = run;
-	const index = first ? track.indexOf(first) : -1;
+	let index = -1;
+
+	if (first) {
+		index = track.indexOf(first);
+	}
 
 	const mismatched =
 		!first ||
@@ -938,8 +968,13 @@ const placeRunWithinBroadcast = (
 		return null;
 	}
 
-	const prequelFirst = candidate.prequel ? indexOfRef(track, candidate.prequel.first) : -1;
-	const prequelLast = candidate.prequel ? indexOfRef(track, candidate.prequel.last) : -1;
+	let prequelFirst = -1;
+	let prequelLast = -1;
+
+	if (candidate.prequel) {
+		prequelFirst = indexOfRef(track, candidate.prequel.first);
+		prequelLast = indexOfRef(track, candidate.prequel.last);
+	}
 
 	const overlaps =
 		prequelFirst !== -1 &&
@@ -981,7 +1016,12 @@ const placeDelayedStreamingRun = (
 	const track = regularTrack(candidate.show.episodes);
 	const start = dayNumber(subject.startDate);
 	const index = indexAfter(track, candidate.prequel.last);
-	const first = index === null ? undefined : track[index];
+	let first: TmdbEpisode | undefined;
+
+	if (index !== null) {
+		first = track[index];
+	}
+
 	const firstDay = dayNumber(first?.air_date ?? null);
 
 	if (!first || index === null) {
@@ -1008,7 +1048,13 @@ const placeDelayedStreamingRun = (
 
 	const end = dayNumber(subject.endDate);
 	const run = track.slice(index).filter((episode) => episode.season_number === first.season_number);
-	const picked = pick(run, 0, subject, end === null ? null : end + delay, true);
+	let delayedEnd: number | null = null;
+
+	if (end !== null) {
+		delayedEnd = end + delay;
+	}
+
+	const picked = pick(run, 0, subject, delayedEnd, true);
 
 	if (
 		picked.length !== subject.episodes ||
@@ -1238,37 +1284,76 @@ const placeRunAt = (context: RunContext, index: number, isContinuation: boolean)
 	const { first, last, picked } = run;
 	const firstAirDay = dayNumber(first.air_date);
 	const lastAirDay = dayNumber(last.air_date);
-	const startOffset = start !== null && firstAirDay !== null ? firstAirDay - start : null;
+	let startOffset: number | null = null;
+
+	if (start !== null && firstAirDay !== null) {
+		startOffset = firstAirDay - start;
+	}
+
+	let continuationBonus = 0;
+
+	if (isContinuation) {
+		continuationBonus = 40;
+	}
 
 	const evidence =
-		startScore(startOffset, isContinuation) + (isContinuation ? 40 : 0) + endScore(end, lastAirDay);
+		startScore(startOffset, isContinuation) + continuationBonus + endScore(end, lastAirDay);
 
-	const coverage = subject.episodes ? Math.min(picked.length / subject.episodes, 1) : 1;
+	let coverage = 1;
+
+	if (subject.episodes) {
+		coverage = Math.min(picked.length / subject.episodes, 1);
+	}
+
+	let regularBonus = 0;
+
+	if (isRegular) {
+		regularBonus = 10;
+	}
+
+	let franchiseBonus = 0;
+
+	if (candidate.isFranchiseShow) {
+		franchiseBonus = 25;
+	}
 
 	const score =
-		evidence * (0.5 + 0.5 * coverage) +
-		(isRegular ? 10 : 0) +
-		(candidate.isFranchiseShow ? 25 : 0) +
-		20 * nameSimilarity;
+		evidence * (0.5 + 0.5 * coverage) + regularBonus + franchiseBonus + 20 * nameSimilarity;
 
 	if (score < minimumShowScore) {
 		return null;
 	}
 
-	const leading = isRegular
-		? leadingEpisode(candidate.show.episodes, picked, subject, startOffset)
-		: null;
+	let leading: ReturnType<typeof leadingEpisode> = null;
+
+	if (isRegular) {
+		leading = leadingEpisode(candidate.show.episodes, picked, subject, startOffset);
+	}
+
+	const links: EpisodeLink[] = [];
+
+	if (leading?.special) {
+		links.push(...linkRun([leading.special]));
+	}
+
+	let firstNumber = 1;
+
+	if (leading) {
+		firstNumber = 2;
+	}
+
+	links.push(...linkRun(picked, firstNumber));
+
+	let method: "air-date" | "continuation" = "continuation";
+
+	if (startOffset !== null && Math.abs(startOffset) <= startWindowDays) {
+		method = "air-date";
+	}
 
 	const placement: Placement = {
-		episodes: [
-			...(leading?.special ? linkRun([leading.special]) : []),
-			...linkRun(picked, leading ? 2 : 1),
-		],
+		episodes: links,
 		mediaType: "tv",
-		method:
-			startOffset !== null && Math.abs(startOffset) <= startWindowDays
-				? "air-date"
-				: "continuation",
+		method,
 		score,
 		tmdbId: candidate.show.id,
 	};
@@ -1314,10 +1399,13 @@ export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Pla
 	for (const track of tracks) {
 		const isRegular = track[0] !== undefined && track[0].season_number > 0;
 
-		const continuation =
-			isRegular && candidate.prequel && !airsLate(track, candidate.prequel.first, start)
-				? indexAfter(track, candidate.prequel.last)
-				: null;
+		const { prequel } = candidate;
+		const follows = isRegular && prequel && !airsLate(track, prequel.first, start);
+		let continuation: number | null = null;
+
+		if (follows) {
+			continuation = indexAfter(track, prequel.last);
+		}
 
 		for (const index of startIndexes(track, start, continuation)) {
 			if (continuation !== null && index < continuation) {
@@ -1522,8 +1610,11 @@ export const placeAsMovie = (
 	},
 	hinted = false,
 ): Placement | null => {
-	const subjectMinutes =
-		subject.durationMinutes === null ? null : subject.durationMinutes * (subject.episodes ?? 1);
+	let subjectMinutes: number | null = null;
+
+	if (subject.durationMinutes !== null) {
+		subjectMinutes = subject.durationMinutes * (subject.episodes ?? 1);
+	}
 
 	if (!runtimesAgree(movie.runtime ?? null, subjectMinutes, regularRuntimeTolerance)) {
 		return null;
@@ -1605,7 +1696,11 @@ export const placeAfterInCollection = (
 	);
 
 	const index = ordered.findIndex((part) => part.id === prequelId);
-	const next = index === -1 ? undefined : ordered[index + 1];
+	let next: (typeof ordered)[number] | undefined;
+
+	if (index !== -1) {
+		next = ordered[index + 1];
+	}
 
 	if (!next) {
 		return null;
