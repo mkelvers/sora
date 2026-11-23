@@ -6,7 +6,7 @@ import { db } from "../../database/client";
 import { playbackPreference } from "../../database/schema/library";
 import { InvalidInputError } from "../../errors";
 import {
-	PlaybackPreferencesUpdateSchema,
+	PlaybackChangesSchema,
 	SubtitlePreferencesSchema,
 	SubtitleStyleSchema,
 } from "../../models/library";
@@ -110,13 +110,13 @@ export const getPlaybackPreferences = async (userId: string): Promise<PlaybackPr
  * Changes a user's playback preferences and returns them as they now stand.
  *
  * @throws {InvalidInputError} when the update fails
- *   {@link PlaybackPreferencesUpdateSchema}.
+ *   {@link PlaybackChangesSchema}.
  */
 export const updatePlaybackPreferences = async (
 	userId: string,
 	update: PlaybackPreferencesUpdate,
 ): Promise<PlaybackPreferences> => {
-	const parsed = PlaybackPreferencesUpdateSchema.safeParse(update);
+	const parsed = PlaybackChangesSchema.safeParse(update);
 
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid playback preferences", {

@@ -85,7 +85,7 @@ export const ImportOptionsSchema = z
 		id: "ImportOptions",
 	});
 
-export const ImportAuthorizeRequestSchema = z
+export const AuthorizeRequestSchema = z
 	.object({
 		code_challenge: z.string().min(43).max(128).meta({
 			description:
@@ -101,7 +101,7 @@ export const ImportAuthorizeRequestSchema = z
 		id: "ImportAuthorizeRequest",
 	});
 
-export const ImportAuthorizationUrlSchema = z
+export const AuthorizationUrlSchema = z
 	.object({
 		url: z.url().meta({
 			description: "Where to send the person to agree.",
@@ -171,7 +171,7 @@ export const ImportUndoSchema = z
 		id: "ImportUndo",
 	});
 
-export const LibraryImportReportSchema = z
+export const ImportReportSchema = z
 	.object({
 		episodes_added: z.number().int().meta({
 			description: "Episodes marked watched that were not before.",
@@ -219,4 +219,4 @@ export type LibraryExport = z.infer<typeof LibraryExportSchema>;
 
 export type LibraryImport = z.infer<typeof LibraryImportSchema>;
 
-export type LibraryImportReport = z.infer<typeof LibraryImportReportSchema>;
+export type LibraryImportReport = z.infer<typeof ImportReportSchema>;

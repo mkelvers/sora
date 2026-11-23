@@ -56,7 +56,7 @@ export const SubtitleTrackSchema = z.object({
 	}),
 });
 
-export const PlaybackMediaSchema = z
+export const MediaSchema = z
 	.object({
 		audio: LanguageSchema,
 		hardsub: z.boolean().meta({
@@ -93,4 +93,4 @@ export type PlaybackSource = z.infer<typeof StreamSourceSchema>;
 
 export type PlaybackSubtitle = z.infer<typeof SubtitleTrackSchema>;
 
-export type PlaybackMedia = z.infer<typeof PlaybackMediaSchema>;
+export type PlaybackMedia = z.infer<typeof MediaSchema>;

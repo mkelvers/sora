@@ -1,5 +1,5 @@
 import type { profile } from "../database/schema/auth";
-import type { Profile } from "../models/profile";
+import type { Profile } from "../models/account";
 
 /** A stored profile, as the database returns it. */
 export class ProfileRow {

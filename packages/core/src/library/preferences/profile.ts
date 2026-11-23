@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../../database/client";
 import { profilePreference } from "../../database/schema/library";
 import { InvalidInputError } from "../../errors";
-import { ProfilePreferencesUpdateSchema } from "../../models/library";
+import { ProfileChangesSchema } from "../../models/library";
 import type { ProfilePreferences, ProfilePreferencesUpdate } from "../../models/library";
 
 /** A profile's stored display and notification preferences. */
@@ -58,13 +58,13 @@ export const getProfilePreferences = async (userId: string): Promise<ProfilePref
  * as they now stand.
  *
  * @throws {InvalidInputError} when the update fails
- *   {@link ProfilePreferencesUpdateSchema}.
+ *   {@link ProfileChangesSchema}.
  */
 export const updateProfilePreferences = async (
 	userId: string,
 	update: ProfilePreferencesUpdate,
 ): Promise<ProfilePreferences> => {
-	const parsed = ProfilePreferencesUpdateSchema.safeParse(update);
+	const parsed = ProfileChangesSchema.safeParse(update);
 
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid profile preferences", {

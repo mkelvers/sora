@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { SignedInDeviceSchema } from "@sora/core/models/device";
+import { DeviceSchema } from "@sora/core/models/account";
 
 import { CountMetaSchema, envelope } from "../../openapi/envelope";
 import { json, problem, signedIn } from "../../openapi/schemas";
@@ -13,7 +13,7 @@ export const contract = {
 		operationId: "listDevices",
 		path: "/devices",
 		responses: {
-			200: json(envelope(z.array(SignedInDeviceSchema), CountMetaSchema), "The devices."),
+			200: json(envelope(z.array(DeviceSchema), CountMetaSchema), "The devices."),
 			401: problem("Not signed in."),
 		},
 		security: signedIn,

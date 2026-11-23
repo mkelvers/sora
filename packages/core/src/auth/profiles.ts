@@ -15,8 +15,8 @@ import {
 } from "../database/schema/library";
 import { InvalidInputError, LastProfileError, UnknownProfileError } from "../errors";
 import { newId } from "../ids";
-import { ProfileInputSchema } from "../models/profile";
-import type { Profile, ProfileInput } from "../models/profile";
+import { ProfileInputSchema } from "../models/account";
+import type { Profile, ProfileInput } from "../models/account";
 import { ProfileRow } from "./profile-row";
 
 export type AvatarStyle = (typeof avatarStyle.enumValues)[number];

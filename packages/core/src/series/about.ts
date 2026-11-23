@@ -259,7 +259,7 @@ export class About {
 		this.#sources = sources;
 	}
 
-	/** The section; see `SeriesSchema`. */
+	/** The section; see `DetailSchema`. */
 	get section() {
 		return {
 			audio_languages: this.#audioLanguages,

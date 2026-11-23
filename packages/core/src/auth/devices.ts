@@ -2,7 +2,7 @@ import { and, desc, eq, gt, ne } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { authSession } from "../database/schema/auth";
-import type { SignedInDevice } from "../models/device";
+import type { SignedInDevice } from "../models/account";
 import { Device, presentAddress } from "./device";
 
 /**

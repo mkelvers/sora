@@ -40,7 +40,7 @@ export type {
 
 export type { PlaybackMedia, SkipSegment } from "@sora/core/models/playback";
 
-export type { SignedInDevice } from "@sora/core/models/device";
+export type { SignedInDevice } from "@sora/core/models/account";
 
 export type {
 	ImportAuthorization,
@@ -52,6 +52,6 @@ export type {
 	LibraryImportReport,
 } from "@sora/core/models/transfer";
 
-export type { Profile, ProfileAvatar } from "@sora/core/models/profile";
+export type { Profile, ProfileAvatar } from "@sora/core/models/account";
 
 export type PlaybackMeta = z.infer<typeof Meta>;
