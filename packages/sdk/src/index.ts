@@ -20,7 +20,7 @@ export {
 export { route } from "@sora/api/contract";
 
 /** The rule a player picks the version and subtitles to show by. */
-export { choosePlayback } from "@sora/core/playback/choice";
+export { chooseVersion } from "@sora/core/playback/choice";
 
 export type {
 	AnimeSeason,

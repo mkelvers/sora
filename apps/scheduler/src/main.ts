@@ -6,9 +6,9 @@
  * may run at once. It stops cleanly on SIGINT and SIGTERM.
  */
 import { db } from "@sora/core/database";
-import { startScheduler } from "@sora/core/scheduler";
+import { scheduler } from "@sora/core/scheduler";
 
-const { promise } = await startScheduler();
+const { promise } = await scheduler.start();
 
 await promise;
 

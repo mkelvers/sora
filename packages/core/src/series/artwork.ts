@@ -3,14 +3,14 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { noArtwork, series, titleArtwork, titleBackdropUpscale } from "../database/schema/series";
-import { InvalidInputError, SeriesNotFoundError } from "../errors";
+import { InvalidInputError, UnknownSeriesError } from "../errors";
 import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
-import { measureBackdrop } from "./edges";
-import { getSeries } from "./queries";
+import { edges } from "./edges";
+import { titles } from "./queries";
 import { TitleImages } from "./title-images";
 import { upscaleIdOf } from "./upscaled-backdrop";
 
-/** How {@link listSeriesImages} filters and sorts. */
+/** How {@link artwork.images} filters and sorts. */
 export interface SeriesImageQuery {
 	/** Only these types; every type when omitted. */
 	types?: readonly ImageType[];
@@ -105,112 +105,108 @@ class Choice {
 	}
 }
 
-/**
- * Chooses a series' poster, backdrop, or logo for everyone, in place of the
- * one laid out from TMDB or AniList. The poster is the series' own, since
- * it tells one season from another; the backdrop, logo, and logo placement
- * are chosen for the TMDB title, so every series laid out from it shows
- * them (see `titleArtwork`). The choice outlives laying the series out
- * again. Returns the series as {@link getSeries} loads it.
- *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- */
-export const setSeriesArtwork = async (id: string, changes: ArtworkChanges): Promise<Series> => {
-	const [row] = await db
-		.select({
-			key: series.key,
-		})
-		.from(series)
-		.where(eq(series.id, id))
-		.limit(1);
+export const artwork = {
+	/**
+	 * Lists every backdrop, poster, and logo TMDB has for a series' title, in
+	 * every language, plus each season's posters for a show, so a season's own
+	 * can be chosen for it. Titles TMDB does not list have none.
+	 *
+	 * The first listing for a title fetches them from TMDB and stores them
+	 * (see `titleImage`); later ones, for any series of the title, read what was
+	 * stored, until {@link artwork.refreshImages} fetches them again.
+	 *
+	 * @throws {UnknownSeriesError} when the ID does not identify a series.
+	 * @throws {UpstreamUnavailableError} when TMDB fails on the first listing.
+	 */
+	async images(id: string, query: SeriesImageQuery = {}): Promise<SeriesImage[]> {
+		const { fetched, images } = await TitleImages.of(id);
 
-	if (!row) {
-		throw new SeriesNotFoundError(id);
-	}
-
-	const choice = new Choice(row.key, changes);
-	await choice.requireOwnUpscales();
-
-	const poster = choice.override("poster");
-
-	const title = {
-		backdropUrlOverride: choice.override("backdrop"),
-		logoOffsetX: changes.logo_offset_x,
-		logoOffsetY: changes.logo_offset_y,
-		logoScale: changes.logo_scale,
-		logoUrlOverride: choice.override("logo"),
-	};
-
-	await db.transaction(async (tx) => {
-		if (poster !== undefined) {
-			await tx
-				.update(series)
-				.set({
-					posterUrlOverride: poster,
-				})
-				.where(eq(series.id, id));
+		if (fetched) {
+			return await images.listed(await images.stored(), query);
 		}
 
-		// Drizzle skips undefined fields, and refuses an update with none left.
-		if (Object.values(title).some((value) => value !== undefined)) {
-			await tx
-				.insert(titleArtwork)
-				.values({
-					key: row.key,
-					...title,
-				})
-				.onConflictDoUpdate({
-					set: title,
-					target: titleArtwork.key,
-				});
+		return await images.listed(await images.store(day), query);
+	},
+
+	/**
+	 * Fetches a series' title's images from TMDB again, past TMDB's own cache,
+	 * and replaces the stored ones, so artwork added on TMDB since can be
+	 * chosen. Returns them as {@link artwork.images} does.
+	 *
+	 * @throws {UnknownSeriesError} when the ID does not identify a series.
+	 * @throws {UpstreamUnavailableError} when TMDB fails; the stored images are kept.
+	 */
+	async refreshImages(id: string, query: SeriesImageQuery = {}): Promise<SeriesImage[]> {
+		const { images } = await TitleImages.of(id);
+
+		return await images.listed(await images.store(0), query);
+	},
+
+	/**
+	 * Chooses a series' poster, backdrop, or logo for everyone, in place of the
+	 * one laid out from TMDB or AniList. The poster is the series' own, since
+	 * it tells one season from another; the backdrop, logo, and logo placement
+	 * are chosen for the TMDB title, so every series laid out from it shows
+	 * them (see `titleArtwork`). The choice outlives laying the series out
+	 * again. Returns the series as {@link titles.get} loads it.
+	 *
+	 * @throws {UnknownSeriesError} when the ID does not identify a series.
+	 */
+	async set(id: string, changes: ArtworkChanges): Promise<Series> {
+		const [row] = await db
+			.select({
+				key: series.key,
+			})
+			.from(series)
+			.where(eq(series.id, id))
+			.limit(1);
+
+		if (!row) {
+			throw new UnknownSeriesError(id);
 		}
-	});
 
-	if (title.backdropUrlOverride !== undefined) {
-		await measureBackdrop(id);
-	}
+		const choice = new Choice(row.key, changes);
+		await choice.requireOwnUpscales();
 
-	return getSeries(id);
-};
+		const poster = choice.override("poster");
 
-/**
- * Lists every backdrop, poster, and logo TMDB has for a series' title, in
- * every language, plus each season's posters for a show, so a season's own
- * can be chosen for it. Titles TMDB does not list have none.
- *
- * The first listing for a title fetches them from TMDB and stores them
- * (see `titleImage`); later ones, for any series of the title, read what was
- * stored, until {@link refreshSeriesImages} fetches them again.
- *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {UpstreamUnavailableError} when TMDB fails on the first listing.
- */
-export const listSeriesImages = async (
-	id: string,
-	query: SeriesImageQuery = {},
-): Promise<SeriesImage[]> => {
-	const { fetched, images } = await TitleImages.of(id);
+		const title = {
+			backdropUrlOverride: choice.override("backdrop"),
+			logoOffsetX: changes.logo_offset_x,
+			logoOffsetY: changes.logo_offset_y,
+			logoScale: changes.logo_scale,
+			logoUrlOverride: choice.override("logo"),
+		};
 
-	if (fetched) {
-		return await images.listed(await images.stored(), query);
-	}
+		await db.transaction(async (tx) => {
+			if (poster !== undefined) {
+				await tx
+					.update(series)
+					.set({
+						posterUrlOverride: poster,
+					})
+					.where(eq(series.id, id));
+			}
 
-	return await images.listed(await images.store(day), query);
-};
+			// Drizzle skips undefined fields, and refuses an update with none left.
+			if (Object.values(title).some((value) => value !== undefined)) {
+				await tx
+					.insert(titleArtwork)
+					.values({
+						key: row.key,
+						...title,
+					})
+					.onConflictDoUpdate({
+						set: title,
+						target: titleArtwork.key,
+					});
+			}
+		});
 
-/**
- * Fetches a series' title's images from TMDB again, past TMDB's own cache,
- * and replaces the stored ones, so artwork added on TMDB since can be
- * chosen. Returns them as {@link listSeriesImages} does.
- *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {UpstreamUnavailableError} when TMDB fails; the stored images are kept.
- */
-export const refreshSeriesImages = async (
-	id: string,
-	query: SeriesImageQuery = {},
-): Promise<SeriesImage[]> => {
-	const { images } = await TitleImages.of(id);
+		if (title.backdropUrlOverride !== undefined) {
+			await edges.measureBackdrop(id);
+		}
 
-	return await images.listed(await images.store(0), query);
+		return titles.get(id);
+	},
 };

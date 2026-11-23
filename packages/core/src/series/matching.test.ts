@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	continuesPastLinks,
-	placeAfterInCollection,
+	placeAfterPrequel,
 	placeAsMovie,
 	placeInShow,
-	placeInEpisodeGroups,
+	placeInGroups,
 	titleSimilarity,
 } from "./matching";
 import {
@@ -1035,7 +1035,7 @@ describe("placeAsMovie", () => {
 	});
 });
 
-describe("placeAfterInCollection", () => {
+describe("placeAfterPrequel", () => {
 	// Haikyu!! Final Arc Collection: the second film has no release date yet.
 	const parts = [
 		movie({
@@ -1057,7 +1057,7 @@ describe("placeAfterInCollection", () => {
 	});
 
 	test("takes the film after the prequel's, however unlike the titles", () => {
-		expect(placeAfterInCollection(littleGiant, 1_012_201, parts)).toMatchObject({
+		expect(placeAfterPrequel(littleGiant, 1_012_201, parts)).toMatchObject({
 			mediaType: "movie",
 			method: "continuation",
 			tmdbId: 1_012_199,
@@ -1066,7 +1066,7 @@ describe("placeAfterInCollection", () => {
 
 	test("rejects a next film released in another year", () => {
 		expect(
-			placeAfterInCollection(
+			placeAfterPrequel(
 				subject({
 					format: "MOVIE",
 					startDate: "2025-06-01",
@@ -1084,7 +1084,7 @@ describe("placeAfterInCollection", () => {
 	});
 
 	test("finds nothing after the collection's last film", () => {
-		expect(placeAfterInCollection(littleGiant, 1_012_199, parts)).toBeNull();
+		expect(placeAfterPrequel(littleGiant, 1_012_199, parts)).toBeNull();
 	});
 });
 
@@ -1179,7 +1179,7 @@ describe("continuesPastLinks", () => {
 	});
 });
 
-describe("placeInEpisodeGroups", () => {
+describe("placeInGroups", () => {
 	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({
 		...episode,
 		order,
@@ -1233,13 +1233,13 @@ describe("placeInEpisodeGroups", () => {
 	});
 
 	test("uses the named Stone Ocean batch despite its later TV dates", () => {
-		const placed = placeInEpisodeGroups(entry, candidate, [groups]);
+		const placed = placeInGroups(entry, candidate, [groups]);
 		expect(placed?.method).toBe("episode-group");
 		expect(range(placed)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S5E${i + 1}`));
 	});
 
 	test("combines numbered TMDB parts when AniList lists them as one release", () => {
-		const placed = placeInEpisodeGroups(
+		const placed = placeInGroups(
 			{
 				...entry,
 				episodes: 26,
@@ -1254,7 +1254,7 @@ describe("placeInEpisodeGroups", () => {
 	});
 
 	test("keeps Steel Ball Run on its parent show's canonical episode", () => {
-		const placed = placeInEpisodeGroups(
+		const placed = placeInGroups(
 			subject({
 				durationMinutes: 47,
 				episodes: 1,
@@ -1271,7 +1271,7 @@ describe("placeInEpisodeGroups", () => {
 
 	test("rejects conflicting arrangements, wrong counts, and already-aired upcoming releases", () => {
 		expect(
-			placeInEpisodeGroups(entry, candidate, [
+			placeInGroups(entry, candidate, [
 				groups,
 				[
 					{
@@ -1283,7 +1283,7 @@ describe("placeInEpisodeGroups", () => {
 			]),
 		).toBeNull();
 		expect(
-			placeInEpisodeGroups(
+			placeInGroups(
 				{
 					...entry,
 					episodes: 13,
@@ -1293,7 +1293,7 @@ describe("placeInEpisodeGroups", () => {
 			),
 		).toBeNull();
 		expect(
-			placeInEpisodeGroups(
+			placeInGroups(
 				{
 					...entry,
 					airsFrom: "2023-01-01",
@@ -1306,7 +1306,7 @@ describe("placeInEpisodeGroups", () => {
 
 	test("rejects stale group identities and a differently numbered part", () => {
 		expect(
-			placeInEpisodeGroups(
+			placeInGroups(
 				entry,
 				{
 					...candidate,
@@ -1316,7 +1316,7 @@ describe("placeInEpisodeGroups", () => {
 			),
 		).toBeNull();
 		expect(
-			placeInEpisodeGroups(
+			placeInGroups(
 				{
 					...entry,
 					titles: ["JoJo's Bizarre Adventure: STONE OCEAN Part 4"],

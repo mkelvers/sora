@@ -3,23 +3,15 @@ import type { z } from "@hono/zod-openapi";
 import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
 import type { BrowseQuery } from "@sora/core/catalog";
 import {
-	browseSeries,
-	getAiringSchedule,
-	getCalendar,
-	getLatestReleases,
-	getSeries,
-	getSeriesEpisode,
-	getSeriesEpisodePage,
-	getSeriesEpisodes,
-	getSimilarSeries,
-	getUpcomingSeries,
 	getUpscaledBackdrop,
-	listSeriesImages,
 	listStudios,
 	listTags,
-	refreshSeriesImages,
-	requestBackdropUpscale,
-	setSeriesArtwork,
+	titles,
+	artwork,
+	upcoming,
+	upscales,
+	similar,
+	schedule,
 } from "@sora/core/series";
 import { day } from "@sora/shared";
 
@@ -28,7 +20,7 @@ import type { V1Env } from "../../errors";
 import { offsetLinks, pageMeta } from "../../openapi/envelope";
 import { contract } from "./contract";
 
-/** The browse filters of a `browseSeries` or `searchSeries` query. */
+/** The browse filters of a `titles.browse` or `searchSeries` query. */
 class BrowseFilters {
 	readonly #query: z.output<typeof contract.browseSeries.request.query>;
 
@@ -71,7 +63,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
 	.openapi(contract.browseSeries, async (c) => {
-		const page = await browseSeries(new BrowseFilters(c.req.valid("query")).query);
+		const page = await titles.browse(new BrowseFilters(c.req.valid("query")).query);
 		c.header("Cache-Control", "public, max-age=300");
 
 		return c.json(
@@ -86,7 +78,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	.openapi(contract.searchSeries, async (c) => {
 		const { q, ...filters } = c.req.valid("query");
 
-		const page = await browseSeries({
+		const page = await titles.browse({
 			...new BrowseFilters(filters).query,
 			search: q,
 		});
@@ -103,7 +95,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.getSeries, async (c) => {
-		const series = await getSeries(c.req.valid("param").series_id);
+		const series = await titles.get(c.req.valid("param").series_id);
 
 		if (!c.req.valid("query").episodes) {
 			c.header("Cache-Control", "public, max-age=300");
@@ -117,7 +109,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 			);
 		}
 
-		const episodes = await getSeriesEpisodes(series.id);
+		const episodes = await titles.episodes(series.id);
 		// Unknown audio is filled in once providers are looked up.
 		let cacheControl = "public, max-age=300";
 
@@ -142,7 +134,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	.openapi(contract.listImages, async (c) => {
 		const { type, language, sort } = c.req.valid("query");
 
-		const images = await listSeriesImages(c.req.valid("param").series_id, {
+		const images = await artwork.images(c.req.valid("param").series_id, {
 			languages: language,
 			sort,
 			types: type,
@@ -160,7 +152,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.refreshImages, async (c) => {
-		const images = await refreshSeriesImages(c.req.valid("param").series_id);
+		const images = await artwork.refreshImages(c.req.valid("param").series_id);
 
 		return c.json(
 			{
@@ -175,8 +167,8 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.upscaleBackdrop, async (c) => {
 		const { series_id: seriesId } = c.req.valid("param");
-		await requestBackdropUpscale(seriesId, c.req.valid("json").url);
-		const images = await listSeriesImages(seriesId);
+		await upscales.request(seriesId, c.req.valid("json").url);
+		const images = await artwork.images(seriesId);
 
 		return c.json(
 			{
@@ -206,7 +198,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.updateArtwork, async (c) => {
-		const series = await setSeriesArtwork(c.req.valid("param").series_id, c.req.valid("json"));
+		const series = await artwork.set(c.req.valid("param").series_id, c.req.valid("json"));
 
 		return c.json(
 			{
@@ -221,7 +213,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 		const { series_id } = c.req.valid("param");
 		const { offset = 0, limit } = c.req.valid("query");
 
-		const { episodes, total } = await getSeriesEpisodePage(series_id, {
+		const { episodes, total } = await titles.episodePage(series_id, {
 			limit: limit ?? Number.MAX_SAFE_INTEGER,
 			offset,
 		});
@@ -261,7 +253,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 		return c.json(
 			{
 				meta: {},
-				results: await getSeriesEpisode(series_id, episode),
+				results: await titles.episode(series_id, episode),
 			},
 			200,
 		);
@@ -326,7 +318,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 			until = new Date(query.until);
 		}
 
-		const episodes = await getAiringSchedule(from, until);
+		const episodes = await schedule.airing(from, until);
 		c.header("Cache-Control", "public, max-age=60");
 
 		return c.json(
@@ -344,7 +336,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.getCalendar, async (c) => {
 		const { time_zone, week } = c.req.valid("query");
-		const calendar = await getCalendar(time_zone, week);
+		const calendar = await schedule.calendar(time_zone, week);
 		c.header("Cache-Control", "public, max-age=60");
 
 		return c.json(
@@ -359,7 +351,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	.openapi(contract.listReleases, async (c) => {
 		const { per_page, ...filters } = c.req.valid("query");
 
-		const page = await getLatestReleases({
+		const page = await titles.latestReleases({
 			...filters,
 			perPage: per_page,
 		});
@@ -392,30 +384,30 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.listSimilarSeries, async (c) => {
-		const titles = await getSimilarSeries(c.req.valid("param").series_id);
+		const results = await similar.list(c.req.valid("param").series_id);
 		c.header("Cache-Control", "public, max-age=3600");
 
 		return c.json(
 			{
 				meta: {
-					count: titles.length,
+					count: results.length,
 				},
-				results: titles,
+				results,
 			},
 			200,
 		);
 	})
 
 	.openapi(contract.listUpcoming, async (c) => {
-		const titles = await getUpcomingSeries();
+		const results = await upcoming.list();
 		c.header("Cache-Control", "public, max-age=3600");
 
 		return c.json(
 			{
 				meta: {
-					count: titles.length,
+					count: results.length,
 				},
-				results: titles,
+				results,
 			},
 			200,
 		);

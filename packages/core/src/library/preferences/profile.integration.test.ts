@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { InvalidInputError } from "../../errors";
-import { getProfilePreferences, updateProfilePreferences } from "./profile";
+import { preferences } from "./preferences";
 
 describe("profile preferences", () => {
 	const profile = `preferences-test-${crypto.randomUUID()}`;
 
 	test("shows spoilers and sends every kind of notification until the profile chooses", async () => {
-		expect(await getProfilePreferences(profile)).toEqual({
+		expect(await preferences.profile(profile)).toEqual({
 			hide_spoilers: false,
 			notifications: {
 				dubs: true,
@@ -18,7 +18,7 @@ describe("profile preferences", () => {
 	});
 
 	test("changes one notification kind and leaves the others as they were", async () => {
-		const changed = await updateProfilePreferences(profile, {
+		const changed = await preferences.updateProfile(profile, {
 			notifications: {
 				episodes: false,
 			},
@@ -33,24 +33,24 @@ describe("profile preferences", () => {
 	});
 
 	test("keeps notification choices when another preference changes", async () => {
-		await updateProfilePreferences(profile, {
+		await preferences.updateProfile(profile, {
 			notifications: {
 				episodes: false,
 			},
 		});
 
-		const changed = await updateProfilePreferences(profile, {
+		const changed = await preferences.updateProfile(profile, {
 			hide_spoilers: true,
 		});
 
 		expect(changed.hide_spoilers).toBe(true);
 		expect(changed.notifications.episodes).toBe(false);
-		expect(await getProfilePreferences(profile)).toEqual(changed);
+		expect(await preferences.profile(profile)).toEqual(changed);
 	});
 
 	test("rejects invalid input in both the type contract and runtime schema", async () => {
 		await expect(
-			updateProfilePreferences(profile, {
+			preferences.updateProfile(profile, {
 				// @ts-expect-error the type contract must reject this non-boolean input
 				hide_spoilers: "yes",
 			}),

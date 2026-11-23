@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth } from "@sora/core/auth";
-import { isWebClientKey } from "@sora/core/playback";
+import { isWebKey } from "@sora/core/playback";
 import { except } from "hono/combine";
 import { createMiddleware } from "hono/factory";
 
@@ -84,9 +84,9 @@ api.use(
 	),
 );
 
-/** Answers 403 unless the request carries the web app's key; see {@link isWebClientKey}. */
+/** Answers 403 unless the request carries the web app's key; see {@link isWebKey}. */
 const webClient = createMiddleware<V1Env>(async (c, proceed) => {
-	if (!isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
+	if (!isWebKey(c.req.header("X-Sora-Client-Key"))) {
 		return sendProblem(c, 403, "FORBIDDEN", "Media is only served to the Sora web app");
 	}
 

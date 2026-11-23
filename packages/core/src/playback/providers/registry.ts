@@ -11,7 +11,7 @@ import { transport } from "./transport";
  * Shared HTTP client for every scraper, so per-host rate limits and retries
  * apply across all requests from this process.
  */
-export const providerHttp = new HttpClient({
+export const http = new HttpClient({
 	rateLimits: {
 		// AniKoto's API allows 60 requests per server in fixed two-minute windows
 		// (its x-ratelimit-reset falls on even minutes), and sends 429 with a
@@ -38,7 +38,7 @@ export const providerHttp = new HttpClient({
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
-const mappingClient = new MappingClient(providerHttp, {
+const mappingClient = new MappingClient(http, {
 	// Anify's API redirects to itself, so every lookup spent about 15s failing
 	// before the mapping fell through to the other sources.
 	disableAnify: true,
@@ -64,7 +64,7 @@ export const isServedSubtitle = (track: { language: string; label: string }) => 
 
 /** AniKoto, which playback tries first, and which decides what episodes seasons list. */
 export const aniKoto = recorded(
-	new AniKoto(providerHttp, {
+	new AniKoto(http, {
 		listsLanguages: true,
 		locale: "en",
 	}),
@@ -77,20 +77,20 @@ export const aniKoto = recorded(
  * break without notice, so playback falls through the rest in turn, and every
  * call is recorded in `provider_calls` to show when one has broken.
  */
-export const streamProviders: readonly StreamProvider[] = [
+export const providers: readonly StreamProvider[] = [
 	aniKoto,
 	...[
-		new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
+		new SdkStreamProvider(new AnimeParadiseProvider(http), mappingClient, {
 			listsLanguages: true,
 			locale: "en",
 		}),
 		// MegaPlay's lists are made up from AniList's episode count and claim sub
 		// and dub for every episode.
-		new MegaPlay(providerHttp, mappingClient, {
+		new MegaPlay(http, mappingClient, {
 			listsLanguages: false,
 			locale: "en",
 		}),
-		new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
+		new SdkStreamProvider(new AllmangaProvider(http), mappingClient, {
 			listsLanguages: true,
 			locale: "en",
 		}),

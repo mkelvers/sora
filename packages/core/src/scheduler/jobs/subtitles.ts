@@ -3,18 +3,18 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { config } from "../../config";
-import { EpisodeNotFoundError, SeriesNotFoundError } from "../../errors";
+import { UnknownEpisodeError, UnknownSeriesError } from "../../errors";
 import { probeSubtitleLanguages } from "../../playback/streams/resolve";
 import { recordSubtitleLanguages } from "../../playback/streams/subtitle-languages";
 import { SubtitleRefinementError } from "../../playback/subtitles/audio";
-import { listenToDub } from "../../playback/subtitles/listen";
+import { hearDub } from "../../playback/subtitles/listen";
 import { getRefinement, isRefinementDue, saveRefinement } from "../../playback/subtitles/store";
 import { parseInput } from "../payload";
 
 /**
  * Times the sub's subtitles to when the dub's characters speak, by
  * transcribing the dub's audio, and stores where each cue goes; see
- * `listenToDub`. Playback uses it from then on. A dub that does not speak
+ * `hearDub`. Playback uses it from then on. A dub that does not speak
  * the sub's script is recorded as such and tried again in a week.
  */
 export const refineCues: Task = async (payload) => {
@@ -35,7 +35,7 @@ export const refineCues: Task = async (payload) => {
 		return;
 	}
 
-	const refinement = await listenToDub(
+	const refinement = await hearDub(
 		{
 			episode,
 			seriesId,
@@ -64,11 +64,11 @@ export const probeLanguages: Task = async (payload, helpers) => {
 			episode: 1,
 			seriesId,
 		}),
-		EpisodeNotFoundError,
-		SeriesNotFoundError,
+		UnknownEpisodeError,
+		UnknownSeriesError,
 	);
 
-	if (error instanceof EpisodeNotFoundError) {
+	if (error instanceof UnknownEpisodeError) {
 		await recordSubtitleLanguages(seriesId, []);
 	}
 

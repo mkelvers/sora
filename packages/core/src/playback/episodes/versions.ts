@@ -1,21 +1,21 @@
 import { attempt } from "@sora/shared";
 
-import { getAnime } from "../../catalog/queries/anime";
-import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
+import { catalog } from "../../catalog/queries/anime";
+import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { InFlight } from "../../in-flight";
 import type { ContentLanguage } from "../../models/series";
 import { scheduleEpisodeLookups } from "../../scheduler/queue";
-import { anilistEpisodeKey } from "../../series/episodes";
+import { anilistKey } from "../../series/episodes";
 import type { LocatedEpisode } from "../../series/episodes";
 import type { StreamProvider } from "../providers/provider";
-import { servedLocale, streamProviders } from "../providers/registry";
+import { servedLocale, providers } from "../providers/registry";
 import { getProviderUnits, getStoredLanguages, getStoredUnits } from "./episodes";
 import type { ProviderUnit, StoredUnits } from "./episodes";
 
 /** What listing versions reads, asks, and queues through; tests pass their own. */
 export interface VersionDependencies {
 	providers: readonly StreamProvider[];
-	getAnime: typeof getAnime;
+	getAnime: typeof catalog.anime;
 	getStoredLanguages: typeof getStoredLanguages;
 	getStoredUnits: typeof getStoredUnits;
 	getProviderUnits: typeof getProviderUnits;
@@ -23,11 +23,11 @@ export interface VersionDependencies {
 }
 
 const live: VersionDependencies = {
-	getAnime,
+	getAnime: catalog.anime,
 	getProviderUnits,
 	getStoredLanguages,
 	getStoredUnits,
-	providers: streamProviders,
+	providers,
 	scheduleEpisodeLookups,
 };
 
@@ -217,7 +217,7 @@ class Listings {
 		return Listings.#inFlight.run(anilistId, async () => {
 			const anime = await attempt(
 				this.#dependencies.getAnime(anilistId),
-				AnimeNotFoundError,
+				UnknownAnimeError,
 				UpstreamUnavailableError,
 			);
 
@@ -313,10 +313,10 @@ export interface EpisodeListing {
  * none of the looked-up providers offers while others are not looked up yet:
  * it is unknown rather than unwatchable.
  *
- * @returns Listings keyed by {@link anilistEpisodeKey}, with `null` fields
+ * @returns Listings keyed by {@link anilistKey}, with `null` fields
  *   for an episode that is not known yet.
  */
-export const findEpisodeListings = async (
+export const findListings = async (
 	episodes: readonly {
 		anilistId: number;
 		episode: number;
@@ -337,7 +337,7 @@ export const findEpisodeListings = async (
 		const listings = listed?.listings.filter(({ unit }) => unit.number === episode) ?? [];
 		const versions = offered(listings);
 		const isKnown = !!listed && !(versions.length === 0 && listed.pending);
-		const key = anilistEpisodeKey(anilistId, episode);
+		const key = anilistKey(anilistId, episode);
 
 		if (!isKnown) {
 			found.set(key, {

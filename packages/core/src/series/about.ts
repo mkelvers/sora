@@ -2,7 +2,7 @@ import type { Anime } from "../catalog/models/anime";
 import type { AgeRating } from "../database/schema/playback";
 import type { TitleAward } from "../database/schema/series";
 import type { ContentLanguage } from "../models/series";
-import { languageName } from "../playback/streams/subtitle-languages";
+import { LanguageTag } from "../playback/streams/subtitle-languages";
 
 /** What a title's about section is made of, as stored. */
 export interface AboutSources {
@@ -259,7 +259,7 @@ export class About {
 		this.#sources = sources;
 	}
 
-	/** The section; see `SeriesSchema`. */
+	/** The section; see `DetailSchema`. */
 	get section() {
 		return {
 			audio_languages: this.#audioLanguages,
@@ -317,13 +317,13 @@ export class About {
 			tags.push("en");
 		}
 
-		return [...new Set(tags.flatMap((tag) => languageName(tag) ?? []))];
+		return [...new Set(tags.flatMap((tag) => new LanguageTag(tag).name ?? []))];
 	}
 
 	/** English first, then the rest by name; tags that name no language are left out. */
 	get #subtitleLanguages() {
 		const named = this.#sources.subtitles.flatMap((tag) => {
-			const name = languageName(tag);
+			const { name } = new LanguageTag(tag);
 
 			if (name) {
 				return [

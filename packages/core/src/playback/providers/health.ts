@@ -5,7 +5,7 @@ import { db } from "../../database/client";
 import { providerCalls } from "../../database/schema/playback";
 import { OperationSchema } from "./calls";
 import type { ProviderOperation } from "./calls";
-import { streamProviders } from "./registry";
+import { providers } from "./registry";
 
 /**
  * A provider that is being called but has had no successful call for this
@@ -55,7 +55,7 @@ export interface ProviderHealth {
 	operations: OperationSummary[];
 }
 
-/** What {@link getProviderHealth} reads for one provider operation. */
+/** What {@link statusReport} reads for one provider operation. */
 export interface OperationRow {
 	provider: string;
 	operation: string;
@@ -152,7 +152,7 @@ export const summarize = (
  * How each stream provider has been doing, in the order playback tries them,
  * from what `provider_calls` recorded.
  */
-export const getProviderHealth = async (now = new Date()): Promise<ProviderHealth[]> => {
+export const statusReport = async (now = new Date()): Promise<ProviderHealth[]> => {
 	/** Calls are summarized over this window. */
 	const summaryWindowMs = day;
 
@@ -201,7 +201,7 @@ export const getProviderHealth = async (now = new Date()): Promise<ProviderHealt
 		.groupBy(providerCalls.provider, providerCalls.operation);
 
 	return summarize(
-		streamProviders.map((provider) => provider.id),
+		providers.map((provider) => provider.id),
 		rows,
 		now,
 	);

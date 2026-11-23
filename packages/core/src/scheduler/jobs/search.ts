@@ -1,15 +1,15 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import { and, desc, eq, gte, notExists, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { currentSeason, nextSeason } from "../../catalog/queries/browse";
-import { syncSearchIndex } from "../../catalog/queries/search";
+import { syncAnime } from "../../catalog/queries/search";
 import { config } from "../../config";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series } from "../../database/schema/series";
-import { carriedByAniKoto } from "../../series/episodes";
+import { aniKotoCarries } from "../../series/episodes";
 import { parseInput } from "../payload";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
@@ -40,7 +40,7 @@ export const syncIndex: Task = async (rawPayload, helpers) => {
 		rawPayload,
 	);
 
-	const { pages, stored } = await syncSearchIndex({
+	const { pages, stored } = await syncAnime({
 		full: payload?.full === true,
 	});
 
@@ -110,14 +110,14 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 						and(eq(animeSearch.season, season.season), eq(animeSearch.seasonYear, season.year)),
 					),
 				),
-				carriedByAniKoto,
+				aniKotoCarries,
 				notExists(db.select().from(series).where(eq(series.anilistId, animeSearch.anilistId))),
 				sql`not exists (select 1 from graphile_worker.jobs where jobs.key = 'series:' || ${animeSearch.anilistId})`,
 			),
 		)
 		.orderBy(desc(animeSearch.popularity));
 
-	await inSequence(seasonal, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
+	await sequence.all(seasonal, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
 
 	if (seasonal.length > 0) {
 		helpers.logger.info(
@@ -156,7 +156,7 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 		.orderBy(desc(animeSearch.popularity))
 		.limit(room);
 
-	await inSequence(rows, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
+	await sequence.all(rows, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
 
 	if (rows.length > 0) {
 		helpers.logger.info(`Queued ${rows.length} popular entries to store their series`);

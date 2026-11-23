@@ -1,4 +1,4 @@
-import { attempt, day, hour, minute, inSequence } from "@sora/shared";
+import { attempt, day, hour, minute, sequence } from "@sora/shared";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
@@ -11,13 +11,13 @@ import { config } from "../../config";
 import { db } from "../../database/client";
 import { animeSearch, tmdbResponse } from "../../database/schema/catalog";
 import { providerEpisodes } from "../../database/schema/playback";
-import { series, seriesEpisode, tmdbMapping } from "../../database/schema/series";
-import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
+import { series, titleEpisode, tmdbMapping } from "../../database/schema/series";
+import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
-import { episodeReleasedAt } from "../../series/episodes";
-import { expireMapping } from "../../series/mapping";
-import { storedSeriesIds, storeSeries } from "../../series/store";
+import { releaseTime } from "../../series/episodes";
+import { mappings } from "../../series/mapping";
+import { store } from "../../series/store";
 import { editsWindowMs, getShow, withEdits } from "../../tmdb/resources";
 import { withChoices } from "../../tmdb/stills";
 import { parseInput } from "../payload";
@@ -58,7 +58,7 @@ export const storeEntry: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const { data, error } = await attempt(storeSeries(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(store.save(anilistId), UnknownAnimeError);
 
 	if (error) {
 		// Searches queue every entry they find that is not stored, so an entry
@@ -128,7 +128,7 @@ export const discoverEntries: Task = async (_payload, helpers) => {
 			return [];
 		});
 
-		const stored = await storedSeriesIds([
+		const stored = await store.ids([
 			...entries.map((entry) => entry.id),
 			...entries.flatMap((entry) => idsRelatedBy(entry, franchiseRelations)),
 		]);
@@ -150,7 +150,7 @@ export const discoverEntries: Task = async (_payload, helpers) => {
 			return !stored.has(entry.id) && isWanted;
 		});
 
-		await inSequence(wanted, (entry) => scheduleSeriesStore(entry.id, "backfill"));
+		await sequence.all(wanted, (entry) => scheduleSeriesStore(entry.id, "backfill"));
 
 		const queuedNow = queuedSoFar + wanted.length;
 
@@ -168,20 +168,20 @@ export const discoverEntries: Task = async (_payload, helpers) => {
 	}
 };
 
-/** Whether AniKoto carries a stored episode, which a series lists it for (see `isEpisodeAvailable`). */
+/** Whether AniKoto carries a stored episode, which a series lists it for (see `isAvailable`). */
 const onAniKoto = sql`exists (
     select 1
     from ${providerEpisodes}, jsonb_array_elements(${providerEpisodes.units}) as unit
     where ${providerEpisodes.anilistId} = ${series.anilistId}
       and ${providerEpisodes.provider} = ${aniKoto.id}
-      and (unit ->> 'number')::numeric = ${seriesEpisode.number}
+      and (unit ->> 'number')::numeric = ${titleEpisode.number}
   )`;
 
 /** Whether a stored episode aired within the time TMDB's change log of it is read for. */
-const airedLately = sql`${episodeReleasedAt} between now() - make_interval(secs => ${editsWindowMs / 1000}) and now()`;
+const airedLately = sql`${releaseTime} between now() - make_interval(secs => ${editsWindowMs / 1000}) and now()`;
 
 /** Whether a stored episode has no title, or only TMDB's "Episode N". */
-const isUnnamed = sql`(${seriesEpisode.title} is null or ${seriesEpisode.title} ~* '^episode [0-9]+$')`;
+const isUnnamed = sql`(${titleEpisode.title} is null or ${titleEpisode.title} ~* '^episode [0-9]+$')`;
 
 /** The graphile-worker task that fills in details TMDB added after an episode aired. */
 export const refreshDetailsTask = "refresh-episode-details";
@@ -230,11 +230,11 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
     select
       ${series.id} as series_id,
       substring(${series.key} from '[0-9]+$')::int as show_id,
-      ${seriesEpisode.tmdbSeasonNumber} as season_number,
-      ${seriesEpisode.tmdbEpisodeNumber} as episode_number,
-      (extract(epoch from now() - ${episodeReleasedAt}) * 1000)::float8 as missing_for_ms
-    from ${seriesEpisode}
-    inner join ${series} on ${series.id} = ${seriesEpisode.seriesId}
+      ${titleEpisode.tmdbSeasonNumber} as season_number,
+      ${titleEpisode.tmdbEpisodeNumber} as episode_number,
+      (extract(epoch from now() - ${releaseTime}) * 1000)::float8 as missing_for_ms
+    from ${titleEpisode}
+    inner join ${series} on ${series.id} = ${titleEpisode.seriesId}
     left join lateral (
       select
         earlier.number,
@@ -244,22 +244,22 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
       from series_episode as earlier
       where earlier.series_id = ${series.id}
         and earlier.tmdb_episode_number is not null
-        and earlier.number < ${seriesEpisode.number}
+        and earlier.number < ${titleEpisode.number}
       order by earlier.number desc
       limit 1
     ) as previous on true
     where ${series.key} ~ '^(tv|shorts):[0-9]+$'
-      and ${seriesEpisode.tmdbEpisodeNumber} is not null
+      and ${titleEpisode.tmdbEpisodeNumber} is not null
       and ${airedLately}
       and (
         (${isUnnamed} and coalesce(previous.is_named, true))
-        or (${seriesEpisode.overview} is null and (previous.number is null or previous.overview is not null))
-        or (${seriesEpisode.stillUrl} is null and (previous.number is null or previous.still_url is not null))
+        or (${titleEpisode.overview} is null and (previous.number is null or previous.overview is not null))
+        or (${titleEpisode.stillUrl} is null and (previous.number is null or previous.still_url is not null))
       )
       and ${onAniKoto}
   `);
 
-	const copied = await inSequence(
+	const copied = await sequence.all(
 		[...Map.groupBy(awaited, (episode) => episode.series_id)],
 		async ([seriesId, episodes]) => {
 			const showId = episodes[0]?.show_id;
@@ -395,9 +395,9 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     limit 50
   `);
 
-	await inSequence([...staleMappings], async (row) => {
+	await sequence.all([...staleMappings], async (row) => {
 		if (row.retry_match) {
-			await expireMapping(row.anilist_id);
+			await mappings.expire(row.anilist_id);
 		}
 
 		await scheduleRefresh(row.anilist_id);
@@ -405,12 +405,12 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 
 	const unlisted = sql`(
     ${series.kind} = 'tv'
-    and ${seriesEpisode.tmdbEpisodeNumber} is null
+    and ${titleEpisode.tmdbEpisodeNumber} is null
   )`;
 
 	const lacksDetails = sql`(
     ${airedLately}
-    and (${isUnnamed} or ${seriesEpisode.overview} is null or ${seriesEpisode.stillUrl} is null)
+    and (${isUnnamed} or ${titleEpisode.overview} is null or ${titleEpisode.stillUrl} is null)
   )`;
 
 	const rows = await db.execute(sql`
@@ -419,12 +419,12 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
       ${series.key} as key,
       ${series.anilistId} as anilist_id,
       bool_or(${unlisted}) as is_unlisted,
-      (extract(epoch from now() - max(${episodeReleasedAt}) filter (where ${unlisted})) * 1000)::float8 as unlisted_for_ms,
+      (extract(epoch from now() - max(${releaseTime}) filter (where ${unlisted})) * 1000)::float8 as unlisted_for_ms,
       bool_or(${lacksDetails}) as lacks_details,
-      (extract(epoch from now() - max(${episodeReleasedAt}) filter (where ${lacksDetails})) * 1000)::float8 as lacking_for_ms,
+      (extract(epoch from now() - max(${releaseTime}) filter (where ${lacksDetails})) * 1000)::float8 as lacking_for_ms,
       (extract(epoch from now() - ${series.laidOutAt}) * 1000)::float8 as laid_out_for_ms
-    from ${seriesEpisode}
-    inner join ${series} on ${series.id} = ${seriesEpisode.seriesId}
+    from ${titleEpisode}
+    inner join ${series} on ${series.id} = ${titleEpisode.seriesId}
     where (${unlisted} or ${lacksDetails})
       and ${onAniKoto}
     group by ${series.id}
@@ -465,7 +465,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 
 	const fetchedAt = new Map(fetchedRows.map(({ path, at }) => [path, at.getTime()] as const));
 
-	const outcomes = await inSequence(behind, async (row) => {
+	const outcomes = await sequence.all(behind, async (row) => {
 		const showId = showIds.get(row.series_id);
 
 		if (showId === undefined) {

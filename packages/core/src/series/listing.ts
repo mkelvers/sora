@@ -1,6 +1,6 @@
 import type { series } from "../database/schema/series";
 import type { EpisodeListingRow, AniKotoEpisodes } from "./episodes";
-import { isEpisodeAvailable } from "./episodes";
+import { isAvailable } from "./episodes";
 
 /** Which episodes some titles list, given what AniKoto carries of them. */
 export class Listing {
@@ -12,7 +12,7 @@ export class Listing {
 		this.#onAniKoto = onAniKoto;
 	}
 
-	/** The rows each title lists (see {@link isEpisodeAvailable}), grouped by series ID. */
+	/** The rows each title lists (see {@link isAvailable}), grouped by series ID. */
 	keep<TRow extends EpisodeListingRow & { seriesId: string }>(rows: readonly TRow[]) {
 		const now = new Date();
 		const grouped = Map.groupBy(rows, (row) => row.seriesId);
@@ -21,7 +21,7 @@ export class Listing {
 			this.#titles.map((title) => [
 				title.id,
 				(grouped.get(title.id) ?? []).filter((row) =>
-					isEpisodeAvailable(title, row, this.#onAniKoto, now),
+					isAvailable(title, row, this.#onAniKoto, now),
 				),
 			]),
 		);

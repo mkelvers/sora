@@ -6,8 +6,8 @@ import { eq } from "drizzle-orm";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { episodeDub } from "../../database/schema/playback";
-import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
-import { getNotifications } from "./notifications";
+import { series, titleEpisode, titleRelation } from "../../database/schema/series";
+import { notifications } from "./notifications";
 
 describe("notifications across seasons", () => {
 	const profile = `notification-test-${crypto.randomUUID()}`;
@@ -35,7 +35,7 @@ describe("notifications across seasons", () => {
 				title: `Notification test ${index}`,
 			})),
 		);
-		await db.insert(seriesRelated).values([
+		await db.insert(titleRelation).values([
 			{
 				anilistId: defined(anilistIds[1]),
 				position: 0,
@@ -55,7 +55,7 @@ describe("notifications across seasons", () => {
 				seriesId: first,
 			},
 		]);
-		await db.insert(seriesEpisode).values([
+		await db.insert(titleEpisode).values([
 			{
 				airedAt: new Date(now.getTime() - 40 * day),
 				number: 1,
@@ -99,7 +99,7 @@ describe("notifications across seasons", () => {
 			userId: profile,
 			watchedAt: followedAt,
 		});
-		const result = await getNotifications(profile, {}, now);
+		const result = await notifications.list(profile, {}, now);
 		expect(result.items.map((item) => item.id).toSorted()).toEqual(
 			[`${second}:1`, `${second}:2`, `${second}:2:dub`, `${third}:2`].toSorted(),
 		);
@@ -114,7 +114,7 @@ describe("notifications across seasons", () => {
 			statusChangedAt: followedAt,
 			userId: profile,
 		});
-		const result = await getNotifications(profile, {}, now);
+		const result = await notifications.list(profile, {}, now);
 		expect(result.items.some((item) => item.id === `${second}:2`)).toBe(true);
 		expect(result.items.some((item) => item.id === `${second}:2:dub`)).toBe(true);
 		expect(result.items.some((item) => item.series.id === spinOff)).toBe(false);
@@ -133,7 +133,7 @@ describe("notifications across seasons", () => {
 			episode: 1,
 			releasedAt,
 		});
-		const result = await getNotifications(profile, {}, now);
+		const result = await notifications.list(profile, {}, now);
 		const dubbed = result.items.find((item) => item.id === `${first}:1:dub`);
 		expect(dubbed?.series.episode_count).toBe(1);
 		expect(dubbed?.first_episode).toBe(1);
@@ -156,8 +156,8 @@ describe("notifications across seasons", () => {
 			statusChangedAt: now,
 			userId: profile,
 		});
-		const notifications = await getNotifications(profile, {}, now);
-		expect(notifications.items.some((item) => item.id === `${second}:2`)).toBe(true);
+		const listed = await notifications.list(profile, {}, now);
+		expect(listed.items.some((item) => item.id === `${second}:2`)).toBe(true);
 	});
 
 	test("a later watchlist addition keeps the earlier follow cutoff for its season", async () => {
@@ -177,8 +177,8 @@ describe("notifications across seasons", () => {
 				userId: profile,
 			},
 		]);
-		const notifications = await getNotifications(profile, {}, now);
-		expect(notifications.items.some((item) => item.id === `${second}:2`)).toBe(true);
+		const listed = await notifications.list(profile, {}, now);
+		expect(listed.items.some((item) => item.id === `${second}:2`)).toBe(true);
 	});
 
 	test("dropping a watched entry prevents it from starting a follow", async () => {
@@ -198,7 +198,7 @@ describe("notifications across seasons", () => {
 			statusChangedAt: now,
 			userId: profile,
 		});
-		expect(await getNotifications(profile, {}, now)).toEqual({
+		expect(await notifications.list(profile, {}, now)).toEqual({
 			items: [],
 			unread: 0,
 		});
@@ -221,7 +221,7 @@ describe("notifications across seasons", () => {
 				userId: profile,
 			},
 		]);
-		const result = await getNotifications(profile, {}, now);
+		const result = await notifications.list(profile, {}, now);
 		expect(result.items.map((item) => item.id)).toEqual([`${third}:2`]);
 	});
 
@@ -240,7 +240,7 @@ describe("notifications across seasons", () => {
 			status: "NOT_YET_RELEASED",
 			title: "Notification test announced",
 		});
-		await db.insert(seriesRelated).values({
+		await db.insert(titleRelation).values({
 			anilistId: defined(anilistIds[2]),
 			position: 0,
 			relation: "PREQUEL",
@@ -263,7 +263,7 @@ describe("notifications across seasons", () => {
 	test("an announced sequel notifies until it starts", async () => {
 		await completeFirst();
 		const announced = await announce(releasedAt);
-		const result = await getNotifications(profile, {}, now);
+		const result = await notifications.list(profile, {}, now);
 		expect(result.items.find((item) => item.series.id === announced)).toMatchObject({
 			first_episode: null,
 			id: `${announced}:announced`,
@@ -275,14 +275,14 @@ describe("notifications across seasons", () => {
 		});
 
 		await db.update(series).set({ status: "RELEASING" }).where(eq(series.id, announced));
-		const started = await getNotifications(profile, {}, now);
+		const started = await notifications.list(profile, {}, now);
 		expect(started.items.some((item) => item.kind === "announced")).toBe(false);
 	});
 
 	test("an announcement stored before the follow does not notify", async () => {
 		await completeFirst();
 		await announce(new Date(followedAt.getTime() - day));
-		const result = await getNotifications(profile, {}, now);
+		const result = await notifications.list(profile, {}, now);
 		expect(result.items.some((item) => item.kind === "announced")).toBe(false);
 	});
 
@@ -296,7 +296,7 @@ describe("notifications across seasons", () => {
 			statusChangedAt: now,
 			userId: profile,
 		});
-		const result = await getNotifications(profile, {}, now);
+		const result = await notifications.list(profile, {}, now);
 		expect(result.items.some((item) => item.kind === "announced")).toBe(false);
 	});
 
@@ -310,7 +310,7 @@ describe("notifications across seasons", () => {
 			userId: profile,
 			watchedAt: now,
 		});
-		expect(await getNotifications(profile, {}, now)).toEqual({
+		expect(await notifications.list(profile, {}, now)).toEqual({
 			items: [],
 			unread: 0,
 		});

@@ -1,12 +1,12 @@
 import { attempt, hour } from "@sora/shared";
 
 import { config } from "../../config";
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { rewrite } from "./playlist";
 import { readahead } from "./readahead";
 import { Resource } from "./resource";
-import { signStreamTarget, verify } from "./token";
+import { StreamToken } from "./token";
 import type { StreamTarget, StreamTargetKind } from "./token";
 import { fetchTarget, mirrorsFor, readTarget } from "./upstream";
 import { StreamUpstreamError } from "./upstream-error";
@@ -20,7 +20,7 @@ import { StreamUpstreamError } from "./upstream-error";
 export const tokenLifetimeMs = 6 * hour;
 
 /**
- * Issues a token that lets an account fetch `url` through {@link proxyStream}.
+ * Issues a token that lets an account fetch `url` through {@link serveStream}.
  *
  * Clients never see the upstream URL or headers: the token is opaque and the
  * proxy applies them.
@@ -43,20 +43,17 @@ export const createStreamToken = (
 		refinement?: string;
 	},
 ) =>
-	signStreamTarget(
-		{
-			accountId,
-			audio,
-			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
-			headers,
-			kind,
-			mirrors,
-			refinement,
-			shifts,
-			url,
-		},
-		config.streamSigningSecret,
-	);
+	new StreamToken(config.streamSigningSecret).sign({
+		accountId,
+		audio,
+		expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
+		headers,
+		kind,
+		mirrors,
+		refinement,
+		shifts,
+		url,
+	});
 
 /**
  * Whether the proxy could serve `url`, from its own host or a mirror. A host
@@ -307,11 +304,11 @@ export const warmStream = async (
  *
  * `Range` is forwarded so players can seek in progressive files.
  *
- * @throws {InvalidStreamTokenError} for a forged, malformed, or expired
+ * @throws {StreamTokenError} for a forged, malformed, or expired
  *   token, or one issued to another account.
  * @throws {StreamUpstreamError} when the upstream and its mirrors fail.
  */
-export const proxyStream = async (
+export const serveStream = async (
 	token: string,
 	request: {
 		/** The signed-in account asking; the token must have been issued to it. */
@@ -320,10 +317,10 @@ export const proxyStream = async (
 		signal?: AbortSignal;
 	},
 ): Promise<Response> => {
-	const target = verify(token, config.streamSigningSecret);
+	const target = new StreamToken(config.streamSigningSecret).verify(token);
 
 	if (target.accountId !== request.accountId) {
-		throw new InvalidStreamTokenError("Stream token was issued to another account");
+		throw new StreamTokenError("Stream token was issued to another account");
 	}
 
 	const resource = new Resource(target);

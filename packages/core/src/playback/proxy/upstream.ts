@@ -1,4 +1,4 @@
-import { attempt, defined, firstInSequence, second } from "@sora/shared";
+import { attempt, defined, second, sequence } from "@sora/shared";
 import type { Attempt } from "@sora/shared";
 
 import { Hops } from "./hops";
@@ -45,7 +45,7 @@ export const fetchTarget = async (
 		return primary.data;
 	}
 
-	const fallback = await firstInSequence(target.mirrors, async (mirror) => {
+	const fallback = await sequence.first(target.mirrors, async (mirror) => {
 		const result = await attempt(hops.follow(mirror), StreamUpstreamError);
 
 		if (result.error) {

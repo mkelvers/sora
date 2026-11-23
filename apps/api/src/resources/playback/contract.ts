@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { PlaybackMediaSchema } from "@sora/core/models/playback";
+import { MediaSchema } from "@sora/core/models/playback";
 
 import { envelope } from "../../openapi/envelope";
 import { json, PlaybackMeta, problem, EpisodeParams } from "../../openapi/schemas";
@@ -18,7 +18,7 @@ export const contract = {
 		responses: {
 			200: json(
 				envelope(
-					z.array(PlaybackMediaSchema).openapi({
+					z.array(MediaSchema).openapi({
 						description:
 							"Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out. A sub carries every subtitle language its provider has, English first, and always has English: as a track, or burned into the picture when `hardsub` is true. A dub carries the sub's WebVTT tracks retimed to its own encode, when the two encodes can be aligned. Raw has none.",
 					}),

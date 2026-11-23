@@ -1279,7 +1279,7 @@ export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Pla
  * Consecutive numbered parts may combine when AniList combines their count.
  * Conflicting arrangements stay unresolved instead of choosing an order.
  */
-export const placeInEpisodeGroups = (
+export const placeInGroups = (
 	source: MatchSubject,
 	show: Pick<TmdbShow, "id" | "episodes">,
 	arrangements: readonly (readonly TmdbEpisodeGroup[])[],
@@ -1450,7 +1450,7 @@ export const placeAsMovie = (
  * @param prequelId - The TMDB movie the subject's direct prequel maps to.
  * @param parts - The films of the prequel's collection.
  */
-export const placeAfterInCollection = (
+export const placeAfterPrequel = (
 	subject: MatchSubject,
 	prequelId: number,
 	parts: readonly TmdbMovieResult[],

@@ -4,7 +4,7 @@ import { rewrite, withDefaultAudio } from "./playlist";
 import { readahead } from "./readahead";
 import { isDisguised, unwrapDisguised } from "./segment";
 import { cleanWebVtt, retimeWebVtt } from "./subtitle";
-import { signStreamTarget } from "./token";
+import { StreamToken } from "./token";
 import type { StreamTarget } from "./token";
 import { fetchTarget, mirrorsFor, readTarget } from "./upstream";
 import { StreamUpstreamError } from "./upstream-error";
@@ -81,7 +81,7 @@ export class Resource {
 				segments.push(child);
 			}
 
-			return signStreamTarget(child, config.streamSigningSecret);
+			return new StreamToken(config.streamSigningSecret).sign(child);
 		});
 
 		readahead.remember(segments);

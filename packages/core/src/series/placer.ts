@@ -1,10 +1,10 @@
-import { firstInSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 
 import {
 	getCollectionParts,
 	getMovie,
 	getShow,
-	getShowEpisodeGroups,
+	getEpisodeGroups,
 	searchMovies,
 	searchShows,
 } from "../tmdb/resources";
@@ -13,10 +13,10 @@ import type { TmdbMapping } from "./mapping";
 import { mappedEpisodes } from "./mapping";
 import {
 	bestSimilarity,
-	placeAfterInCollection,
+	placeAfterPrequel,
 	placeAsMovie,
 	placeInShow,
-	placeInEpisodeGroups,
+	placeInGroups,
 } from "./matching";
 import type { MatchSubject, Placement, PrequelRun, ShowCandidate } from "./matching";
 
@@ -136,7 +136,7 @@ export class Placer {
 
 		// Search results leave out runtimes, which tell a bonus short from the
 		// film it was released with, so the best are checked against the details.
-		const confirmed = await firstInSequence(
+		const confirmed = await sequence.first(
 			[...placements].toSorted(([, left], [, right]) => right.score - left.score),
 			async ([movieId]) => {
 				const movie = await getMovie(movieId);
@@ -150,7 +150,7 @@ export class Placer {
 
 	/** Places a sequel film after the film its prequel maps to, in that film's TMDB collection. */
 	async #collection() {
-		const placement = await firstInSequence(this.#predecessors, async ({ relation, mapping }) => {
+		const placement = await sequence.first(this.#predecessors, async ({ relation, mapping }) => {
 			if (relation !== "PREQUEL" || mapping.mediaType !== "movie") {
 				return null;
 			}
@@ -166,7 +166,7 @@ export class Placer {
 				return null;
 			}
 
-			return placeAfterInCollection(
+			return placeAfterPrequel(
 				this.#subject,
 				mapping.tmdbId,
 				await getCollectionParts(collectionId),
@@ -241,7 +241,7 @@ export class Placer {
 			[...candidates.keys()].map(async (showId) => {
 				const [show, episodeGroups] = await Promise.all([
 					getShow(showId),
-					getShowEpisodeGroups(showId),
+					getEpisodeGroups(showId),
 				]);
 
 				return {
@@ -263,7 +263,7 @@ export class Placer {
 			const { show, episodeGroups } = loaded;
 
 			const placement =
-				placeInEpisodeGroups(subject, show, episodeGroups) ??
+				placeInGroups(subject, show, episodeGroups) ??
 				placeInShow(subject, {
 					show,
 					...candidate,

@@ -1,4 +1,4 @@
-import { defined, inSequence } from "@sora/shared";
+import { defined, sequence } from "@sora/shared";
 import { and, asc, eq, gte, inArray, lt, lte, max, or, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -6,8 +6,8 @@ import { animeSearch, animeTrend } from "../../database/schema/catalog";
 import { featuredPick, seriesState } from "../../database/schema/library";
 import {
 	series,
-	seriesEpisode,
-	seriesRelated,
+	titleEpisode,
+	titleRelation,
 	titleArtwork,
 	titleBackdropUpscale,
 	titleImage,
@@ -236,8 +236,8 @@ class Picker {
 					key: series.key,
 				})
 				.from(series)
-				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
-				.where(eq(seriesRelated.relation, "PARENT")),
+				.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
+				.where(eq(titleRelation.relation, "PARENT")),
 		]);
 
 		const current = entries.filter((entry) => isCurrent(entry, now));
@@ -247,7 +247,7 @@ class Picker {
 			.toSorted((a, b) => b.popularity - a.popularity)
 			.slice(0, backfillPerPick);
 
-		await inSequence(unstored, ({ anilistId }) => scheduleSeriesStore(anilistId, "backfill"));
+		await sequence.all(unstored, ({ anilistId }) => scheduleSeriesStore(anilistId, "backfill"));
 
 		// The seasons of a show are matched to one TMDB title, which names the show.
 		const skipped = new Set([...longRunning, ...spinOffs].map((row) => row.key));
@@ -323,12 +323,12 @@ class Picker {
 
 		const rows = await db
 			.select({
-				lastAiredAt: max(seriesEpisode.airedAt),
-				seriesId: seriesEpisode.seriesId,
+				lastAiredAt: max(titleEpisode.airedAt),
+				seriesId: titleEpisode.seriesId,
 			})
-			.from(seriesEpisode)
-			.where(and(inArray(seriesEpisode.seriesId, [...seriesIds]), lte(seriesEpisode.airedAt, now)))
-			.groupBy(seriesEpisode.seriesId);
+			.from(titleEpisode)
+			.where(and(inArray(titleEpisode.seriesId, [...seriesIds]), lte(titleEpisode.airedAt, now)))
+			.groupBy(titleEpisode.seriesId);
 
 		return new Map(
 			rows.flatMap((row) => {
@@ -365,97 +365,101 @@ class Picker {
 	}
 }
 
-/**
- * Titles to feature on a profile's home page, each with a reason to be there
- * now: it is airing, its season ended or its film came out in the last four
- * weeks, or people on AniList talk about it more than a month ago. A season
- * past its moment, however well liked, is not featured; see {@link reasonsOf}.
- * The seasons of one show share its backdrop and logo, so a show is featured
- * through its newest current season.
- *
- * They are picked once a day, at 06:00 UTC (see `changeAt`), in each
- * profile's own order, the more talked-about titles more likely first, and
- * kept for the day: a title that can no longer be shown gives its place to
- * another, as does one the profile dropped from its watchlist. A title
- * featured before comes back only with something new: an episode aired since,
- * or it rises again a week or more later (see {@link hasNews}). The carousel
- * holds fewer titles rather than repeat others, down to {@link minimumCount}.
- *
- * Reads only the database: candidates come from the search index, and their
- * AniList activity from what `storeActivity` stores.
- * Long-running titles such as Detective Conan are left out, as are spin-offs
- * and side stories that AniList gives a parent story, such as My Hero
- * Academia: Vigilantes, which readers know by the show it belongs to, and those
- * without a backdrop and logo to draw, and those nothing streams. Candidates not stored yet are queued for the
- * scheduler, a few with each pick, so later picks find them.
- */
-export const getFeatured = async (userId: string, now = new Date()): Promise<FeaturedCard[]> => {
-	const rotation = numberOf(now);
-	const picker = new Picker(userId, rotation, now);
+export const featured = {
+	/**
+	 * Titles to feature on a profile's home page, each with a reason to be there
+	 * now: it is airing, its season ended or its film came out in the last four
+	 * weeks, or people on AniList talk about it more than a month ago. A season
+	 * past its moment, however well liked, is not featured; see {@link reasonsOf}.
+	 * The seasons of one show share its backdrop and logo, so a show is featured
+	 * through its newest current season.
+	 *
+	 * They are picked once a day, at 06:00 UTC (see `changeAt`), in each
+	 * profile's own order, the more talked-about titles more likely first, and
+	 * kept for the day: a title that can no longer be shown gives its place to
+	 * another, as does one the profile dropped from its watchlist. A title
+	 * featured before comes back only with something new: an episode aired since,
+	 * or it rises again a week or more later (see {@link hasNews}). The carousel
+	 * holds fewer titles rather than repeat others, down to {@link minimumCount}.
+	 *
+	 * Reads only the database: candidates come from the search index, and their
+	 * AniList activity from what `storeActivity` stores.
+	 * Long-running titles such as Detective Conan are left out, as are spin-offs
+	 * and side stories that AniList gives a parent story, such as My Hero
+	 * Academia: Vigilantes, which readers know by the show it belongs to, and those
+	 * without a backdrop and logo to draw, and those nothing streams. Candidates not stored yet are queued for the
+	 * scheduler, a few with each pick, so later picks find them.
+	 */
+	async list(userId: string, now = new Date()): Promise<FeaturedCard[]> {
+		const rotation = numberOf(now);
+		const picker = new Picker(userId, rotation, now);
 
-	const picks = await db
-		.select()
-		.from(featuredPick)
-		.where(and(eq(featuredPick.userId, userId), gte(featuredPick.rotation, rotation - remembered)))
-		.orderBy(asc(featuredPick.position));
-
-	const dropped = await db
-		.select({
-			seriesId: seriesState.seriesId,
-		})
-		.from(seriesState)
-		.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")));
-
-	const unwanted = new Set(dropped.map((row) => row.seriesId));
-
-	const current = picks.filter((pick) => pick.rotation === rotation);
-	const kept = current.map((pick) => pick.seriesId);
-	const keptCards = await Cards.load(kept);
-	const shown = kept.filter((id) => !unwanted.has(id) && keptCards.showable(id));
-
-	if (shown.length >= maximumCount) {
-		return picker.starts(shown.slice(0, maximumCount).flatMap((id) => keptCards.get(id) ?? []));
-	}
-
-	const lastPicked = new Map<string, number>();
-
-	for (const pick of picks) {
-		if (pick.rotation !== rotation) {
-			lastPicked.set(pick.seriesId, Math.max(pick.rotation, lastPicked.get(pick.seriesId) ?? 0));
-		}
-	}
-
-	const { picked: added, cards } = await picker.pick({
-		excluded: new Set([...kept, ...unwanted]),
-		lastPicked,
-		shown: shown.length,
-	});
-
-	if (added.length > 0) {
-		const after = Math.max(-1, ...current.map((pick) => pick.position));
-		await db
-			.insert(featuredPick)
-			.values(
-				added.map((seriesId, index) => ({
-					position: after + 1 + index,
-					rotation,
-					seriesId,
-					userId,
-				})),
-			)
-			.onConflictDoNothing();
-	}
-
-	if (current.length === 0) {
-		await db
-			.delete(featuredPick)
+		const picks = await db
+			.select()
+			.from(featuredPick)
 			.where(
-				and(eq(featuredPick.userId, userId), lt(featuredPick.rotation, rotation - remembered)),
-			);
-	}
+				and(eq(featuredPick.userId, userId), gte(featuredPick.rotation, rotation - remembered)),
+			)
+			.orderBy(asc(featuredPick.position));
 
-	return picker.starts([
-		...shown.flatMap((id) => keptCards.get(id) ?? []),
-		...added.flatMap((id) => cards.get(id) ?? []),
-	]);
+		const dropped = await db
+			.select({
+				seriesId: seriesState.seriesId,
+			})
+			.from(seriesState)
+			.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")));
+
+		const unwanted = new Set(dropped.map((row) => row.seriesId));
+
+		const current = picks.filter((pick) => pick.rotation === rotation);
+		const kept = current.map((pick) => pick.seriesId);
+		const keptCards = await Cards.load(kept);
+		const shown = kept.filter((id) => !unwanted.has(id) && keptCards.showable(id));
+
+		if (shown.length >= maximumCount) {
+			return picker.starts(shown.slice(0, maximumCount).flatMap((id) => keptCards.get(id) ?? []));
+		}
+
+		const lastPicked = new Map<string, number>();
+
+		for (const pick of picks) {
+			if (pick.rotation !== rotation) {
+				lastPicked.set(pick.seriesId, Math.max(pick.rotation, lastPicked.get(pick.seriesId) ?? 0));
+			}
+		}
+
+		const { picked: added, cards } = await picker.pick({
+			excluded: new Set([...kept, ...unwanted]),
+			lastPicked,
+			shown: shown.length,
+		});
+
+		if (added.length > 0) {
+			const after = Math.max(-1, ...current.map((pick) => pick.position));
+			await db
+				.insert(featuredPick)
+				.values(
+					added.map((seriesId, index) => ({
+						position: after + 1 + index,
+						rotation,
+						seriesId,
+						userId,
+					})),
+				)
+				.onConflictDoNothing();
+		}
+
+		if (current.length === 0) {
+			await db
+				.delete(featuredPick)
+				.where(
+					and(eq(featuredPick.userId, userId), lt(featuredPick.rotation, rotation - remembered)),
+				);
+		}
+
+		return picker.starts([
+			...shown.flatMap((id) => keptCards.get(id) ?? []),
+			...added.flatMap((id) => cards.get(id) ?? []),
+		]);
+	},
 };

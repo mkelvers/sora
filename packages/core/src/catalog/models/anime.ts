@@ -108,10 +108,10 @@ export interface Anime extends AnimeCard {
 	/**
 	 * The companies behind it other than its studios, such as the publisher
 	 * of what it adapts; empty until the stored copy is fetched again with
-	 * them (see `refreshStaleAnime`).
+	 * them (see `catalog.refreshStale`).
 	 */
 	producers: string[];
-	/** The most relevant credits, at most 25; empty until the stored copy is fetched again with them (see `refreshStaleAnime`). */
+	/** The most relevant credits, at most 25; empty until the stored copy is fetched again with them (see `catalog.refreshStale`). */
 	staff: AnimeCredit[];
 	relations: AnimeRelation[];
 	recommendations: AnimeCard[];

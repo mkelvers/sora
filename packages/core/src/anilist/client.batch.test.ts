@@ -16,7 +16,7 @@ const fake = {
 	rateLimitNext: false,
 };
 
-const { anilist, loadMediaById } = connect({
+const { anilist, loadMedia } = connect({
 	fetch: (_input: string, init: RequestInit) => {
 		const { variables } = z
 			.object({
@@ -133,7 +133,7 @@ class Operation {
 	readonly load: (ids: Iterable<number>) => Promise<Map<number, Media>>;
 
 	constructor(pages: number) {
-		this.load = loadMediaById({
+		this.load = loadMedia({
 			document: new TypedDocumentString<Result, Pages>(
 				"query Media($ids0: [Int!]!) { page0: Page { media(id_in: $ids0) { id } } }",
 			),

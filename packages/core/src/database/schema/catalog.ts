@@ -79,7 +79,7 @@ export const anime = pgTable(
  * from the database rather than from AniList, which allows only 30 to 90
  * requests a minute for the whole server.
  *
- * The scheduler keeps it current; see `syncSearchIndex`.
+ * The scheduler keeps it current; see `syncAnime`.
  */
 export const animeSearch = pgTable(
 	"anime_search",
@@ -210,7 +210,7 @@ export const animeTrend = pgTable(
  * When each mirrored catalogue last finished a full sync. A catalogue is
  * only relied on once one has: a partly filled one would miss titles.
  */
-export const catalogSync = pgTable("catalog_sync", {
+export const fullSync = pgTable("catalog_sync", {
 	catalog: text("catalog").primaryKey(),
 	fullSyncAt: timestamptz("full_sync_at").notNull(),
 });

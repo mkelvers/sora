@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { series, seriesRelated } from "../database/schema/series";
+import { series, titleRelation } from "../database/schema/series";
 
 /** The AniList entries of an entry's franchise, found by following stored relations. */
 export class FranchiseWalk {
@@ -42,7 +42,7 @@ export class FranchiseWalk {
 	 * related first.
 	 *
 	 * A franchise is every entry reached by following AniList's relations (see
-	 * `seriesRelated`) from series to series, in either direction: a series
+	 * `titleRelation`) from series to series, in either direction: a series
 	 * stored before its sequel was announced is still found from the sequel.
 	 * Only stored series are followed through, so an entry none of them relates
 	 * to is not reached. An entry related only as `OTHER` is reached but not
@@ -88,21 +88,21 @@ export class FranchiseWalk {
 
 			const columns = {
 				from: series.anilistId,
-				relation: seriesRelated.relation,
-				to: seriesRelated.anilistId,
+				relation: titleRelation.relation,
+				to: titleRelation.anilistId,
 			};
 
 			const [outgoing, incoming] = await Promise.all([
 				db
 					.select(columns)
 					.from(series)
-					.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+					.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
 					.where(inArray(series.anilistId, frontier)),
 				db
 					.select(columns)
-					.from(seriesRelated)
-					.innerJoin(series, eq(series.id, seriesRelated.seriesId))
-					.where(inArray(seriesRelated.anilistId, frontier)),
+					.from(titleRelation)
+					.innerJoin(series, eq(series.id, titleRelation.seriesId))
+					.where(inArray(titleRelation.anilistId, frontier)),
 			]);
 
 			const rawEdges = [...outgoing, ...incoming].filter(
@@ -129,11 +129,11 @@ export class FranchiseWalk {
 						anilistId: series.anilistId,
 					})
 					.from(series)
-					.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+					.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
 					.where(
 						and(
 							inArray(series.anilistId, listers),
-							inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]),
+							inArray(titleRelation.relation, ["SEQUEL", "PREQUEL"]),
 						),
 					);
 			}

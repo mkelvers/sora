@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { and, eq, gt, inArray, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -11,7 +11,7 @@ import {
 	providerMapping,
 } from "../../database/schema/playback";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
-import { aniKoto, streamProviders } from "../../playback/providers/registry";
+import { aniKoto, providers } from "../../playback/providers/registry";
 import { extendThroughReleased } from "./airing-plan";
 import type { AiringState } from "./airing-plan";
 
@@ -27,7 +27,7 @@ export class Tracked {
 	 * Reads what AniKoto has of the anime from its stored mapping and episode
 	 * list, without asking AniKoto.
 	 *
-	 * Seasons list only the episodes AniKoto carries (see `isEpisodeAvailable`),
+	 * Seasons list only the episodes AniKoto carries (see `isAvailable`),
 	 * so its list alone says whether an aired episode is out. Other providers'
 	 * lists do not count: MegaPlay's are made up from AniList's episode count,
 	 * and list a whole season before it premieres.
@@ -64,7 +64,7 @@ export class Tracked {
 	async refresh(logger: Parameters<Task>[1]["logger"]) {
 		const anime = this.#anime;
 
-		await inSequence(streamProviders, async (provider) => {
+		await sequence.all(providers, async (provider) => {
 			const { error } = await attempt(
 				refreshProviderUnits(anime, provider, {
 					retryUnmatched: true,

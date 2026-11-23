@@ -40,7 +40,7 @@ export const featuredPick = pgTable(
 /**
  * How one user likes episodes to play, remembered from what they pick in
  * the player. A user without a row plays everything the default way; see
- * `getPlaybackPreferences`.
+ * `preferences.playback`.
  */
 export const playbackPreference = pgTable("playback_preference", {
 	/** `sub`, `dub`, or `raw`; `null` plays the first version an episode has. */
@@ -83,7 +83,7 @@ export const profilePreference = pgTable("profile_preference", {
 
 /**
  * How far one user is into one episode: where they stopped, of how long it
- * runs. Written while the episode plays; see `saveProgress`. A rewatch of a
+ * runs. Written while the episode plays; see `progress.save`. A rewatch of a
  * series (see `seriesState.rewatchStartedAt`) has rows of its own, so
  * playing it never changes what the user watched before.
  */
@@ -141,14 +141,14 @@ export const seriesState = pgTable(
 		/**
 		 * When the user took the series' card out of Continue Watching. The card
 		 * stays out until they play an episode after this; see
-		 * `dismissContinueWatching`.
+		 * `progress.dismiss`.
 		 */
 		dismissedAt: timestamptz("dismissed_at"),
 		/**
 		 * When the user started watching the series again from the start, after
 		 * finishing it. While it is set, their progress is the rewatch's own
 		 * (see `episodeProgress.rewatch`); finishing the last episode again, or
-		 * marking the series watched, clears it. See `startRewatch`.
+		 * marking the series watched, clears it. See `progress.rewatch`.
 		 */
 		rewatchStartedAt: timestamptz("rewatch_started_at"),
 		seriesId: text("series_id")
@@ -180,7 +180,7 @@ export const seriesState = pgTable(
 
 /**
  * How many stars, 1 to 5, one user gave a series. It says what they liked:
- * recommendations weigh a series by it (see `getRecommendations`). Rating a
+ * recommendations weigh a series by it (see `recommendations.list`). Rating a
  * series again replaces the stars; the user's other choices about it live in
  * {@link seriesState}.
  */
@@ -241,7 +241,7 @@ export const importRecord = pgTable("import_record", {
 
 /**
  * The notifications one user marked read. A notification is not stored:
- * `getNotifications` works out what came out from saved or played series and the
+ * `notifications.list` works out what came out from saved or played series and the
  * episodes' release times, so only the user's marks are. A mark is deleted
  * once its notification would no longer be listed.
  */

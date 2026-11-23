@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { attempt, day, hour, inSequence } from "@sora/shared";
+import { attempt, day, hour, sequence } from "@sora/shared";
 import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";
@@ -217,7 +217,7 @@ export const searchShows = async (query: string): Promise<TmdbShowResult[]> => {
  *
  * @param request - Fetches from TMDB; tests pass a client of their own.
  */
-export const getShowEpisodeGroups = async (
+export const getEpisodeGroups = async (
 	showId: number,
 	request: typeof tmdb = tmdb,
 ): Promise<TmdbEpisodeGroup[][]> => {
@@ -421,7 +421,7 @@ export const getShow = async (
 			return null;
 		}
 
-		await inSequence(seasons, async (season) => {
+		await sequence.all(seasons, async (season) => {
 			const listed = page[`season/${season}`]?.episodes ?? [];
 
 			// The episodes the show counts for the season past those its appended
@@ -706,7 +706,7 @@ export const getImages = (
 /**
  * Loads every still TMDB lists for an episode, in every language, and
  * always from TMDB: the answer is a choice made once and stored (see
- * `chooseStill`), not one read again.
+ * `stills.choose`), not one read again.
  *
  * @returns The stills; empty when TMDB does not know the episode.
  */
@@ -757,7 +757,7 @@ export const getSeasonPosters = async (
  *
  * @param size - A TMDB size bucket such as `w780` or `original`.
  */
-export const tmdbImageUrl = (
+export const imageUrl = (
 	path: string | null,
 	size: "w300" | "w500" | "w780" | "w1280" | "original",
 ) => {

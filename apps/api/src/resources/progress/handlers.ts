@@ -1,17 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { getProfile } from "@sora/core/auth";
-import {
-	dismissContinueWatching,
-	getContinueWatching,
-	getProgress,
-	getRecommendations,
-	getSeriesProgress,
-	markUnwatched,
-	markWatched,
-	removeProgress,
-	saveProgress,
-	startRewatch,
-} from "@sora/core/library";
+import { profiles } from "@sora/core/auth";
+import { recommendations, progress } from "@sora/core/library";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
@@ -23,9 +12,9 @@ export const handlers = new OpenAPIHono<V1Env>({
 })
 	.openapi(contract.getProgress, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
 
-		const progress = await getProgress(profile.id, {
+		const results = await progress.get(profile.id, {
 			episode,
 			seriesId: series_id,
 		});
@@ -33,7 +22,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 		return c.json(
 			{
 				meta: {},
-				results: progress,
+				results,
 			},
 			200,
 		);
@@ -41,9 +30,9 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.saveProgress, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
 
-		const progress = await saveProgress(
+		const results = await progress.save(
 			profile.id,
 			{
 				episode,
@@ -55,7 +44,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 		return c.json(
 			{
 				meta: {},
-				results: progress,
+				results,
 			},
 			200,
 		);
@@ -63,13 +52,13 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.getSeriesProgress, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		const progress = await getSeriesProgress(profile.id, series_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
+		const results = await progress.series(profile.id, series_id);
 
 		return c.json(
 			{
 				meta: {},
-				results: progress,
+				results,
 			},
 			200,
 		);
@@ -77,32 +66,32 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.removeProgress, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await removeProgress(profile.id, series_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
+		await progress.remove(profile.id, series_id);
 
 		return c.body(null, 204);
 	})
 
 	.openapi(contract.markSeriesWatched, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await markWatched(profile.id, series_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
+		await progress.markWatched(profile.id, series_id);
 
 		return c.body(null, 204);
 	})
 
 	.openapi(contract.markEpisodeWatched, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await markWatched(profile.id, series_id, episode);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
+		await progress.markWatched(profile.id, series_id, episode);
 
 		return c.body(null, 204);
 	})
 
 	.openapi(contract.markEpisodeUnwatched, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await markUnwatched(profile.id, {
+		const profile = await profiles.get(c.get("accountId"), profile_id);
+		await progress.markUnwatched(profile.id, {
 			episode,
 			seriesId: series_id,
 		});
@@ -112,15 +101,15 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.startRewatch, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await startRewatch(profile.id, series_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
+		await progress.rewatch(profile.id, series_id);
 
 		return c.body(null, 204);
 	})
 
 	.openapi(contract.listContinueWatching, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const shows = await getContinueWatching(profile.id);
+		const profile = await profiles.get(c.get("accountId"), c.req.valid("param").profile_id);
+		const shows = await progress.continueWatching(profile.id);
 
 		return c.json(
 			{
@@ -134,8 +123,8 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.listRecommendations, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const rows = await getRecommendations(profile.id);
+		const profile = await profiles.get(c.get("accountId"), c.req.valid("param").profile_id);
+		const rows = await recommendations.list(profile.id);
 
 		return c.json(
 			{
@@ -150,8 +139,8 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.dismissContinueWatching, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await dismissContinueWatching(profile.id, series_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
+		await progress.dismiss(profile.id, series_id);
 
 		return c.body(null, 204);
 	});

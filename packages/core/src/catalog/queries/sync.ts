@@ -7,7 +7,7 @@ import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
 import type { MediaSort, SearchIndexPageQuery } from "../../anilist/graphql.generated";
 import { zSearchIndexPageQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
-import { animeSearch, animeSearchTag, catalogSync } from "../../database/schema/catalog";
+import { animeSearch, animeSearchTag, fullSync } from "../../database/schema/catalog";
 import { UpstreamUnavailableError } from "../../errors";
 import { IndexedEntry } from "./indexed-entry";
 import type { IndexedMedia } from "./indexed-entry";
@@ -15,7 +15,7 @@ import type { IndexedMedia } from "./indexed-entry";
 /** The search index's row in `catalog_sync`. */
 export const catalogName = "anime_search";
 
-/** One run bringing the search index up to date with AniList; see `syncSearchIndex`. */
+/** One run bringing the search index up to date with AniList; see `syncAnime`. */
 export class Sync {
 	/** AniList serves at most this many pages of 50 for one filter. */
 	static readonly #pagesPerWindow = 100;
@@ -85,14 +85,14 @@ export class Sync {
 					};
 
 					await db
-						.insert(catalogSync)
+						.insert(fullSync)
 						.values({
 							catalog: catalogName,
 							...values,
 						})
 						.onConflictDoUpdate({
 							set: values,
-							target: catalogSync.catalog,
+							target: fullSync.catalog,
 						});
 				}
 

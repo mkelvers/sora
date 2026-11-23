@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { firstInSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 
 import { isServedSubtitle } from "../providers/registry";
 import { readSubtitle } from "../proxy/proxy";
@@ -10,7 +10,7 @@ import { mirrorsFor } from "../proxy/upstream";
 import { subAndDub, timelineShifts } from "../streams/resolve";
 import { subtitleKinds } from "../streams/subtitle-kinds";
 import { extract, SubtitleRefinementError } from "./audio";
-import { refineCues } from "./refine";
+import { retimeCues } from "./refine";
 import type { Refinement } from "./refine";
 import { transcribe } from "./speech";
 import { refinementKey } from "./store";
@@ -18,7 +18,7 @@ import { readCues } from "./vtt";
 
 /**
  * Listens to an episode's dub and finds when each line of the sub's English
- * subtitles is said; see {@link refineCues}.
+ * subtitles is said; see {@link retimeCues}.
  *
  * @param key - What {@link refinementKey} gave the pair of encodes the request
  *   was made for. The pair may have changed since, such as when a provider
@@ -27,7 +27,7 @@ import { readCues } from "./vtt";
  * @throws {SubtitleRefinementError} when the episode cannot be streamed
  *   in both versions right now, or the audio cannot be read or transcribed.
  */
-export const listenToDub = async (
+export const hearDub = async (
 	request: {
 		seriesId: string;
 		episode: number;
@@ -65,7 +65,7 @@ export const listenToDub = async (
 		.filter(({ track }) => (kinds.get(track.url) ?? "dialogue") === "dialogue");
 
 	/** The cues of the sub's English dialogue track, or none when it has no such track. */
-	const dialogue = await firstInSequence(tracks, async ({ track, video }) => {
+	const dialogue = await sequence.first(tracks, async ({ track, video }) => {
 		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
 
 		if (!content) {
@@ -88,7 +88,7 @@ export const listenToDub = async (
 		const audio = path.join(directory, "audio.wav");
 		await extract(dubVideo.url, dubVideo.headers, audio);
 
-		return refineCues(cues, await transcribe(audio), picture);
+		return retimeCues(cues, await transcribe(audio), picture);
 	} finally {
 		await rm(directory, {
 			force: true,

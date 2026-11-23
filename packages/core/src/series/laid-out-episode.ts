@@ -1,5 +1,5 @@
 import type { TmdbMovie, TmdbShow } from "../tmdb/resources";
-import { tmdbImageUrl } from "../tmdb/resources";
+import { imageUrl } from "../tmdb/resources";
 import type { SeriesEpisode } from "./series";
 
 /** An episode laid out from what TMDB lists for it, or from the film it is. */
@@ -41,7 +41,7 @@ export class LaidOutEpisode {
 			number: this.#number,
 			overview: own.overview ?? filmic.overview,
 			runtimeMinutes: own.runtimeMinutes ?? filmic.runtimeMinutes ?? this.#durationMinutes,
-			stillUrl: tmdbImageUrl(own.stillPath ?? filmic.stillPath, "original"),
+			stillUrl: imageUrl(own.stillPath ?? filmic.stillPath, "original"),
 			title: own.title ?? filmic.title,
 			tmdb: tmdb && {
 				episodeNumber: tmdb.episode_number,

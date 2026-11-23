@@ -1,8 +1,8 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { streamProviders } from "../../playback/providers/registry";
+import { providers } from "../../playback/providers/registry";
 import { parseInput } from "../payload";
 
 /** The graphile-worker task that mirrors provider catalogues. */
@@ -26,7 +26,7 @@ export const syncProviders: Task = async (rawPayload, helpers) => {
 		rawPayload,
 	);
 
-	const outcomes = await inSequence(streamProviders, async (provider) => {
+	const outcomes = await sequence.all(providers, async (provider) => {
 		if (!provider.syncCatalog) {
 			return [];
 		}

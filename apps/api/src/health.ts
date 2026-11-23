@@ -1,5 +1,5 @@
 import type { FailingJobs } from "@sora/core/models/scheduler";
-import { getProviderHealth } from "@sora/core/playback";
+import { statusReport } from "@sora/core/playback";
 import type { ProviderHealth } from "@sora/core/playback";
 import { getFailingJobs } from "@sora/core/scheduler/failures";
 import { attempt } from "@sora/shared";
@@ -27,7 +27,7 @@ import { Hono } from "hono";
  */
 export const health = ({
 	failingJobs = getFailingJobs,
-	providers = getProviderHealth,
+	providers = statusReport,
 	signedIn = () => Promise.resolve(false),
 }: {
 	/** Reads the scheduler's failing jobs per task. */

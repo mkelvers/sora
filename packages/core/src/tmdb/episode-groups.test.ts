@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import type { Json } from "@sora/shared";
 
 import { connect } from "./client";
-import { getShowEpisodeGroups } from "./resources";
+import { getEpisodeGroups } from "./resources";
 
 const episode = {
 	air_date: "2022-10-08",
@@ -76,7 +76,7 @@ const { tmdb } = connect({
 });
 
 test("loads episode groups in order and retains canonical episode numbers", async () => {
-	const arrangements = await getShowEpisodeGroups(45_790, tmdb);
+	const arrangements = await getEpisodeGroups(45_790, tmdb);
 	expect(
 		arrangements.map((groups) =>
 			groups.map((group) => ({
@@ -101,6 +101,6 @@ test("loads episode groups in order and retains canonical episode numbers", asyn
 
 test("makes no detail requests for shows without episode groups", async () => {
 	requests.length = 0;
-	expect(await getShowEpisodeGroups(1, tmdb)).toEqual([]);
+	expect(await getEpisodeGroups(1, tmdb)).toEqual([]);
 	expect(requests).toEqual(["/tv/1/episode_groups"]);
 });

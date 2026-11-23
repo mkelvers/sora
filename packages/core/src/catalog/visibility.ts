@@ -24,7 +24,7 @@ export const formatAllowed = (format: SQLWrapper) =>
  * Matches `anime_excluded_format_idx`, so it never reads the stored JSON; keep the
  * two lists of formats in step.
  */
-export const catalogSeriesAllowed = sql`not exists (
+export const seriesAllowed = sql`not exists (
 	select 1 from ${anime}
 	where ${anime.anilistId} = ${series.anilistId}
 	and ${anime.format} in (${sql.join(

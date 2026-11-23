@@ -2,10 +2,10 @@ import { attempt } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { getAnime } from "../../catalog/queries/anime";
-import { AnimeNotFoundError } from "../../errors";
+import { catalog } from "../../catalog/queries/anime";
+import { UnknownAnimeError } from "../../errors";
 import { getProviderUnits } from "../../playback/episodes/episodes";
-import { streamProviders } from "../../playback/providers/registry";
+import { providers } from "../../playback/providers/registry";
 import { parseInput } from "../payload";
 
 /**
@@ -25,7 +25,7 @@ export const lookUp: Task = async (rawPayload, helpers) => {
 		rawPayload,
 	);
 
-	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(catalog.anime(anilistId), UnknownAnimeError);
 
 	if (error) {
 		helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);
@@ -34,7 +34,7 @@ export const lookUp: Task = async (rawPayload, helpers) => {
 	}
 
 	const failures = await Promise.all(
-		streamProviders.map(async (provider) => {
+		providers.map(async (provider) => {
 			const { error: lookupError } = await attempt(getProviderUnits(data, provider));
 
 			if (lookupError) {

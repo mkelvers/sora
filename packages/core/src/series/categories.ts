@@ -10,14 +10,14 @@ import { db } from "../database/client";
 import { animeSearch, animeSearchTag } from "../database/schema/catalog";
 import type { Tag } from "../models/series";
 import { Category } from "./category";
-import { carriedByAniKoto } from "./episodes";
+import { aniKotoCarries } from "./episodes";
 
 /** The index entries a client can browse to: not adult, not excluded, and carried by AniKoto. */
 const browsable = and(
 	eq(animeSearch.isAdult, false),
 	formatAllowed(animeSearch.format),
 	sql`${animeSearch.format} is distinct from 'MUSIC'`,
-	carriedByAniKoto,
+	aniKotoCarries,
 );
 
 /**

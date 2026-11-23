@@ -1,9 +1,9 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import type { Json } from "@sora/shared";
 import { consoleLogFactory, Logger } from "graphile-worker";
 import type { Runner } from "graphile-worker";
 
-import { searchIndex } from "../catalog/queries/search";
+import { animeIndex } from "../catalog/queries/search";
 import { syncProvidersTask } from "./jobs/catalogs";
 import { syncScheduleTask } from "./jobs/dubs";
 import { syncIndexTask } from "./jobs/search";
@@ -43,11 +43,11 @@ const firstJobs: [task: string, payload: Record<string, Json> | null][] = [
  * but a job still queued or running keeps its key, so none runs twice.
  */
 export const fillEmptyCatalog = async (runner: Runner) => {
-	if (await searchIndex.complete()) {
+	if (await animeIndex.complete()) {
 		return;
 	}
 
-	await inSequence(firstJobs, async ([task, payload]) => {
+	await sequence.all(firstJobs, async ([task, payload]) => {
 		await runner.addJob(task, payload, {
 			jobKey: `first-start:${task}`,
 			jobKeyMode: "unsafe_dedupe",

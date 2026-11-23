@@ -8,11 +8,11 @@ import {
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
 	CalendarSchema,
-	SeriesCardSchema,
-	SeriesImageSchema,
-	SeriesSchema,
+	CardSchema,
+	ImageSchema,
+	DetailSchema,
 	TagSchema,
-	UpcomingSeriesSchema,
+	UpcomingSchema,
 	UpscaleBackdropSchema,
 } from "@sora/core/models/series";
 
@@ -124,7 +124,7 @@ const BrowseParams = BrowseQuerySchema.omit({
 	});
 
 /** A page of title cards. */
-const CardPage = envelope(z.array(SeriesCardSchema), PageMetaSchema);
+const CardPage = envelope(z.array(CardSchema), PageMetaSchema);
 
 /** Titles and the catalog: browsing, searching, a title's page, images, episodes, and the schedule. */
 export const contract = {
@@ -279,7 +279,7 @@ export const contract = {
 		responses: {
 			200: json(
 				envelope(
-					SeriesSchema.extend({
+					DetailSchema.extend({
 						episodes: z.array(EpisodeSchema).optional().openapi({
 							description:
 								"The title's episodes, numbered from 1; present only with `episodes=true`.",
@@ -379,7 +379,7 @@ export const contract = {
 				.strict(),
 		},
 		responses: {
-			200: json(envelope(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+			200: json(envelope(z.array(ImageSchema), CountMetaSchema), "The images, best first."),
 			404: problem("No such title."),
 			422: problem("The query is invalid."),
 			503: problem("TMDB is unavailable; retry after `Retry-After`."),
@@ -446,7 +446,7 @@ export const contract = {
 			}),
 		},
 		responses: {
-			200: json(envelope(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
+			200: json(envelope(z.array(CardSchema), CountMetaSchema), "The titles."),
 			404: problem("No such title."),
 		},
 		summary: "Titles like a series",
@@ -494,7 +494,7 @@ export const contract = {
 		operationId: "listUpcoming",
 		path: "/upcoming",
 		responses: {
-			200: json(envelope(z.array(UpcomingSeriesSchema), CountMetaSchema), "The titles."),
+			200: json(envelope(z.array(UpcomingSchema), CountMetaSchema), "The titles."),
 		},
 		summary: "Titles with something starting soon",
 		tags: ["Series"],
@@ -511,7 +511,7 @@ export const contract = {
 			}),
 		},
 		responses: {
-			200: json(envelope(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+			200: json(envelope(z.array(ImageSchema), CountMetaSchema), "The images, best first."),
 			404: problem("No such title."),
 			503: problem("TMDB is unavailable; retry after `Retry-After`."),
 		},
@@ -561,7 +561,7 @@ export const contract = {
 			}),
 		},
 		responses: {
-			200: json(envelope(SeriesSchema, EmptyMeta), "The title, with its new artwork."),
+			200: json(envelope(DetailSchema, EmptyMeta), "The title, with its new artwork."),
 			404: problem("No such title."),
 			422: problem("The body is invalid."),
 		},
@@ -588,7 +588,7 @@ export const contract = {
 			}),
 		},
 		responses: {
-			200: json(envelope(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+			200: json(envelope(z.array(ImageSchema), CountMetaSchema), "The images, best first."),
 			404: problem("No such title."),
 			422: problem("The URL is not one of the title's backdrops."),
 		},

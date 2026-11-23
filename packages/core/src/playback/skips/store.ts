@@ -35,7 +35,7 @@ export interface StoredSkipDetection {
  * What identifies one video. Stream URLs expire and hosts rotate, but a
  * stream's path stays the same, and sub and dub are different videos.
  */
-export const skipDetectionKey = (playlistUrl: string) =>
+export const videoKey = (playlistUrl: string) =>
 	createHash("sha256").update(new URL(playlistUrl).pathname).digest("hex").slice(0, 32);
 
 /**
@@ -50,7 +50,7 @@ export const episodeDetectionKey = (seriesId: string, episode: number) =>
  * enough ago to look again; whether the songs have changed since is up to
  * the one looking.
  */
-export const isSkipDetectionDue = (stored: StoredSkipDetection | undefined) => {
+export const isDue = (stored: StoredSkipDetection | undefined) => {
 	/**
 	 * How long until a video is looked at again when something was left
 	 * unsettled: AnimeThemes had no songs for its episode, or a kind's song was
@@ -70,7 +70,7 @@ export const isSkipDetectionDue = (stored: StoredSkipDetection | undefined) => {
 };
 
 /** What is stored for each of `keys` that has been looked at. */
-export const getSkipDetections = async (keys: string[]) => {
+export const loadDetections = async (keys: string[]) => {
 	const found = new Map<string, StoredSkipDetection>();
 
 	if (keys.length === 0) {
@@ -117,7 +117,7 @@ export const getSkipDetections = async (keys: string[]) => {
 };
 
 /** Stores what looking for a video's theme songs settled. */
-export const saveSkipDetection = async (key: string, detection: SkipDetection, songs: number) => {
+export const saveDetection = async (key: string, detection: SkipDetection, songs: number) => {
 	let opening: SongSpan | null = null;
 
 	if (detection.opening !== "none") {

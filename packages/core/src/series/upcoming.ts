@@ -2,13 +2,13 @@ import { day } from "@sora/shared";
 import { and, eq, not, sql } from "drizzle-orm";
 
 import { fuzzyDate } from "../catalog/models/text";
-import { catalogSeriesAllowed } from "../catalog/visibility";
+import { seriesAllowed } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime, animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
 import type { UpcomingSeries } from "../models/series";
 import { CatchUp } from "./catch-up";
-import { toSeriesCards } from "./queries";
+import { toCards } from "./queries";
 
 /**
  * Whether a start date is soon: its day is known, and it falls from today
@@ -31,114 +31,114 @@ export const startsSoon = (startDate: string | null, now: Date): startDate is st
 	return startDate >= today && startDate <= until;
 };
 
-/**
- * Lists the titles starting soon (see {@link startsSoon}), whatever they
- * are: a season, a film, or an OVA.
- *
- * A title is returning when its franchise has something out already; the
- * franchise's earliest show or film that is out is listed in its place,
- * since that is where catching up starts. Each title is listed once, with the
- * soonest start of its franchise.
- *
- * Returning titles come first, then new titles, each kind the most
- * anticipated first and at most 12. Adult media is never
- * listed. Reads only the database, so only stored titles are listed; the
- * scheduler stores this season's and the next's ahead of time.
- */
-export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSeries[]> => {
-	/** Titles listed of each kind: a row to take in at a glance, not a catalogue. */
-	const limit = 12;
+export const upcoming = {
+	/**
+	 * Lists the titles starting soon (see {@link startsSoon}), whatever they
+	 * are: a season, a film, or an OVA.
+	 *
+	 * A title is returning when its franchise has something out already; the
+	 * franchise's earliest show or film that is out is listed in its place,
+	 * since that is where catching up starts. Each title is listed once, with the
+	 * soonest start of its franchise.
+	 *
+	 * Returning titles come first, then new titles, each kind the most
+	 * anticipated first and at most 12. Adult media is never
+	 * listed. Reads only the database, so only stored titles are listed; the
+	 * scheduler stores this season's and the next's ahead of time.
+	 */
+	async list(now = new Date()): Promise<UpcomingSeries[]> {
+		/** Titles listed of each kind: a row to take in at a glance, not a catalogue. */
+		const limit = 12;
 
-	const unreleased = await db
-		.select({
-			popularity: animeSearch.popularity,
-			series,
-			startDate: sql<{
-				year: number | null;
-				month: number | null;
-				day: number | null;
-			} | null>`${anime.media}->'startDate'`,
-		})
-		.from(series)
-		.innerJoin(anime, eq(anime.anilistId, series.anilistId))
-		.innerJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
-		.where(
-			and(eq(anime.status, "NOT_YET_RELEASED"), not(animeSearch.isAdult), catalogSeriesAllowed),
+		const unreleased = await db
+			.select({
+				popularity: animeSearch.popularity,
+				series,
+				startDate: sql<{
+					year: number | null;
+					month: number | null;
+					day: number | null;
+				} | null>`${anime.media}->'startDate'`,
+			})
+			.from(series)
+			.innerJoin(anime, eq(anime.anilistId, series.anilistId))
+			.innerJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
+			.where(and(eq(anime.status, "NOT_YET_RELEASED"), not(animeSearch.isAdult), seriesAllowed));
+
+		const listed = new Map<
+			string,
+			{
+				row: typeof series.$inferSelect;
+				startDate: string;
+				popularity: number;
+				returning: boolean;
+			}
+		>();
+
+		const soon = unreleased.flatMap((entry) => {
+			let startDate: string | null = null;
+
+			if (entry.startDate) {
+				startDate = fuzzyDate(entry.startDate);
+			}
+
+			if (startsSoon(startDate, now)) {
+				return [
+					{
+						entry,
+						startDate,
+					},
+				];
+			}
+
+			return [];
+		});
+
+		const caughtUp = await Promise.all(
+			soon.map(({ entry }) => new CatchUp(entry.series.anilistId).start()),
 		);
 
-	const listed = new Map<
-		string,
-		{
-			row: typeof series.$inferSelect;
-			startDate: string;
-			popularity: number;
-			returning: boolean;
-		}
-	>();
+		for (const [index, { entry, startDate }] of soon.entries()) {
+			const caughtUpOn = caughtUp[index] ?? null;
+			const row = caughtUpOn ?? entry.series;
+			const known = listed.get(row.id);
+			let earliest = startDate;
 
-	const soon = unreleased.flatMap((entry) => {
-		let startDate: string | null = null;
+			if (known && known.startDate < startDate) {
+				earliest = known.startDate;
+			}
 
-		if (entry.startDate) {
-			startDate = fuzzyDate(entry.startDate);
-		}
-
-		if (startsSoon(startDate, now)) {
-			return [
-				{
-					entry,
-					startDate,
-				},
-			];
+			listed.set(row.id, {
+				popularity: Math.max(entry.popularity, known?.popularity ?? 0),
+				returning: caughtUpOn !== null,
+				row,
+				startDate: earliest,
+			});
 		}
 
-		return [];
-	});
+		const picked = [true, false].flatMap((isReturning) =>
+			[...listed.values()]
+				.filter((title) => title.returning === isReturning)
+				.toSorted((left, right) => right.popularity - left.popularity)
+				.slice(0, limit),
+		);
 
-	const caughtUp = await Promise.all(
-		soon.map(({ entry }) => new CatchUp(entry.series.anilistId).start()),
-	);
+		const cards = await toCards(picked.map((title) => title.row));
 
-	for (const [index, { entry, startDate }] of soon.entries()) {
-		const caughtUpOn = caughtUp[index] ?? null;
-		const row = caughtUpOn ?? entry.series;
-		const known = listed.get(row.id);
-		let earliest = startDate;
+		return picked.flatMap((title) => {
+			const card = cards.get(title.row.id);
 
-		if (known && known.startDate < startDate) {
-			earliest = known.startDate;
-		}
+			if (card) {
+				return [
+					{
+						returning: title.returning,
+						series: card,
+						start_date: title.startDate,
+					},
+				];
+			}
 
-		listed.set(row.id, {
-			popularity: Math.max(entry.popularity, known?.popularity ?? 0),
-			returning: caughtUpOn !== null,
-			row,
-			startDate: earliest,
+			return [];
 		});
-	}
-
-	const picked = [true, false].flatMap((isReturning) =>
-		[...listed.values()]
-			.filter((title) => title.returning === isReturning)
-			.toSorted((left, right) => right.popularity - left.popularity)
-			.slice(0, limit),
-	);
-
-	const cards = await toSeriesCards(picked.map((title) => title.row));
-
-	return picked.flatMap((title) => {
-		const card = cards.get(title.row.id);
-
-		if (card) {
-			return [
-				{
-					returning: title.returning,
-					series: card,
-					start_date: title.startDate,
-				},
-			];
-		}
-
-		return [];
-	});
+	},
 };

@@ -1,12 +1,12 @@
 export { CoreError, type CoreErrorCode } from "./core-error";
 
-export { AnimeNotFoundError } from "./anime-not-found-error";
+export { UnknownAnimeError } from "./unknown-anime-error";
 
-export { SeriesNotFoundError } from "./series-not-found-error";
+export { UnknownSeriesError } from "./unknown-series-error";
 
-export { EpisodeNotFoundError } from "./episode-not-found-error";
+export { UnknownEpisodeError } from "./unknown-episode-error";
 
-export { ProfileNotFoundError } from "./profile-not-found-error";
+export { UnknownProfileError } from "./unknown-profile-error";
 
 export { LastProfileError } from "./last-profile-error";
 
@@ -14,6 +14,6 @@ export { PlaybackUnavailableError, type ProviderAttempt } from "./playback-unava
 
 export { UpstreamUnavailableError } from "./upstream-unavailable-error";
 
-export { InvalidStreamTokenError } from "./invalid-stream-token-error";
+export { StreamTokenError } from "./stream-token-error";
 
 export { InvalidInputError } from "./invalid-input-error";

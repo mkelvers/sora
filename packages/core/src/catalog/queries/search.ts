@@ -3,7 +3,7 @@ import { and, asc, desc, eq, max, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { animeSearch, catalogSync } from "../../database/schema/catalog";
+import { animeSearch, fullSync } from "../../database/schema/catalog";
 import type { BrowseQuery } from "./browse-query";
 import { Filters } from "./filters";
 import { catalogName, Sync } from "./sync";
@@ -27,7 +27,7 @@ import { Word } from "./word";
  * @throws {UpstreamUnavailableError} when AniList fails; entries
  *   stored before the failure are kept, and a retry resumes from the stored pages.
  */
-export const syncSearchIndex = async (options: { full: boolean }) => {
+export const syncAnime = async (options: { full: boolean }) => {
 	/**
 	 * An incremental sync re-reads entries changed this long before the newest
 	 * one stored, so an entry AniList changed while a sync was paging is not
@@ -73,8 +73,8 @@ class SearchIndex {
 
 		const [row] = await db
 			.select()
-			.from(catalogSync)
-			.where(eq(catalogSync.catalog, catalogName))
+			.from(fullSync)
+			.where(eq(fullSync.catalog, catalogName))
 			.limit(1);
 
 		this.#complete = row !== undefined;
@@ -83,7 +83,7 @@ class SearchIndex {
 	}
 }
 
-export const searchIndex = new SearchIndex();
+export const animeIndex = new SearchIndex();
 
 /** An indexed entry, as a search ranks it. */
 export type SearchCandidate = Pick<

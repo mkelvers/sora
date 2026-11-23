@@ -23,7 +23,7 @@ import { StillRank } from "./still-rank";
  *
  * and then TMDB's own pick comes first, then the larger one.
  */
-export const rankStills = (stills: readonly TmdbImage[], defaultPath: string | null): TmdbImage[] =>
+export const bestFirst = (stills: readonly TmdbImage[], defaultPath: string | null): TmdbImage[] =>
 	stills.toSorted((left, right) => {
 		const leftTier = new StillRank(left).tier;
 		const rightTier = new StillRank(right).tier;
@@ -95,7 +95,7 @@ class Classifier {
  * over them in a set of 1,691, among them every plain title card (Bleach's
  * numbered cards, Dragon Ball's chapter cards), for 12 others turned away.
  * It misses a logo over a scene, which the language TMDB gives such a still
- * catches (see `rankStills`).
+ * catches (see `bestFirst`).
  *
  * @throws {UpstreamUnavailableError} when the model cannot be loaded.
  */
@@ -116,7 +116,7 @@ export const showsText = async (image: Buffer): Promise<boolean> => {
 };
 
 /**
- * Gives each episode the still stored for it by `chooseStill`, in place of
+ * Gives each episode the still stored for it by `stills.choose`, in place of
  * TMDB's own pick, and none when none was fit to show. An episode with
  * nothing stored keeps TMDB's pick until one is.
  */

@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
 	RatingSchema,
 	WatchlistEntrySchema,
-	WatchlistStatusEntrySchema,
+	StatusEntrySchema,
 	WatchlistStatusSchema,
 } from "@sora/core/models/library";
 
@@ -65,7 +65,7 @@ export const contract = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelope(z.array(WatchlistStatusEntrySchema), CountMetaSchema), "The statuses."),
+			200: json(envelope(z.array(StatusEntrySchema), CountMetaSchema), "The statuses."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},

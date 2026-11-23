@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import type { ContentLanguage } from "../../models/series";
-import { syncAniKotoCatalog } from "./anikoto-catalog";
+import { aniKotoCatalog } from "./anikoto-catalog";
 import { Embed } from "./embed";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
 import { rawEpisodeId, toEpisode } from "./sdk";
@@ -120,10 +120,10 @@ export class AniKoto implements StreamProvider {
 	/**
 	 * Mirrors AniKoto's catalogue, which series are matched against. The first
 	 * sync, with nothing stored, reads the whole catalogue: about 450 pages,
-	 * some 20 minutes at the 24 requests a minute `providerHttp` keeps to.
+	 * some 20 minutes at the 24 requests a minute `http` keeps to.
 	 */
 	async syncCatalog(options: { full: boolean }) {
-		const { pages, stored } = await syncAniKotoCatalog(this.http, options);
+		const { pages, stored } = await aniKotoCatalog.sync(this.http, options);
 
 		return `Synced ${stored} AniKoto series from ${pages} catalogue pages`;
 	}

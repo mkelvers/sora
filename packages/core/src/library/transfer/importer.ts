@@ -1,4 +1,4 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import { and, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -8,12 +8,12 @@ import {
 	importRecord,
 	seriesState,
 } from "../../database/schema/library";
-import { seriesEpisode } from "../../database/schema/series";
+import { titleEpisode } from "../../database/schema/series";
 import type { WatchlistStatus } from "../../models/library";
 import type { ImportConnection, LibraryExport, LibraryImportReport } from "../../models/transfer";
 import { scheduleSeriesStore } from "../../scheduler/queue";
-import { episodeReleasedAt } from "../../series/episodes";
-import { storedSeriesIds } from "../../series/store";
+import { releaseTime } from "../../series/episodes";
+import { store } from "../../series/store";
 import { Batches } from "./batches";
 import { fromMal } from "./sources";
 import type { ListEntry, MalEntry } from "./sources";
@@ -95,7 +95,7 @@ export class Importer {
 		const userId = this.#userId;
 		const now = this.#now;
 
-		const stored = await storedSeriesIds(additions.map((addition) => addition.anilistId));
+		const stored = await store.ids(additions.map((addition) => addition.anilistId));
 		const missing = additions.filter((addition) => !stored.has(addition.anilistId));
 
 		const present = additions.flatMap((addition) => {
@@ -133,7 +133,7 @@ export class Importer {
 				return [];
 			});
 
-			await inSequence(new Batches(listed).all, async (batch) => {
+			await sequence.all(new Batches(listed).all, async (batch) => {
 				const written = await tx
 					.insert(seriesState)
 					.values(batch)
@@ -177,20 +177,20 @@ export class Importer {
 			if (through.length) {
 				released = await tx
 					.select({
-						number: seriesEpisode.number,
-						runtimeMinutes: seriesEpisode.runtimeMinutes,
-						seriesId: seriesEpisode.seriesId,
+						number: titleEpisode.number,
+						runtimeMinutes: titleEpisode.runtimeMinutes,
+						seriesId: titleEpisode.seriesId,
 					})
-					.from(seriesEpisode)
+					.from(titleEpisode)
 					.where(
 						and(
 							inArray(
-								seriesEpisode.seriesId,
+								titleEpisode.seriesId,
 								through.map((addition) => addition.seriesId),
 							),
 							or(
-								and(isNull(seriesEpisode.airedAt), isNull(seriesEpisode.airDate)),
-								lte(episodeReleasedAt, now),
+								and(isNull(titleEpisode.airedAt), isNull(titleEpisode.airDate)),
+								lte(releaseTime, now),
 							),
 						),
 					);
@@ -223,7 +223,7 @@ export class Importer {
 				];
 			});
 
-			await inSequence(new Batches([...recorded, ...watched]).all, async (batch) => {
+			await sequence.all(new Batches([...recorded, ...watched]).all, async (batch) => {
 				const written = await tx
 					.insert(episodeProgress)
 					.values(batch)

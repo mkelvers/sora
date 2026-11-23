@@ -1,4 +1,4 @@
-import { chunked, day, hour, inSequence } from "@sora/shared";
+import { chunked, day, hour, sequence } from "@sora/shared";
 import { lt, max, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -112,13 +112,13 @@ export const storeActivity: Task = async (_payload, helpers) => {
 		})),
 	);
 
-	const fetched = await inSequence(groups, ({ ids, after }) =>
+	const fetched = await sequence.all(groups, ({ ids, after }) =>
 		new Trends(ids, after, now.getTime()).fetch(),
 	);
 
 	const rows = fetched.flat();
 
-	await inSequence(chunked(rows, 1000), (batch) =>
+	await sequence.all(chunked(rows, 1000), (batch) =>
 		db
 			.insert(animeTrend)
 			.values(batch)

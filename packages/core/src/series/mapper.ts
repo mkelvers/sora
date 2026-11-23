@@ -1,4 +1,4 @@
-import { day, inSequence } from "@sora/shared";
+import { day, sequence } from "@sora/shared";
 import { eq } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -171,7 +171,7 @@ export class Mapper {
 
 		const entries = await loadByIds(edges.map((edge) => edge.id));
 
-		const predecessors = await inSequence(edges, async (edge): Promise<Predecessor[]> => {
+		const predecessors = await sequence.all(edges, async (edge): Promise<Predecessor[]> => {
 			const predecessor = entries.get(edge.id);
 
 			if (!predecessor) {

@@ -3,15 +3,15 @@ import { sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
 import { db } from "../../database/client";
-import { episodeStill, series, seriesEpisode } from "../../database/schema/series";
+import { episodeStill, series, titleEpisode } from "../../database/schema/series";
 import { UpstreamUnavailableError } from "../../errors";
-import { chooseStill, storeStill } from "../../series/stills";
+import { stills } from "../../series/stills";
 
 /** The graphile-worker task that chooses the stills of episodes that have none chosen. */
 export const chooseFramesTask = "choose-episode-stills";
 
 /**
- * Chooses the still (see `chooseStill`) of every TMDB episode a series
+ * Chooses the still (see `stills.choose`) of every TMDB episode a series
  * lists that has none chosen, newest first, and of those that aired lately
  * once a day, since TMDB's voters and uploaders are still at them.
  *
@@ -36,26 +36,26 @@ export const chooseFrames: Task = async (_payload, helpers) => {
 	}>(sql`
     select
       substring(${series.key} from '[0-9]+$')::int as show_id,
-      ${seriesEpisode.tmdbSeasonNumber} as season_number,
-      ${seriesEpisode.tmdbEpisodeNumber} as episode_number,
-      min(${seriesEpisode.stillUrl}) as still_url
-    from ${seriesEpisode}
-    inner join ${series} on ${series.id} = ${seriesEpisode.seriesId}
+      ${titleEpisode.tmdbSeasonNumber} as season_number,
+      ${titleEpisode.tmdbEpisodeNumber} as episode_number,
+      min(${titleEpisode.stillUrl}) as still_url
+    from ${titleEpisode}
+    inner join ${series} on ${series.id} = ${titleEpisode.seriesId}
     left join ${episodeStill}
       on ${episodeStill.showId} = substring(${series.key} from '[0-9]+$')::int
-      and ${episodeStill.seasonNumber} = ${seriesEpisode.tmdbSeasonNumber}
-      and ${episodeStill.episodeNumber} = ${seriesEpisode.tmdbEpisodeNumber}
+      and ${episodeStill.seasonNumber} = ${titleEpisode.tmdbSeasonNumber}
+      and ${episodeStill.episodeNumber} = ${titleEpisode.tmdbEpisodeNumber}
     where ${series.key} ~ '^tv:[0-9]+$'
-      and ${seriesEpisode.tmdbEpisodeNumber} is not null
+      and ${titleEpisode.tmdbEpisodeNumber} is not null
       and (
         ${episodeStill.showId} is null
         or (
           ${episodeStill.chosenAt} < now() - ${day / 1000} * interval '1 second'
-          and ${seriesEpisode.airDate} >= to_char(now() - ${settleAfterDays} * interval '1 day', 'YYYY-MM-DD')
+          and ${titleEpisode.airDate} >= to_char(now() - ${settleAfterDays} * interval '1 day', 'YYYY-MM-DD')
         )
       )
     group by 1, 2, 3
-    order by max(${seriesEpisode.airDate}) desc nulls last
+    order by max(${titleEpisode.airDate}) desc nulls last
     limit ${episodesPerRun}
   `);
 
@@ -66,7 +66,7 @@ export const chooseFrames: Task = async (_payload, helpers) => {
 			row.still_url?.replace(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+/u, "") ?? null;
 
 		const result = await attempt(
-			chooseStill(row.show_id, row.season_number, row.episode_number, defaultPath),
+			stills.choose(row.show_id, row.season_number, row.episode_number, defaultPath),
 			UpstreamUnavailableError,
 		);
 
@@ -79,7 +79,7 @@ export const chooseFrames: Task = async (_payload, helpers) => {
 			return;
 		}
 
-		await storeStill(row.show_id, row.season_number, row.episode_number, result.data);
+		await stills.store(row.show_id, row.season_number, row.episode_number, result.data);
 		chosen += 1;
 	});
 

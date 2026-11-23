@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { ProfileInputSchema, ProfileSchema } from "@sora/core/models/account";
 import {
-	PlaybackPreferencesUpdateSchema,
+	PlaybackChangesSchema,
 	PlaybackPreferencesSchema,
 	ProfilePreferencesSchema,
-	ProfilePreferencesUpdateSchema,
+	ProfileChangesSchema,
 } from "@sora/core/models/library";
-import { ProfileInputSchema, ProfileSchema } from "@sora/core/models/profile";
 import { FeaturedCardSchema } from "@sora/core/models/series";
 
 import { CountMetaSchema, envelope } from "../../openapi/envelope";
@@ -135,7 +135,7 @@ export const contract = {
 			body: {
 				content: {
 					"application/json": {
-						schema: PlaybackPreferencesUpdateSchema,
+						schema: PlaybackChangesSchema,
 					},
 				},
 				required: true,
@@ -190,7 +190,7 @@ export const contract = {
 			body: {
 				content: {
 					"application/json": {
-						schema: ProfilePreferencesUpdateSchema,
+						schema: ProfileChangesSchema,
 					},
 				},
 				required: true,

@@ -4,7 +4,7 @@ import { isIP } from "node:net";
 
 import { attempt, defined } from "@sora/shared";
 
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 
 /** A hostname or IP address the proxy may be asked to connect to. */
 export class Host {
@@ -61,7 +61,7 @@ export class Host {
 		}
 
 		if (addresses.some(({ address }) => new Host(address).private)) {
-			respond(new InvalidStreamTokenError("Stream target is not a public host"), []);
+			respond(new StreamTokenError("Stream target is not a public host"), []);
 
 			return;
 		}

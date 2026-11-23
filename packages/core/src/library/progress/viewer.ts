@@ -3,9 +3,9 @@ import { and, eq, or } from "drizzle-orm";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import type { NextEpisode } from "../../models/library";
-import { getAdjacentEpisodes } from "../../series/queries";
+import { titles } from "../../series/queries";
 import { clearSeries } from "../state";
-import { followPlayback } from "../watchlist/watchlist";
+import { watchlist } from "../watchlist/watchlist";
 import type { EpisodeAddress } from "./progress";
 
 /** One user, as their progress and rewatches see them. */
@@ -16,7 +16,7 @@ export class Viewer {
 		this.#userId = userId;
 	}
 
-	/** Whether the user is rewatching a series; see `startRewatch`. */
+	/** Whether the user is rewatching a series; see `progress.rewatch`. */
 	async rewatching(seriesId: string): Promise<boolean> {
 		const userId = this.#userId;
 
@@ -66,13 +66,13 @@ export class Viewer {
 	async after(address: EpisodeAddress, finished: boolean) {
 		const userId = this.#userId;
 
-		await followPlayback(userId, address.seriesId, {
+		await watchlist.followPlayback(userId, address.seriesId, {
 			episode: address.episode,
 			finished,
 		});
 
 		if (finished) {
-			const adjacent = await getAdjacentEpisodes(address.seriesId, address.episode);
+			const adjacent = await titles.adjacentEpisodes(address.seriesId, address.episode);
 
 			if (adjacent.next === null) {
 				await this.endRewatch(address.seriesId);
@@ -104,7 +104,7 @@ export class Viewer {
 					};
 				}
 
-				const adjacent = await getAdjacentEpisodes(last.seriesId, last.episode);
+				const adjacent = await titles.adjacentEpisodes(last.seriesId, last.episode);
 
 				return {
 					episode: adjacent.next,

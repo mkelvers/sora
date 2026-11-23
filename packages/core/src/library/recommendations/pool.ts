@@ -3,8 +3,8 @@ import type { SQL } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
-import { series, seriesRelated } from "../../database/schema/series";
-import { toSeriesCards } from "../../series/queries";
+import { series, titleRelation } from "../../database/schema/series";
+import { toCards } from "../../series/queries";
 
 /** A format worth recommending. */
 type Format = "TV" | "MOVIE";
@@ -90,8 +90,8 @@ export class Pool {
 		}
 
 		conditions.push(sql`not exists (
-			select 1 from ${seriesRelated}
-			where ${seriesRelated.seriesId} = ${series.id} and ${seriesRelated.relation} = 'PREQUEL'
+			select 1 from ${titleRelation}
+			where ${titleRelation.seriesId} = ${series.id} and ${titleRelation.relation} = 'PREQUEL'
 		)`);
 		ordering.push(ranking, desc(animeSearch.popularity));
 
@@ -116,7 +116,7 @@ export class Pool {
 			}
 		}
 
-		const cards = await toSeriesCards(found);
+		const cards = await toCards(found);
 
 		return found.flatMap((row) => {
 			const card = cards.get(row.id);

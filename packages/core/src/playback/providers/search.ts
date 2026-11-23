@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { bestSimilarity } from "anime-sdk";
 import type { HttpClient } from "anime-sdk";
 import { and, eq, gte, inArray, lte, or } from "drizzle-orm";
@@ -6,10 +6,10 @@ import type { SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Anime, AnimeFormat } from "../../catalog/models/anime";
-import { getAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries } from "../../database/schema/playback";
-import { AnimeNotFoundError } from "../../errors";
+import { UnknownAnimeError } from "../../errors";
 import { Rows } from "./rows";
 import { Series } from "./series";
 
@@ -324,7 +324,7 @@ export class Search {
 		];
 
 		const found = new Set<number>();
-		await inSequence(queries, async (query) => {
+		await sequence.all(queries, async (query) => {
 			const response = await http.get(
 				`${siteUrl}/filter?keyword=${encodeURIComponent(query)}&sort=most-viewed`,
 			);
@@ -354,7 +354,7 @@ export class Search {
 
 		const candidates = [...found].filter((candidate) => !known.has(candidate));
 
-		const fetched = await inSequence(candidates.slice(0, lookupCandidateLimit), async (id) => {
+		const fetched = await sequence.all(candidates.slice(0, lookupCandidateLimit), async (id) => {
 			const response = await http.get(`${apiUrl}/series/${id}`);
 			const parsed = SeriesResponseSchema.safeParse(await response.json());
 
@@ -401,7 +401,7 @@ export class Search {
 		}
 
 		// A prequel AniList has since removed or marked adult.
-		const { data, error } = await attempt(getAnime(prequel.id), AnimeNotFoundError);
+		const { data, error } = await attempt(catalog.anime(prequel.id), UnknownAnimeError);
 
 		if (error) {
 			return null;

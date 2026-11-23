@@ -1,12 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
-	ImportAuthorizationUrlSchema,
-	ImportAuthorizeRequestSchema,
+	AuthorizationUrlSchema,
+	AuthorizeRequestSchema,
 	ImportConnectionSchema,
 	ImportOptionsSchema,
 	ImportUndoSchema,
 	LibraryExportSchema,
-	LibraryImportReportSchema,
+	ImportReportSchema,
 	LibraryImportSchema,
 } from "@sora/core/models/transfer";
 
@@ -25,14 +25,14 @@ export const contract = {
 			body: {
 				content: {
 					"application/json": {
-						schema: ImportAuthorizeRequestSchema,
+						schema: AuthorizeRequestSchema,
 					},
 				},
 				required: true,
 			},
 		},
 		responses: {
-			200: json(envelope(ImportAuthorizationUrlSchema, EmptyMeta), "Where to send them."),
+			200: json(envelope(AuthorizationUrlSchema, EmptyMeta), "Where to send them."),
 			401: problem("Not signed in."),
 			422: problem("The body is invalid, or that account is not set up on this Sora."),
 		},
@@ -116,7 +116,7 @@ export const contract = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelope(LibraryImportReportSchema, EmptyMeta), "What was added."),
+			200: json(envelope(ImportReportSchema, EmptyMeta), "What was added."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 			422: problem("The body is invalid, or the AniList user is unknown or private."),

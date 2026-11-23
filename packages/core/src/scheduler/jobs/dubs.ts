@@ -1,4 +1,4 @@
-import { hour, minute, inSequence } from "@sora/shared";
+import { hour, minute, sequence } from "@sora/shared";
 import { and, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -18,7 +18,7 @@ export const syncScheduleTask = "sync-dub-schedule";
  * dub shows up within minutes of AniKoto carrying it. AniList has no dub
  * schedule.
  *
- * Runs daily on AnimeSchedule's timetable as `syncTimetables` stores it,
+ * Runs daily on AnimeSchedule's timetable as `timetables.sync` stores it,
  * without asking AnimeSchedule itself. Only dubs of stored series that
  * AniKoto does not carry yet are looked for.
  */
@@ -106,7 +106,7 @@ export const syncSchedule: Task = async (_payload, helpers) => {
 		];
 	});
 
-	await inSequence(uncarried, ({ anilistId, release }) =>
+	await sequence.all(uncarried, ({ anilistId, release }) =>
 		schedulePoll(
 			{
 				anilistId,

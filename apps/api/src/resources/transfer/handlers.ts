@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { getProfile } from "@sora/core/auth";
+import { profiles } from "@sora/core/auth";
 import {
 	authorizationUrl,
 	exportLibrary,
@@ -47,7 +47,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.exportLibrary, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const profile = await profiles.get(c.get("accountId"), c.req.valid("param").profile_id);
 		const library = await exportLibrary(profile.id);
 
 		return c.json(
@@ -60,7 +60,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.importLibrary, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const profile = await profiles.get(c.get("accountId"), c.req.valid("param").profile_id);
 		const report = await importLibrary(profile.id, c.req.valid("json"));
 
 		return c.json(
@@ -73,7 +73,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.listImportConnections, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const profile = await profiles.get(c.get("accountId"), c.req.valid("param").profile_id);
 		const connections = await listImportConnections(profile.id);
 
 		return c.json(
@@ -89,7 +89,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.disconnectImport, async (c) => {
 		const { profile_id, source } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
 		await disconnectImport(profile.id, source);
 
 		return c.body(null, 204);
@@ -97,7 +97,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.undoImport, async (c) => {
 		const { profile_id, import_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
+		const profile = await profiles.get(c.get("accountId"), profile_id);
 
 		return c.json(
 			{

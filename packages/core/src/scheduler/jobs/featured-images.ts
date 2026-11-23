@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -6,8 +6,8 @@ import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series, titleArtwork, titleImage } from "../../database/schema/series";
 import { worthFeaturing, minBackdropSize } from "../../library/featured/featured";
-import { listSeriesImages } from "../../series/artwork";
-import { isCollage } from "../../series/collage";
+import { artwork } from "../../series/artwork";
+import { collage } from "../../series/collage";
 
 /** The graphile-worker task that stores the images of titles the home page may feature. */
 export const storeImagesTask = "store-featured-images";
@@ -50,8 +50,8 @@ export const storeImages: Task = async (_payload, helpers) => {
 		.orderBy(desc(animeSearch.popularity))
 		.limit(titlesPerRun);
 
-	await inSequence(rows, async ({ id }) => {
-		const { data, error } = await attempt(listSeriesImages(id));
+	await sequence.all(rows, async ({ id }) => {
+		const { data, error } = await attempt(artwork.images(id));
 
 		if (error) {
 			helpers.logger.warn(`Storing the images of ${id} failed: ${error.message}`);
@@ -68,8 +68,8 @@ export const storeImages: Task = async (_payload, helpers) => {
 				image.height >= minBackdropSize.height,
 		);
 
-		await inSequence(clean, async (image) => {
-			const looked = await attempt(isCollage(image.url));
+		await sequence.all(clean, async (image) => {
+			const looked = await attempt(collage.test(image.url));
 
 			if (looked.error) {
 				helpers.logger.warn(`Looking at ${image.url} failed: ${looked.error.message}`);

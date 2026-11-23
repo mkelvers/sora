@@ -1,17 +1,17 @@
-import { attempt, hour, minute, inSequence } from "@sora/shared";
+import { attempt, hour, minute, sequence } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { getAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { providerEpisodes, providerMapping } from "../../database/schema/playback";
 import { series } from "../../database/schema/series";
-import { AnimeNotFoundError } from "../../errors";
+import { UnknownAnimeError } from "../../errors";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
 import type { ProviderUnit } from "../../playback/episodes/episodes";
-import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catalog";
-import { aniKoto, providerHttp } from "../../playback/providers/registry";
+import { aniKotoCatalog } from "../../playback/providers/anikoto-catalog";
+import { aniKoto, http } from "../../playback/providers/registry";
 import { parseInput } from "../payload";
 import { schedulePoll, scheduleRefresh } from "../queue";
 
@@ -20,7 +20,7 @@ import { schedulePoll, scheduleRefresh } from "../queue";
  * series changed since their list was last fetched, or, for an entry
  * AniKoto did not carry, since it was last looked for.
  *
- * AniKoto's changes (see {@link readRecentAniKotoChanges}) cost one
+ * AniKoto's changes (see {@link aniKotoCatalog.recentChanges}) cost one
  * request, or a few after a burst, however many series changed. A new
  * episode changes its series, and so does a new dub, though not its
  * episode: Daemons of the Shadow Realm, finished a week earlier, changed 20
@@ -63,7 +63,7 @@ class Looks {
 	 * @throws {Error} when AniKoto fails.
 	 */
 	static async refresh(anilistId: number): Promise<ProviderUnit[] | null> {
-		const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+		const { data, error } = await attempt(catalog.anime(anilistId), UnknownAnimeError);
 
 		if (error) {
 			return null;
@@ -94,10 +94,7 @@ class Looks {
 		 */
 		const changeWindowMs = 2 * hour;
 
-		const changes = await readRecentAniKotoChanges(
-			providerHttp,
-			new Date(Date.now() - changeWindowMs),
-		);
+		const changes = await aniKotoCatalog.recentChanges(http, new Date(Date.now() - changeWindowMs));
 
 		const changedAt = new Map(
 			changes.map((change) => [String(change.anikotoId), change.updatedAt]),
@@ -180,7 +177,7 @@ class Looks {
 
 		const checkedAt = new Map([...resolved, ...fetched].map((row) => [row.anilistId, row.at]));
 
-		await inSequence(stored, async ({ anilistId }) => {
+		await sequence.all(stored, async ({ anilistId }) => {
 			const checked = checkedAt.get(anilistId);
 			const changed = updatedAt.get(anilistId);
 
