@@ -8,7 +8,8 @@ import { anime, animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
 import { SeriesNotFoundError } from "../errors";
 import type { SeriesCard } from "../models/series";
-import { franchiseIds, toSeriesCards } from "./queries";
+import { FranchiseWalk } from "./franchise-walk";
+import { toSeriesCards } from "./queries";
 
 /**
  * Titles like a series' franchise, the most recommended first, at most
@@ -46,7 +47,7 @@ export const getSimilarSeries = async (id: string): Promise<SeriesCard[]> => {
 		throw new SeriesNotFoundError(id);
 	}
 
-	const { ids, crossovers, apart } = await franchiseIds(row.anilistId);
+	const { ids, crossovers, apart } = await new FranchiseWalk(row.anilistId).reach();
 
 	const own = [
 		row.anilistId,

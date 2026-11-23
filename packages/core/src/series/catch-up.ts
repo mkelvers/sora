@@ -6,7 +6,8 @@ import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
 import { isNamedAfter } from "./franchise";
-import { byStartDate, franchiseIds } from "./queries";
+import { FranchiseWalk } from "./franchise-walk";
+import { byStartDate } from "./queries";
 
 /** Where catching up on an AniList entry's franchise starts. */
 export class CatchUp {
@@ -28,7 +29,7 @@ export class CatchUp {
 		/** The statuses of a title that is out. */
 		const released: MediaStatus[] = ["FINISHED", "RELEASING"];
 
-		const { ids: franchise, crossovers, apart } = await franchiseIds(this.#anilistId);
+		const { ids: franchise, crossovers, apart } = await new FranchiseWalk(this.#anilistId).reach();
 
 		if (franchise.length === 0) {
 			return null;
