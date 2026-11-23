@@ -12,148 +12,8 @@ import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/ep
 import type { ProviderUnit } from "../../playback/episodes/episodes";
 import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catalog";
 import { aniKoto, providerHttp } from "../../playback/providers/registry";
-import { parsePayload } from "../payload";
-import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
-
-const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
-
-/**
- * Fetches AniKoto's episode list of one stored AniList entry again, and
- * queues its series to be laid out again when AniKoto gained an episode.
- *
- * A series lists the episodes AniKoto carries, so the list is what makes a
- * new episode show up; laying the series out again brings in what AniList
- * and TMDB know of it.
- *
- * @returns The episodes AniKoto carries, or `null` when AniList no longer
- *   has the entry.
- * @throws {Error} when AniKoto fails.
- */
-const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[] | null> => {
-	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
-
-	if (error) {
-		return null;
-	}
-
-	const storedUnits = await getStoredUnits([anilistId]);
-	const stored = storedUnits.find((entry) => entry.provider === aniKoto.id);
-
-	const units = await refreshProviderUnits(data, aniKoto, {
-		retryUnmatched: true,
-	});
-
-	if (latest(units) > latest(stored?.units ?? [])) {
-		await scheduleStoredSeriesRefresh(anilistId);
-	}
-
-	return units;
-};
-
-const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
-	/**
-	 * How far back {@link Looks.pickUp} reads AniKoto's changes: past
-	 * the previous half-hourly look, with room for AniKoto's timestamps
-	 * trailing its episodes.
-	 */
-	const changeWindowMs = 2 * hour;
-
-	const changes = await readRecentAniKotoChanges(
-		providerHttp,
-		new Date(Date.now() - changeWindowMs),
-	);
-
-	const changedAt = new Map(changes.map((change) => [String(change.anikotoId), change.updatedAt]));
-
-	const mapped = changes.length
-		? await db
-				.select({
-					anikotoId: providerMapping.providerMediaId,
-					anilistId: providerMapping.anilistId,
-				})
-				.from(providerMapping)
-				.where(
-					and(
-						eq(providerMapping.provider, aniKoto.id),
-						inArray(providerMapping.providerMediaId, [...changedAt.keys()]),
-					),
-				)
-		: [];
-
-	const updatedAt = new Map<number, Date>();
-
-	for (const { anilistId, anikotoId } of mapped) {
-		const at = anikotoId === null ? undefined : changedAt.get(anikotoId);
-
-		if (at) {
-			updatedAt.set(anilistId, at);
-		}
-	}
-
-	// AniKoto names the AniList entry of a series it just added, which may not
-	// be matched to it yet.
-	for (const change of changes) {
-		if (change.anilistId !== null && !updatedAt.has(change.anilistId)) {
-			updatedAt.set(change.anilistId, change.updatedAt);
-		}
-	}
-
-	const ids = [...updatedAt.keys()];
-
-	if (ids.length === 0) {
-		return;
-	}
-
-	const [stored, fetched, resolved] = await Promise.all([
-		db
-			.select({
-				anilistId: series.anilistId,
-			})
-			.from(series)
-			.where(inArray(series.anilistId, ids)),
-		db
-			.select({
-				anilistId: providerEpisodes.anilistId,
-				at: providerEpisodes.fetchedAt,
-			})
-			.from(providerEpisodes)
-			.where(
-				and(eq(providerEpisodes.provider, aniKoto.id), inArray(providerEpisodes.anilistId, ids)),
-			),
-		db
-			.select({
-				anilistId: providerMapping.anilistId,
-				at: providerMapping.resolvedAt,
-			})
-			.from(providerMapping)
-			.where(
-				and(eq(providerMapping.provider, aniKoto.id), inArray(providerMapping.anilistId, ids)),
-			),
-	]);
-
-	const checkedAt = new Map([...resolved, ...fetched].map((row) => [row.anilistId, row.at]));
-
-	await inSequence(stored, async ({ anilistId }) => {
-		const checked = checkedAt.get(anilistId);
-		const changed = updatedAt.get(anilistId);
-
-		const current = checked && changed && checked >= changed;
-
-		if (current) {
-			return;
-		}
-
-		const { data, error } = await attempt(refreshAniKotoEpisodes(anilistId));
-
-		if (error) {
-			logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
-
-			return;
-		}
-
-		logger.info(`AniKoto changed anime ${anilistId}; it now carries ${data?.length ?? 0} episodes`);
-	});
-};
+import { parseInput } from "../payload";
+import { schedulePoll, scheduleRefresh } from "../queue";
 
 /**
  * Fetches again the AniKoto episode lists of stored entries whose AniKoto
@@ -181,7 +41,7 @@ class Looks {
 			return await this.#last.done;
 		}
 
-		const done = readAndRefresh(logger);
+		const done = Looks.#read(logger);
 		this.#last = {
 			done,
 			startedAt: Date.now(),
@@ -189,12 +49,166 @@ class Looks {
 
 		return await done;
 	}
+
+	/**
+	 * Fetches AniKoto's episode list of one stored AniList entry again, and
+	 * queues its series to be laid out again when AniKoto gained an episode.
+	 *
+	 * A series lists the episodes AniKoto carries, so the list is what makes a
+	 * new episode show up; laying the series out again brings in what AniList
+	 * and TMDB know of it.
+	 *
+	 * @returns The episodes AniKoto carries, or `null` when AniList no longer
+	 *   has the entry.
+	 * @throws {Error} when AniKoto fails.
+	 */
+	static async refresh(anilistId: number): Promise<ProviderUnit[] | null> {
+		const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+
+		if (error) {
+			return null;
+		}
+
+		const storedUnits = await getStoredUnits([anilistId]);
+		const stored = storedUnits.find((entry) => entry.provider === aniKoto.id);
+
+		const units = await refreshProviderUnits(data, aniKoto, {
+			retryUnmatched: true,
+		});
+
+		const latest = units.at(-1)?.number ?? 0;
+		const known = stored?.units.at(-1)?.number ?? 0;
+
+		if (latest > known) {
+			await scheduleRefresh(anilistId);
+		}
+
+		return units;
+	}
+
+	static async #read(logger: Parameters<Task>[1]["logger"]) {
+		/**
+		 * How far back {@link Looks.pickUp} reads AniKoto's changes: past
+		 * the previous half-hourly look, with room for AniKoto's timestamps
+		 * trailing its episodes.
+		 */
+		const changeWindowMs = 2 * hour;
+
+		const changes = await readRecentAniKotoChanges(
+			providerHttp,
+			new Date(Date.now() - changeWindowMs),
+		);
+
+		const changedAt = new Map(
+			changes.map((change) => [String(change.anikotoId), change.updatedAt]),
+		);
+
+		let mapped: {
+			anikotoId: string | null;
+			anilistId: number;
+		}[] = [];
+
+		if (changes.length) {
+			mapped = await db
+				.select({
+					anikotoId: providerMapping.providerMediaId,
+					anilistId: providerMapping.anilistId,
+				})
+				.from(providerMapping)
+				.where(
+					and(
+						eq(providerMapping.provider, aniKoto.id),
+						inArray(providerMapping.providerMediaId, [...changedAt.keys()]),
+					),
+				);
+		}
+
+		const updatedAt = new Map<number, Date>();
+
+		for (const { anilistId, anikotoId } of mapped) {
+			if (anikotoId === null) {
+				continue;
+			}
+
+			const at = changedAt.get(anikotoId);
+
+			if (at) {
+				updatedAt.set(anilistId, at);
+			}
+		}
+
+		// AniKoto names the AniList entry of a series it just added, which may not
+		// be matched to it yet.
+		for (const change of changes) {
+			if (change.anilistId !== null && !updatedAt.has(change.anilistId)) {
+				updatedAt.set(change.anilistId, change.updatedAt);
+			}
+		}
+
+		const ids = [...updatedAt.keys()];
+
+		if (ids.length === 0) {
+			return;
+		}
+
+		const [stored, fetched, resolved] = await Promise.all([
+			db
+				.select({
+					anilistId: series.anilistId,
+				})
+				.from(series)
+				.where(inArray(series.anilistId, ids)),
+			db
+				.select({
+					anilistId: providerEpisodes.anilistId,
+					at: providerEpisodes.fetchedAt,
+				})
+				.from(providerEpisodes)
+				.where(
+					and(eq(providerEpisodes.provider, aniKoto.id), inArray(providerEpisodes.anilistId, ids)),
+				),
+			db
+				.select({
+					anilistId: providerMapping.anilistId,
+					at: providerMapping.resolvedAt,
+				})
+				.from(providerMapping)
+				.where(
+					and(eq(providerMapping.provider, aniKoto.id), inArray(providerMapping.anilistId, ids)),
+				),
+		]);
+
+		const checkedAt = new Map([...resolved, ...fetched].map((row) => [row.anilistId, row.at]));
+
+		await inSequence(stored, async ({ anilistId }) => {
+			const checked = checkedAt.get(anilistId);
+			const changed = updatedAt.get(anilistId);
+
+			const current = checked && changed && checked >= changed;
+
+			if (current) {
+				return;
+			}
+
+			const { data, error } = await attempt(Looks.refresh(anilistId));
+
+			if (error) {
+				logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
+
+				return;
+			}
+
+			logger.info(
+				`AniKoto changed anime ${anilistId}; it now carries ${data?.length ?? 0} episodes`,
+			);
+		});
+	}
 }
 
 const looks = new Looks();
 
 /** The graphile-worker task that picks up what AniKoto changed. */
-export const watchAniKotoReleasesTask = "watch-anikoto-releases";
+export const watchAnikotoTask = "watch-anikoto-releases";
 
 /**
  * Picks up what AniKoto changed (see {@link Looks.pickUp}) every
@@ -202,34 +216,15 @@ export const watchAniKotoReleasesTask = "watch-anikoto-releases";
  * {@link pollAniKoto}), so this catches the rest: dubs, which AniList does
  * not schedule, and episodes of entries it has no schedule for.
  */
-export const watchAniKotoReleases: Task = async (_payload, helpers) => {
+export const watchAnikoto: Task = async (_payload, helpers) => {
 	await looks.pickUp(helpers.logger);
 };
 
 /**
- * How long to wait before each further look on AniKoto for an aired
- * episode; the first is five minutes after it airs. Subs of a season
- * reached AniKoto 3 to 70 minutes after AniList's broadcast time, mostly
- * about an hour, and long-running shows' hours later, so looks are close
- * for the first hour and a half, then spread out over the rest of a day.
- * The airing tracker and the half-hourly look catch any later.
- */
-const aniKotoPollDelaysMs = [10, 15, 15, 15, 10, 10, 10, 30, 30, 30, 60, 120, 360, 720].map(
-	(minutes) => minutes * minute,
-);
-
-const PollAniKotoPayloadSchema = z.object({
-	anilistId: z.number().int().positive(),
-	attempt: z.number().int().nonnegative(),
-	episode: z.number(),
-	language: z.enum(["sub", "dub"]).default("sub"),
-});
-
-/**
  * Looks on AniKoto for an episode AniList says has aired, or for its dub
  * once AnimeSchedule says it is out, and looks again after the next of
- * {@link aniKotoPollDelaysMs} until AniKoto carries it. Queued by the
- * airing tracker when an episode airs, and by `syncDubSchedule` for
+ * its delays until AniKoto carries it. Queued by the
+ * airing tracker when an episode airs, and by `syncSchedule` for
  * a dub.
  *
  * A look reads what AniKoto changed (see {@link Looks.pickUp}),
@@ -239,7 +234,28 @@ const PollAniKotoPayloadSchema = z.object({
  * AniKoto fails counts as not finding the episode.
  */
 export const pollAniKoto: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(PollAniKotoPayloadSchema, rawPayload);
+	/**
+	 * How long to wait before each further look on AniKoto for an aired
+	 * episode; the first is five minutes after it airs. Subs of a season
+	 * reached AniKoto 3 to 70 minutes after AniList's broadcast time, mostly
+	 * about an hour, and long-running shows' hours later, so looks are close
+	 * for the first hour and a half, then spread out over the rest of a day.
+	 * The airing tracker and the half-hourly look catch any later.
+	 */
+	const delaysMs = [10, 15, 15, 15, 10, 10, 10, 30, 30, 30, 60, 120, 360, 720].map(
+		(minutes) => minutes * minute,
+	);
+
+	const payload = parseInput(
+		z.object({
+			anilistId: z.number().int().positive(),
+			attempt: z.number().int().nonnegative(),
+			episode: z.number(),
+			language: z.enum(["sub", "dub"]).default("sub"),
+		}),
+		rawPayload,
+	);
+
 	const { anilistId, episode, language } = payload;
 
 	const [mapping] = await db
@@ -257,7 +273,7 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
 		}
 	} else {
-		const { data, error } = await attempt(refreshAniKotoEpisodes(anilistId));
+		const { data, error } = await attempt(Looks.refresh(anilistId));
 
 		if (error) {
 			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
@@ -279,10 +295,10 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const delay = aniKotoPollDelaysMs[payload.attempt];
+	const delay = delaysMs[payload.attempt];
 
 	if (delay !== undefined) {
-		await scheduleAniKotoPoll(
+		await schedulePoll(
 			{
 				anilistId,
 				attempt: payload.attempt + 1,

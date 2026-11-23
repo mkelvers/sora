@@ -7,14 +7,13 @@ import type { AiringState } from "./airing-plan";
 
 const now = new Date("2026-09-23T12:00:00Z");
 
-const state = (overrides: Partial<AiringState>): AiringState => ({
+const base: AiringState = {
 	latestAiredEpisode: null,
 	latestReleasedEpisode: null,
-	nextAiringAt: null,
+	nextAt: null,
 	startDate: null,
 	status: "RELEASING",
-	...overrides,
-});
+};
 
 const fresh = {
 	attempt: 0,
@@ -23,14 +22,15 @@ const fresh = {
 
 describe("planNextCheck", () => {
 	test("checks at the next broadcast when every aired episode is released", () => {
-		const nextAiringAt = new Date("2026-09-25T08:00:00Z");
+		const nextAt = new Date("2026-09-25T08:00:00Z");
 
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				latestAiredEpisode: 5,
 				latestReleasedEpisode: 5,
-				nextAiringAt,
-			}),
+				nextAt,
+			},
 			fresh,
 			now,
 		);
@@ -39,17 +39,18 @@ describe("planNextCheck", () => {
 			attempt: 0,
 			awaitedEpisode: null,
 			done: false,
-			runAt: nextAiringAt,
+			runAt: nextAt,
 		});
 	});
 
 	test("retries soon after a broadcast when AniKoto does not carry the episode yet", () => {
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				latestAiredEpisode: 6,
 				latestReleasedEpisode: 5,
-				nextAiringAt: new Date("2026-09-30T08:00:00Z"),
-			}),
+				nextAt: new Date("2026-09-30T08:00:00Z"),
+			},
 			fresh,
 			now,
 		);
@@ -64,11 +65,12 @@ describe("planNextCheck", () => {
 
 	test("backs off while the same episode stays missing", () => {
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				latestAiredEpisode: 6,
 				latestReleasedEpisode: 5,
-				nextAiringAt: new Date("2026-09-30T08:00:00Z"),
-			}),
+				nextAt: new Date("2026-09-30T08:00:00Z"),
+			},
 			{
 				attempt: 2,
 				awaitedEpisode: 6,
@@ -83,14 +85,15 @@ describe("planNextCheck", () => {
 	});
 
 	test("stops retrying an episode after the last attempt but keeps the broadcast check", () => {
-		const nextAiringAt = new Date("2026-09-30T08:00:00Z");
+		const nextAt = new Date("2026-09-30T08:00:00Z");
 
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				latestAiredEpisode: 6,
 				latestReleasedEpisode: 5,
-				nextAiringAt,
-			}),
+				nextAt,
+			},
 			{
 				attempt: maximumReleaseAttempts - 1,
 				awaitedEpisode: 6,
@@ -99,17 +102,18 @@ describe("planNextCheck", () => {
 		);
 
 		expect(plan).toMatchObject({
-			runAt: nextAiringAt,
+			runAt: nextAt,
 		});
 	});
 
 	test("ends once a finished anime has every episode", () => {
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				latestAiredEpisode: 12,
 				latestReleasedEpisode: 12,
 				status: "FINISHED",
-			}),
+			},
 			fresh,
 			now,
 		);
@@ -120,11 +124,12 @@ describe("planNextCheck", () => {
 	});
 
 	test("keeps waiting for the final episode of a finished anime, then gives up", () => {
-		const finale = state({
+		const finale: AiringState = {
+			...base,
 			latestAiredEpisode: 12,
 			latestReleasedEpisode: 11,
 			status: "FINISHED",
-		});
+		};
 
 		expect(planNextCheck(finale, fresh, now)).toMatchObject({
 			awaitedEpisode: 12,
@@ -146,10 +151,11 @@ describe("planNextCheck", () => {
 
 	test("waits for premiere day, in Japan time, when AniList has a date but no time", () => {
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				startDate: "2026-10-05",
 				status: "NOT_YET_RELEASED",
-			}),
+			},
 			fresh,
 			now,
 		);
@@ -163,10 +169,11 @@ describe("planNextCheck", () => {
 		const duringPremiere = new Date("2026-10-05T03:00:00Z");
 
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				startDate: "2026-10-05",
 				status: "NOT_YET_RELEASED",
-			}),
+			},
 			fresh,
 			duringPremiere,
 		);
@@ -178,29 +185,31 @@ describe("planNextCheck", () => {
 
 	test("uses the announced premiere time over the premiere-day window", () => {
 		// Psyren: AniList lists episode 1 for 2026-10-05 23:00 JST.
-		const nextAiringAt = new Date(1_791_208_800_000);
+		const nextAt = new Date(1_791_208_800_000);
 
 		const plan = planNextCheck(
-			state({
-				nextAiringAt,
+			{
+				...base,
+				nextAt,
 				startDate: "2026-10-05",
 				status: "NOT_YET_RELEASED",
-			}),
+			},
 			fresh,
 			now,
 		);
 
 		expect(plan).toMatchObject({
-			runAt: nextAiringAt,
+			runAt: nextAt,
 		});
 	});
 
 	test("checks daily when an upcoming anime only has a month", () => {
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				startDate: "2027-01",
 				status: "NOT_YET_RELEASED",
-			}),
+			},
 			fresh,
 			now,
 		);
@@ -212,11 +221,12 @@ describe("planNextCheck", () => {
 
 	test("checks again shortly when AniList's broadcast time has already passed", () => {
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				latestAiredEpisode: 4,
 				latestReleasedEpisode: 4,
-				nextAiringAt: new Date(now.getTime() - minute),
-			}),
+				nextAt: new Date(now.getTime() - minute),
+			},
 			fresh,
 			now,
 		);
@@ -254,11 +264,12 @@ describe("a double-episode premiere", () => {
 
 	test("keeps waiting for the second episode once AniKoto carries the first", () => {
 		const plan = planNextCheck(
-			state({
+			{
+				...base,
 				latestAiredEpisode: extendThroughReleased(1, [2]),
 				latestReleasedEpisode: 1,
-				nextAiringAt: new Date("2026-10-03T15:14:00Z"),
-			}),
+				nextAt: new Date("2026-10-03T15:14:00Z"),
+			},
 			{
 				attempt: 0,
 				awaitedEpisode: 2,

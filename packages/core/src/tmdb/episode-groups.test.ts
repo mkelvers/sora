@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import type { Json } from "@sora/shared";
 
-import { createTmdbClient } from "./client";
+import { connect } from "./client";
 import { getShowEpisodeGroups } from "./resources";
 
 const episode = {
@@ -17,55 +17,55 @@ const episode = {
 	still_path: null,
 };
 
-const responses = new Map(
-	Object.entries<Json>({
-		"/tv/1/episode_groups": { results: [] },
-		"/tv/45790/episode_groups": {
-			results: [
-				{
-					id: "anime-parts",
-					type: 1,
-				},
-			],
-		},
-		"/tv/episode_group/anime-parts": {
-			groups: [
-				{
-					episodes: [
-						{
-							...episode,
-							episode_number: 25,
-							id: 3,
-						},
-					],
-					name: "Part 3",
-					order: 3,
-				},
-				{
-					episodes: [
-						{
-							...episode,
-							episode_number: 14,
-							id: 2,
-							order: 1,
-						},
-						episode,
-					],
-					name: "Part 2",
-					order: 2,
-				},
-			],
-		},
-	}),
-);
-
 /** The paths TMDB was asked for, in order. */
 const requests: string[] = [];
 
-const { tmdb } = createTmdbClient({
+const { tmdb } = connect({
 	fetch: (url) => {
 		const path = url.pathname.replace("/3", "");
 		requests.push(path);
+
+		const responses = new Map(
+			Object.entries<Json>({
+				"/tv/1/episode_groups": { results: [] },
+				"/tv/45790/episode_groups": {
+					results: [
+						{
+							id: "anime-parts",
+							type: 1,
+						},
+					],
+				},
+				"/tv/episode_group/anime-parts": {
+					groups: [
+						{
+							episodes: [
+								{
+									...episode,
+									episode_number: 25,
+									id: 3,
+								},
+							],
+							name: "Part 3",
+							order: 3,
+						},
+						{
+							episodes: [
+								{
+									...episode,
+									episode_number: 14,
+									id: 2,
+									order: 1,
+								},
+								episode,
+							],
+							name: "Part 2",
+							order: 2,
+						},
+					],
+				},
+			}),
+		);
 
 		return Promise.resolve(Response.json(responses.get(path)));
 	},

@@ -10,11 +10,13 @@ import { AutoTokenizer, CLIPTextModelWithProjection } from "@huggingface/transfo
 import { labelPrompt, stillLabels, stillModel, unitLength } from "./still-model";
 
 const prompts = stillLabels.map(labelPrompt);
-const tokenizer = await AutoTokenizer.from_pretrained(stillModel);
 
-const text = await CLIPTextModelWithProjection.from_pretrained(stillModel, {
-	dtype: "fp32",
-});
+const [tokenizer, text] = [
+	await AutoTokenizer.from_pretrained(stillModel),
+	await CLIPTextModelWithProjection.from_pretrained(stillModel, {
+		dtype: "fp32",
+	}),
+];
 
 const { text_embeds: embeds } = await text(
 	tokenizer(prompts, {
@@ -24,23 +26,20 @@ const { text_embeds: embeds } = await text(
 );
 
 const [, width = 0] = embeds.dims;
+const { data } = embeds;
 
-if (!(embeds.data instanceof Float32Array)) {
+if (!(data instanceof Float32Array)) {
 	throw new TypeError("The text model did not return float32 embeddings");
 }
-
-const values = [...embeds.data];
-
-const embeddings = prompts.map((_prompt, index) =>
-	unitLength(values.slice(index * width, (index + 1) * width)).map((value) =>
-		Number(value.toPrecision(8)),
-	),
-);
 
 await writeFile(
 	new URL("still-labels.generated.json", import.meta.url),
 	`${JSON.stringify({
-		embeddings,
+		embeddings: prompts.map((_prompt, index) =>
+			unitLength([...data.subarray(index * width, (index + 1) * width)]).map((value) =>
+				Number(value.toPrecision(8)),
+			),
+		),
 		labels: prompts,
 		model: stillModel,
 	})}\n`,

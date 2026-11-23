@@ -6,17 +6,17 @@ import { config } from "../../config";
 import { db } from "../../database/client";
 
 /** The graphile-worker task that drops jobs that will never run again. */
-export const pruneDeadJobsTask = "prune-dead-jobs";
+export const pruneDeadTask = "prune-dead-jobs";
 
 /**
  * Logs and deletes the jobs that failed every attempt. graphile-worker keeps
  * them for good, and they are never retried: a task that keeps something
  * current queues itself again, or is queued again by the job that revives
- * it (such as `reviveAiringChecks`). Left in place they only pile up, and
+ * it (such as `reviveChecks`). Left in place they only pile up, and
  * thousands of them hide the queue's real work. What failed, and why, is
  * logged first, one line per task and error. Runs daily.
  */
-export const pruneDeadJobsJob: Task = async (_payload, helpers) => {
+export const pruneDead: Task = async (_payload, helpers) => {
 	const dead = await db.execute<{
 		task_identifier: string;
 		last_error: string | null;

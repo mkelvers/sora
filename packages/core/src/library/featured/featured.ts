@@ -75,7 +75,7 @@ class Picker {
 	 * `titleBackdropUpscale`) is its original with a larger size: it counts by
 	 * the original's language and collage check and its own size. TMDB's default is often smaller,
 	 * has the title printed on it, or is a collage, so a title only qualifies
-	 * once its images are stored and looked at (see `storeFeaturedImagesJob`). Nothing here chooses a
+	 * once its images are stored and looked at (see `storeImages`). Nothing here chooses a
 	 * backdrop: a title whose shown one is not good enough is left out until
 	 * someone chooses a better one.
 	 */
@@ -382,7 +382,7 @@ class Picker {
  * holds fewer titles rather than repeat others, down to {@link minimumCount}.
  *
  * Reads only the database: candidates come from the search index, and their
- * AniList activity from what `storeAnimeTrendsJob` stores.
+ * AniList activity from what `storeActivity` stores.
  * Long-running titles such as Detective Conan are left out, as are spin-offs
  * and side stories that AniList gives a parent story, such as My Hero
  * Academia: Vigilantes, which readers know by the show it belongs to, and those

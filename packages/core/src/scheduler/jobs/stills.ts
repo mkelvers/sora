@@ -8,7 +8,7 @@ import { UpstreamUnavailableError } from "../../errors";
 import { chooseStill, storeStill } from "../../series/stills";
 
 /** The graphile-worker task that chooses the stills of episodes that have none chosen. */
-export const chooseEpisodeStillsTask = "choose-episode-stills";
+export const chooseFramesTask = "choose-episode-stills";
 
 /**
  * Chooses the still (see `chooseStill`) of every TMDB episode a series
@@ -18,9 +18,9 @@ export const chooseEpisodeStillsTask = "choose-episode-stills";
  * Episodes with a choice stored keep it, so a backlog of the catalogue is
  * worked off over days and each episode is looked at once.
  */
-export const chooseEpisodeStillsJob: Task = async (_payload, helpers) => {
+export const chooseFrames: Task = async (_payload, helpers) => {
 	/** How long after an episode aired TMDB's stills for it still change. */
-	const stillsSettleAfterDays = 14;
+	const settleAfterDays = 14;
 
 	/** Episodes chosen for at once. */
 	const concurrency = 4;
@@ -51,7 +51,7 @@ export const chooseEpisodeStillsJob: Task = async (_payload, helpers) => {
         ${episodeStill.showId} is null
         or (
           ${episodeStill.chosenAt} < now() - ${day / 1000} * interval '1 second'
-          and ${seriesEpisode.airDate} >= to_char(now() - ${stillsSettleAfterDays} * interval '1 day', 'YYYY-MM-DD')
+          and ${seriesEpisode.airDate} >= to_char(now() - ${settleAfterDays} * interval '1 day', 'YYYY-MM-DD')
         )
       )
     group by 1, 2, 3

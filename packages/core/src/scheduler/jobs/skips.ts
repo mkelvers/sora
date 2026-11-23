@@ -16,13 +16,7 @@ import {
 import { themeSongsFor } from "../../playback/skips/themes";
 import { resolveVideos } from "../../playback/streams/resolve";
 import { locateEpisode } from "../../series/episodes";
-import { parsePayload } from "../payload";
-
-const PayloadSchema = z.object({
-	ahead: z.boolean().default(false),
-	episode: z.number().int().positive(),
-	seriesId: z.string().min(1),
-});
+import { parseInput } from "../payload";
 
 const unsettled = {
 	ending: null,
@@ -42,8 +36,16 @@ const unsettled = {
  * A song or video that cannot be read is passed over, the video stored as
  * unsettled so it is tried again in two weeks rather than every day.
  */
-export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
-	const { ahead, ...request } = parsePayload(PayloadSchema, payload);
+export const detectSegments: Task = async (payload, helpers) => {
+	const { ahead, ...request } = parseInput(
+		z.object({
+			ahead: z.boolean().default(false),
+			episode: z.number().int().positive(),
+			seriesId: z.string().min(1),
+		}),
+		payload,
+	);
+
 	const marker = episodeDetectionKey(request.seriesId, request.episode);
 
 	if (ahead) {
@@ -97,10 +99,11 @@ export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
 	const stored = await getSkipDetections(videos.map(({ key }) => key));
 	const due = videos.filter(({ key }) => isSkipDetectionDue(stored.get(key)));
 
-	const songs =
-		due.length > 0
-			? await themeSongsFor(await getAnime(located.data.anilistId), located.data.number)
-			: [];
+	let songs: Awaited<ReturnType<typeof themeSongsFor>> = [];
+
+	if (due.length > 0) {
+		songs = await themeSongsFor(await getAnime(located.data.anilistId), located.data.number);
+	}
 
 	const listened = await inSequence(songs, async (song) => {
 		const { data, error } = await attempt(listenToSong(song));

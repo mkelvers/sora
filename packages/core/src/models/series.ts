@@ -546,19 +546,6 @@ const artworkImage = z.union([
 /** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
 const ArtworkUrlSchema = artworkImage.nullable().optional();
 
-/**
- * Where the web app serves an upscaled backdrop (see `upscaledBackdropUrl`),
- * which a title may choose too, if the title has it.
- */
-const upscaledBackdropPattern =
-	/^\/api\/backdrops\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-
-/** {@link ArtworkUrlSchema}, or an upscaled backdrop. */
-const BackdropUrlSchema = z
-	.union([artworkImage, z.string().regex(upscaledBackdropPattern)])
-	.nullable()
-	.optional();
-
 /** Shared bounds for artwork validation and the client's logo placement controls. */
 export const logoPlacement = {
 	offset: {
@@ -585,7 +572,22 @@ const LogoOffsetSchema = z
  */
 export const ArtworkChangesSchema = z
 	.object({
-		backdrop_url: BackdropUrlSchema,
+		/**
+		 * {@link ArtworkUrlSchema}, or where the web app serves an upscaled
+		 * backdrop (see `upscaledBackdropUrl`), which a title may choose too, if
+		 * the title has it.
+		 */
+		backdrop_url: z
+			.union([
+				artworkImage,
+				z
+					.string()
+					.regex(
+						/^\/api\/backdrops\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+					),
+			])
+			.nullable()
+			.optional(),
 		logo_offset_x: LogoOffsetSchema.meta({
 			description: `How far right to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
 		}),

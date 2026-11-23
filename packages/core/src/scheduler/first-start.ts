@@ -4,14 +4,10 @@ import { consoleLogFactory, Logger } from "graphile-worker";
 import type { Runner } from "graphile-worker";
 
 import { searchIndex } from "../catalog/queries/search";
-import { syncProviderCatalogsTask } from "./jobs/catalogs";
-import { syncDubScheduleTask } from "./jobs/dubs";
-import { syncSearchIndexTask } from "./jobs/search";
-import { syncTimetablesTask } from "./jobs/timetables";
-
-const logger = new Logger(consoleLogFactory).scope({
-	label: "first-start",
-});
+import { syncProvidersTask } from "./jobs/catalogs";
+import { syncScheduleTask } from "./jobs/dubs";
+import { syncIndexTask } from "./jobs/search";
+import { syncWeeksTask } from "./jobs/timetables";
 
 /**
  * What a fresh catalogue needs first: the search index and provider
@@ -20,19 +16,19 @@ const logger = new Logger(consoleLogFactory).scope({
  */
 const firstJobs: [task: string, payload: Record<string, Json> | null][] = [
 	[
-		syncSearchIndexTask,
+		syncIndexTask,
 		{
 			full: true,
 		},
 	],
 	[
-		syncProviderCatalogsTask,
+		syncProvidersTask,
 		{
 			full: true,
 		},
 	],
-	[syncTimetablesTask, null],
-	[syncDubScheduleTask, null],
+	[syncWeeksTask, null],
+	[syncScheduleTask, null],
 ];
 
 /**
@@ -58,6 +54,11 @@ export const fillEmptyCatalog = async (runner: Runner) => {
 			priority: -1,
 		});
 	});
+
+	const logger = new Logger(consoleLogFactory).scope({
+		label: "first-start",
+	});
+
 	logger.info(
 		`The catalogue was never filled; queued ${firstJobs.map(([task]) => task).join(", ")}`,
 	);

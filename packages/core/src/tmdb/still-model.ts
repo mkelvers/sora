@@ -25,9 +25,6 @@ export const stillLabels = [
 /** How a label is put to CLIP, as Transformers.js's zero-shot pipeline puts it. */
 export const labelPrompt = (label: string) => `This is a photo of ${label}`;
 
-const dot = (left: readonly number[], right: readonly number[]) =>
-	left.reduce((sum, value, index) => sum + value * (right[index] ?? 0), 0);
-
 /** A vector scaled to length 1, so the dot product of two is their cosine similarity. */
 export const unitLength = (vector: readonly number[]) => {
 	const length = Math.hypot(...vector);
@@ -79,7 +76,16 @@ export const loadStillModel = async (cacheDir: string | null) => {
 		}
 
 		const embedded = unitLength([...embeds.data]);
-		const logits = labelEmbeddings.embeddings.map((label) => logitScale * dot(label, embedded));
+
+		const logits = labelEmbeddings.embeddings.map((label) => {
+			const similarity = label.reduce(
+				(sum, value, index) => sum + value * (embedded[index] ?? 0),
+				0,
+			);
+
+			return logitScale * similarity;
+		});
+
 		const highest = Math.max(...logits);
 		const weights = logits.map((logit) => Math.exp(logit - highest));
 

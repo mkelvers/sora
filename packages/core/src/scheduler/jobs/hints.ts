@@ -3,10 +3,10 @@ import type { Task } from "graphile-worker";
 
 import { syncTmdbHints } from "../../series/hints";
 import { expireMappingsAgainstHints } from "../../series/mapping";
-import { scheduleStoredSeriesRefresh } from "../queue";
+import { scheduleRefresh } from "../queue";
 
 /** The graphile-worker task that keeps the TMDB hints current. */
-export const syncTmdbHintsTask = "sync-tmdb-hints";
+export const syncTmdbTask = "sync-tmdb-hints";
 
 /**
  * Brings the TMDB hints up to date with Fribb/anime-lists, then has every
@@ -17,10 +17,10 @@ export const syncTmdbHintsTask = "sync-tmdb-hints";
  * write nothing. A failed download throws, so graphile-worker retries it,
  * while matching goes on with the stored hints.
  */
-export const syncTmdbHintsJob: Task = async (_payload, helpers) => {
+export const syncTmdb: Task = async (_payload, helpers) => {
 	const changed = await syncTmdbHints();
 	const expired = await expireMappingsAgainstHints(changed);
-	await inSequence(expired, (anilistId) => scheduleStoredSeriesRefresh(anilistId, "backfill"));
+	await inSequence(expired, (anilistId) => scheduleRefresh(anilistId, "backfill"));
 
 	helpers.logger.info(
 		`${changed.length} TMDB hints changed; matching ${expired.length} entries again`,

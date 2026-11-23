@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ProfileAvatarSchema = z
+export const AvatarSchema = z
 	.object({
 		seed: z.string().trim().min(1).max(64).meta({
 			description: "The DiceBear seed: the same style and seed always draw the same avatar.",
@@ -16,7 +16,7 @@ export const ProfileAvatarSchema = z
 
 export const ProfileSchema = z
 	.object({
-		avatar: ProfileAvatarSchema,
+		avatar: AvatarSchema,
 		color: z.string().meta({
 			description: "A CSS color for the profile's tile.",
 			example: "#4f7cff",
@@ -35,7 +35,7 @@ export const ProfileSchema = z
 
 export const ProfileInputSchema = z
 	.object({
-		avatar: ProfileAvatarSchema.optional().meta({
+		avatar: AvatarSchema.optional().meta({
 			description: "A sprout seeded with the profile's ID when omitted.",
 		}),
 		color: z
@@ -56,6 +56,6 @@ export const ProfileInputSchema = z
 
 export type ProfileInput = z.input<typeof ProfileInputSchema>;
 
-export type ProfileAvatar = z.infer<typeof ProfileAvatarSchema>;
+export type ProfileAvatar = z.infer<typeof AvatarSchema>;
 
 export type Profile = z.infer<typeof ProfileSchema>;

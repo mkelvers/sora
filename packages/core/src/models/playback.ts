@@ -22,7 +22,7 @@ export const SkipSegmentSchema = z
 	});
 
 /** One way to play an episode. */
-export const PlaybackSourceSchema = z.object({
+export const StreamSourceSchema = z.object({
 	format: z.enum(["hls", "mp4"]),
 	quality: z.enum(["auto", "1080p", "720p", "480p", "360p"]),
 	url: z.url().meta({
@@ -31,7 +31,7 @@ export const PlaybackSourceSchema = z.object({
 	}),
 });
 
-export const PlaybackSubtitleSchema = z.object({
+export const SubtitleTrackSchema = z.object({
 	default: z.boolean().meta({
 		description:
 			"Whether a player shows this track from the start: the first English track, which carries the most of what is said. On a sub that is dialogue before captions before signs; on a dub, captions before dialogue before signs, since a dub's captions write down its own speech. None for raw or a hardsub, which has no English track.",
@@ -78,10 +78,10 @@ export const PlaybackMediaSchema = z
 			description:
 				"Opening and ending, in playback order, as the provider's player ships them. Timed against these sources: a dub can be cut differently from its sub. Empty when the provider reports none.",
 		}),
-		sources: z.array(PlaybackSourceSchema).meta({
+		sources: z.array(StreamSourceSchema).meta({
 			description: "Ordered best first.",
 		}),
-		subtitles: z.array(PlaybackSubtitleSchema),
+		subtitles: z.array(SubtitleTrackSchema),
 	})
 	.meta({
 		id: "PlaybackMedia",
@@ -89,8 +89,8 @@ export const PlaybackMediaSchema = z
 
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
 
-export type PlaybackSource = z.infer<typeof PlaybackSourceSchema>;
+export type PlaybackSource = z.infer<typeof StreamSourceSchema>;
 
-export type PlaybackSubtitle = z.infer<typeof PlaybackSubtitleSchema>;
+export type PlaybackSubtitle = z.infer<typeof SubtitleTrackSchema>;
 
 export type PlaybackMedia = z.infer<typeof PlaybackMediaSchema>;

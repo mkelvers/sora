@@ -1,5 +1,5 @@
 import { attempt, day, hour, minute, inSequence } from "@sora/shared";
-import { and, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -16,18 +16,15 @@ import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
 import { episodeReleasedAt } from "../../series/episodes";
-import { expireMapping, mappedEpisodes } from "../../series/mapping";
-import { continuesPastLinks } from "../../series/matching";
+import { expireMapping } from "../../series/mapping";
 import { storedSeriesIds, storeSeries } from "../../series/store";
-import { editsWindowMs, getShow, tmdbImageUrl, withEdits } from "../../tmdb/resources";
-import type { TmdbEpisode, TmdbShow } from "../../tmdb/resources";
-import { withChosenStills } from "../../tmdb/stills";
-import { parsePayload } from "../payload";
-import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
-
-const StoreSeriesPayloadSchema = z.object({
-	anilistId: z.number().int().positive(),
-});
+import { editsWindowMs, getShow, withEdits } from "../../tmdb/resources";
+import { withChoices } from "../../tmdb/stills";
+import { parseInput } from "../payload";
+import { scheduleSeriesStore, scheduleRefresh } from "../queue";
+import { Absence } from "./absence";
+import { Behind, storedShowMs } from "./behind";
+import { StoredEpisodes } from "./stored-episodes";
 
 /**
  * Lays out and stores one AniList entry as a series.
@@ -39,8 +36,13 @@ const StoreSeriesPayloadSchema = z.object({
  * Nothing is done when the series was laid out after the job was last
  * queued: that layout already has what the job was queued for.
  */
-export const storeSeriesJob: Task = async (rawPayload, helpers) => {
-	const { anilistId } = parsePayload(StoreSeriesPayloadSchema, rawPayload);
+export const storeEntry: Task = async (rawPayload, helpers) => {
+	const { anilistId } = parseInput(
+		z.object({
+			anilistId: z.number().int().positive(),
+		}),
+		rawPayload,
+	);
 
 	const [laidOut] = await db
 		.select({
@@ -72,7 +74,7 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 };
 
 /** The graphile-worker task that finds new entries to store. */
-export const discoverSeriesEntriesTask = "discover-series-entries";
+export const discoverEntriesTask = "discover-series-entries";
 
 /**
  * Finds AniList entries whose series should be stored and queues storing
@@ -90,7 +92,7 @@ export const discoverSeriesEntriesTask = "discover-series-entries";
  * An entry that qualifies for none of these yet is simply looked at again
  * on the next run.
  */
-export const discoverSeriesEntries: Task = async (_payload, helpers) => {
+export const discoverEntries: Task = async (_payload, helpers) => {
 	/** Upcoming entries premiering within this window are stored ahead of time. */
 	const premiereWindowMs = 14 * day;
 
@@ -132,7 +134,11 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 		]);
 
 		const wanted = entries.filter((entry) => {
-			const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
+			let startDate: string | null = null;
+
+			if (entry.startDate) {
+				startDate = fuzzyDate(entry.startDate);
+			}
 
 			const premieresSoon =
 				startDate !== null && startDate.length === 10 && startDate <= premiereCutoff;
@@ -162,23 +168,6 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 	}
 };
 
-/**
- * How long to wait before asking TMDB again about something that has been
- * missing for `missingForMs`: a tenth of that, within `bounds`. What is
- * written soon after an episode airs is asked about often, and what has been
- * missing for days or years, and so is unlikely to come today, rarely.
- */
-const recheckAfterMs = (
-	missingForMs: number | null,
-	bounds: {
-		min: number;
-		max: number;
-	},
-) => Math.min(bounds.max, Math.max(bounds.min, (missingForMs ?? Infinity) / 10));
-
-/** Any stored copy of a show: what the last reader of it fetched. */
-const storedShowAgeMs = 365 * day;
-
 /** Whether AniKoto carries a stored episode, which a series lists it for (see `isEpisodeAvailable`). */
 const onAniKoto = sql`exists (
     select 1
@@ -195,78 +184,7 @@ const airedLately = sql`${episodeReleasedAt} between now() - make_interval(secs 
 const isUnnamed = sql`(${seriesEpisode.title} is null or ${seriesEpisode.title} ~* '^episode [0-9]+$')`;
 
 /** The graphile-worker task that fills in details TMDB added after an episode aired. */
-export const refreshEpisodeDetailsTask = "refresh-episode-details";
-
-/**
- * Copies TMDB's details of `episodes` onto a stored series' episodes, as a
- * layout would derive them (see `layoutEpisodes`). Returns how many
- * episodes changed.
- */
-const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpisode[]) => {
-	const tmdbEpisodes = new Map(
-		episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]),
-	);
-
-	const stored = await db
-		.select({
-			airDate: seriesEpisode.airDate,
-			number: seriesEpisode.number,
-			overview: seriesEpisode.overview,
-			runtimeMinutes: seriesEpisode.runtimeMinutes,
-			stillUrl: seriesEpisode.stillUrl,
-			title: seriesEpisode.title,
-			tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
-			tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
-		})
-		.from(seriesEpisode)
-		.where(and(eq(seriesEpisode.seriesId, seriesId), isNotNull(seriesEpisode.tmdbEpisodeNumber)));
-
-	const updates = stored.flatMap((episode) => {
-		const tmdbEpisode = tmdbEpisodes.get(
-			`${episode.tmdbSeasonNumber}:${episode.tmdbEpisodeNumber}`,
-		);
-
-		if (!tmdbEpisode) {
-			return [];
-		}
-
-		const details = {
-			airDate: tmdbEpisode.air_date,
-			overview: tmdbEpisode.overview,
-			// Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
-			runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
-			stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
-			title: tmdbEpisode.name,
-		};
-
-		const unchanged =
-			episode.airDate === details.airDate &&
-			episode.overview === details.overview &&
-			episode.runtimeMinutes === details.runtimeMinutes &&
-			episode.stillUrl === details.stillUrl &&
-			episode.title === details.title;
-
-		if (unchanged) {
-			return [];
-		}
-
-		return [
-			{
-				details,
-				number: episode.number,
-			},
-		];
-	});
-
-	await inSequence(updates, async ({ details, number }) => {
-		await db
-			.update(seriesEpisode)
-			.set(details)
-			.where(and(eq(seriesEpisode.seriesId, seriesId), eq(seriesEpisode.number, number)));
-	});
-
-	return updates.length;
-};
+export const refreshDetailsTask = "refresh-episode-details";
 
 /**
  * Fills in the title, overview, runtime, and still TMDB got for an episode
@@ -283,7 +201,7 @@ const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpiso
  *   last episode, as for most donghua, it is not asked about for this one;
  *   a first episode is asked about in full.
  *
- * How often is up to {@link recheckAfterMs}: every run for the first two
+ * How often is up to {@link Absence.recheckAfter}: every run for the first two
  * hours after it aired, then less and less often. Measured over the 197
  * episodes of thirteen days, that is about 115 requests a day, and details
  * are stored a median of eight minutes after TMDB gets them.
@@ -300,7 +218,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 	 * the same copy for ten minutes, so runs any closer would be answered with
 	 * what the run before got.
 	 */
-	const detailsRunEveryMs = 12 * minute;
+	const runEveryMs = 12 * minute;
 
 	const awaited = await db.execute<{
 		series_id: string;
@@ -352,7 +270,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 
 			const show = await attempt(
 				getShow(showId, {
-					maxAgeMs: storedShowAgeMs,
+					maxAgeMs: storedShowMs,
 				}),
 				UpstreamUnavailableError,
 			);
@@ -372,18 +290,21 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 								candidate.episode_number === episode.episode_number,
 						);
 
-						return listed
-							? [
-									withEdits(listed, {
-										// A minute short, so a run is never a moment too early for it.
-										maxAgeMs:
-											recheckAfterMs(episode.missing_for_ms, {
-												max: editsWindowMs,
-												min: detailsRunEveryMs,
-											}) - minute,
-									}),
-								]
-							: [];
+						if (!listed) {
+							return [];
+						}
+
+						const recheckMs = new Absence(episode.missing_for_ms).recheckAfter({
+							max: editsWindowMs,
+							min: runEveryMs,
+						});
+
+						return [
+							withEdits(listed, {
+								// A minute short, so a run is never a moment too early for it.
+								maxAgeMs: recheckMs - minute,
+							}),
+						];
 					}),
 				),
 				UpstreamUnavailableError,
@@ -395,7 +316,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 				return 0;
 			}
 
-			return await copyEpisodeDetails(seriesId, await withChosenStills(showId, edited.data));
+			return await new StoredEpisodes(seriesId).copy(await withChoices(showId, edited.data));
 		},
 	);
 
@@ -413,173 +334,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 };
 
 /** The graphile-worker task that picks up episodes TMDB starts to list. */
-export const refreshEpisodeListingsTask = "refresh-episode-listings";
-
-/** Which episodes TMDB lists for a show, by season and number. */
-const episodeKeys = (show: TmdbShow) =>
-	show.episodes
-		.map((episode) => `${episode.season_number}:${episode.episode_number}`)
-		.toSorted()
-		.join(",");
-
-/** A stored series with an episode TMDB is behind on, and how long ago each lack began. */
-const BehindSeriesSchema = z.object({
-	anilist_id: z.number(),
-	is_unlisted: z.boolean(),
-	key: z.string(),
-	lacking_for_ms: z.number().nullable(),
-	lacks_details: z.boolean(),
-	laid_out_for_ms: z.number(),
-	series_id: z.string(),
-	unlisted_for_ms: z.number().nullable(),
-});
-
-type BehindSeries = z.infer<typeof BehindSeriesSchema>;
-
-/** What asking TMDB about one series came to. */
-interface Outcome {
-	fetched: number;
-	queued: number;
-	updated: number;
-}
-
-/** A series with no TMDB show laid out again when it has gone unmatched or without details too long. */
-const relayoutUnshown = async (row: BehindSeries): Promise<Outcome> => {
-	const isUnmatched = row.key.startsWith("anilist:");
-
-	const relayoutAfterMs =
-		isUnmatched && row.lacks_details
-			? recheckAfterMs(row.lacking_for_ms, {
-					max: day,
-					min: hour,
-				})
-			: day;
-
-	if (row.laid_out_for_ms <= relayoutAfterMs) {
-		return {
-			fetched: 0,
-			queued: 0,
-			updated: 0,
-		};
-	}
-
-	if (isUnmatched) {
-		await expireMapping(row.anilist_id);
-	}
-
-	await scheduleStoredSeriesRefresh(row.anilist_id);
-
-	return {
-		fetched: 0,
-		queued: 1,
-		updated: 0,
-	};
-};
-
-/** Asks TMDB again for the show of a series that is behind, and queues the series when its layout is stale. */
-const refreshShow = async (
-	row: BehindSeries,
-	showId: number,
-	fetchedAt: ReadonlyMap<string, number>,
-	logger: Parameters<Task>[1]["logger"],
-): Promise<Outcome> => {
-	/** How long a show whose episode TMDB has not listed for years goes unasked. */
-	const longestListingWaitMs = 30 * day;
-
-	const maxAgeMs = Math.min(
-		row.is_unlisted
-			? recheckAfterMs(row.unlisted_for_ms, {
-					max: longestListingWaitMs,
-					min: hour,
-				})
-			: Infinity,
-		row.lacks_details ? day : Infinity,
-	);
-
-	if (Date.now() - (fetchedAt.get(`/tv/${showId}`) ?? 0) < maxAgeMs) {
-		return {
-			fetched: 0,
-			queued: 0,
-			updated: 0,
-		};
-	}
-
-	// The stored copy is read before the fresh one replaces it.
-	const stored = await attempt(
-		getShow(showId, {
-			maxAgeMs: storedShowAgeMs,
-		}),
-		UpstreamUnavailableError,
-	);
-
-	if (stored.error) {
-		logger.warn(`TMDB failed for show ${showId}: ${stored.error.message}`);
-
-		return {
-			fetched: 0,
-			queued: 0,
-			updated: 0,
-		};
-	}
-
-	const fresh = await attempt(
-		getShow(showId, {
-			maxAgeMs,
-		}),
-		UpstreamUnavailableError,
-	);
-
-	if (fresh.error) {
-		logger.warn(`TMDB failed for show ${showId}: ${fresh.error.message}`);
-
-		return {
-			fetched: 0,
-			queued: 0,
-			updated: 0,
-		};
-	}
-
-	const before = stored.data;
-	const show = fresh.data;
-
-	const copied = show ? await copyEpisodeDetails(row.series_id, show.episodes) : 0;
-
-	// A series is matched to TMDB's episodes once a day at most, so one
-	// matched before TMDB listed its latest episodes keeps linking only
-	// the earlier ones until it is matched anew.
-	const [mapping] = show
-		? await db.select().from(tmdbMapping).where(eq(tmdbMapping.anilistId, row.anilist_id)).limit(1)
-		: [];
-
-	const isMatchStale =
-		row.is_unlisted && show && mapping && continuesPastLinks(show, mappedEpisodes(mapping));
-
-	// A show TMDB no longer has needs its series matched anew.
-	const stale =
-		!show ||
-		isMatchStale ||
-		(row.is_unlisted && (!before || episodeKeys(before) !== episodeKeys(show)));
-
-	if (stale) {
-		if (isMatchStale) {
-			await expireMapping(row.anilist_id);
-		}
-
-		await scheduleStoredSeriesRefresh(row.anilist_id);
-
-		return {
-			fetched: 1,
-			queued: 1,
-			updated: copied,
-		};
-	}
-
-	return {
-		fetched: 1,
-		queued: 0,
-		updated: copied,
-	};
-};
+export const refreshListingsTask = "refresh-episode-listings";
 
 /**
  * Asks TMDB again for the shows of stored series with an episode that a
@@ -587,7 +342,7 @@ const refreshShow = async (
  *
  * - one AniKoto carries that TMDB does not list, which a series lists
  *   without details until TMDB does, however long that takes.
- *   The show is asked for as often as {@link recheckAfterMs} says: hourly
+ *   The show is asked for as often as {@link Absence.recheckAfter} says: hourly
  *   for an episode that just aired, and monthly for the many specials and
  *   recaps TMDB has not listed in years and mostly never will. Listing it
  *   changes the layout, so the series is queued to be laid out again once
@@ -606,7 +361,7 @@ const refreshShow = async (
  * fetched. A film's details only come with a layout, which is queued daily
  * while one is missing. So do those of an entry TMDB was not matched to,
  * often a new season TMDB lists hours after it premieres: it is matched
- * again as often as {@link recheckAfterMs} says, from hourly while the
+ * again as often as {@link Absence.recheckAfter} says, from hourly while the
  * episode is new to daily.
  *
  * Measured on 198 series with an unlisted episode and 17 with one lacking
@@ -645,7 +400,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 			await expireMapping(row.anilist_id);
 		}
 
-		await scheduleStoredSeriesRefresh(row.anilist_id);
+		await scheduleRefresh(row.anilist_id);
 	});
 
 	const unlisted = sql`(
@@ -675,7 +430,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     group by ${series.id}
   `);
 
-	const behind = z.array(BehindSeriesSchema).parse([...rows]);
+	const behind = z.array(Behind.schema).parse([...rows]);
 
 	const showIds = new Map(
 		behind.flatMap(({ series_id, key }) => {
@@ -692,17 +447,21 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 	// When each show was last fetched, so one fetched lately is not even read.
 	const paths = [...new Set(showIds.values())].map((showId) => `/tv/${showId}`);
 
-	const fetchedRows =
-		paths.length > 0
-			? await db
-					.select({
-						at: sql<Date>`max(${tmdbResponse.fetchedAt})`.mapWith(tmdbResponse.fetchedAt),
-						path: tmdbResponse.path,
-					})
-					.from(tmdbResponse)
-					.where(inArray(tmdbResponse.path, paths))
-					.groupBy(tmdbResponse.path)
-			: [];
+	let fetchedRows: {
+		at: Date;
+		path: string;
+	}[] = [];
+
+	if (paths.length > 0) {
+		fetchedRows = await db
+			.select({
+				at: sql<Date>`max(${tmdbResponse.fetchedAt})`.mapWith(tmdbResponse.fetchedAt),
+				path: tmdbResponse.path,
+			})
+			.from(tmdbResponse)
+			.where(inArray(tmdbResponse.path, paths))
+			.groupBy(tmdbResponse.path);
+	}
 
 	const fetchedAt = new Map(fetchedRows.map(({ path, at }) => [path, at.getTime()] as const));
 
@@ -710,10 +469,10 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 		const showId = showIds.get(row.series_id);
 
 		if (showId === undefined) {
-			return await relayoutUnshown(row);
+			return await new Behind(row).relayout();
 		}
 
-		return await refreshShow(row, showId, fetchedAt, helpers.logger);
+		return await new Behind(row).refresh(showId, fetchedAt, helpers.logger);
 	});
 
 	let fetched = 0;

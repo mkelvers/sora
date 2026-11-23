@@ -10,7 +10,7 @@ import { listSeriesImages } from "../../series/artwork";
 import { isCollage } from "../../series/collage";
 
 /** The graphile-worker task that stores the images of titles the home page may feature. */
-export const storeFeaturedImagesTask = "store-featured-images";
+export const storeImagesTask = "store-featured-images";
 
 /**
  * Stores the TMDB images of every current, well-liked, popular title that has
@@ -19,7 +19,7 @@ export const storeFeaturedImagesTask = "store-featured-images";
  * its shown backdrop is among its textless 4K ones, which it can tell only
  * from the stored images. Chooses no backdrop.
  */
-export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
+export const storeImages: Task = async (_payload, helpers) => {
 	/** Titles stored per run; each takes a few TMDB requests. */
 	const titlesPerRun = 10;
 
