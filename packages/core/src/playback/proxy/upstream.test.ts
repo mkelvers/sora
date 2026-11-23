@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import http from "node:http";
 
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import { readBounded } from "./hops";
 import { canFetchStream } from "./proxy";
 import { fetchTarget, readTarget } from "./upstream";
@@ -31,7 +31,7 @@ describe("fetchTarget", () => {
 			url,
 		};
 
-		await expect(fetchTarget(target, null)).rejects.toBeInstanceOf(InvalidStreamTokenError);
+		await expect(fetchTarget(target, null)).rejects.toBeInstanceOf(StreamTokenError);
 	});
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import { signStreamTarget, verify } from "./token";
 import type { StreamTarget } from "./token";
 
@@ -78,7 +78,7 @@ describe("stream tokens", () => {
 		bytes.writeUInt8((bytes.readUInt8(3) + 1) % 256, 3);
 
 		expect(() => verify(`${vector}.${bytes.toString("base64url")}`, secret, new Date(0))).toThrow(
-			InvalidStreamTokenError,
+			StreamTokenError,
 		);
 	});
 
@@ -94,14 +94,12 @@ describe("stream tokens", () => {
 			}),
 		).toString("base64url");
 
-		expect(() => verify(`${forged}.${forged}`, secret, new Date(0))).toThrow(
-			InvalidStreamTokenError,
-		);
+		expect(() => verify(`${forged}.${forged}`, secret, new Date(0))).toThrow(StreamTokenError);
 	});
 
 	test("reject a token signed with another secret", () => {
 		const token = signStreamTarget(target, "another-secret-that-is-at-least-32-chars");
-		expect(() => verify(token, secret, new Date(0))).toThrow(InvalidStreamTokenError);
+		expect(() => verify(token, secret, new Date(0))).toThrow(StreamTokenError);
 	});
 
 	test("reject an expired token", () => {
@@ -110,7 +108,7 @@ describe("stream tokens", () => {
 	});
 
 	test("reject malformed input", () => {
-		expect(() => verify("not-a-token", secret)).toThrow(InvalidStreamTokenError);
-		expect(() => verify("a.b.c", secret)).toThrow(InvalidStreamTokenError);
+		expect(() => verify("not-a-token", secret)).toThrow(StreamTokenError);
+		expect(() => verify("a.b.c", secret)).toThrow(StreamTokenError);
 	});
 });

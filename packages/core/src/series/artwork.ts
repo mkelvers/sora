@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { noArtwork, series, titleArtwork, titleBackdropUpscale } from "../database/schema/series";
-import { InvalidInputError, SeriesNotFoundError } from "../errors";
+import { InvalidInputError, UnknownSeriesError } from "../errors";
 import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
 import { measureBackdrop } from "./edges";
 import { getSeries } from "./queries";
@@ -113,7 +113,7 @@ class Choice {
  * them (see `titleArtwork`). The choice outlives laying the series out
  * again. Returns the series as {@link getSeries} loads it.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const setSeriesArtwork = async (id: string, changes: ArtworkChanges): Promise<Series> => {
 	const [row] = await db
@@ -125,7 +125,7 @@ export const setSeriesArtwork = async (id: string, changes: ArtworkChanges): Pro
 		.limit(1);
 
 	if (!row) {
-		throw new SeriesNotFoundError(id);
+		throw new UnknownSeriesError(id);
 	}
 
 	const choice = new Choice(row.key, changes);
@@ -182,7 +182,7 @@ export const setSeriesArtwork = async (id: string, changes: ArtworkChanges): Pro
  * (see `titleImage`); later ones, for any series of the title, read what was
  * stored, until {@link refreshSeriesImages} fetches them again.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  * @throws {UpstreamUnavailableError} when TMDB fails on the first listing.
  */
 export const listSeriesImages = async (
@@ -203,7 +203,7 @@ export const listSeriesImages = async (
  * and replaces the stored ones, so artwork added on TMDB since can be
  * chosen. Returns them as {@link listSeriesImages} does.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  * @throws {UpstreamUnavailableError} when TMDB fails; the stored images are kept.
  */
 export const refreshSeriesImages = async (

@@ -50,7 +50,7 @@ export const storedSeriesIds = async (
  * out again as it airs, and the entry is queued to be looked up on
  * providers.
  *
- * @throws {AnimeNotFoundError} when the ID is unknown to AniList or
+ * @throws {UnknownAnimeError} when the ID is unknown to AniList or
  *   belongs to adult media.
  * @throws {UpstreamUnavailableError} when AniList or TMDB fail.
  */

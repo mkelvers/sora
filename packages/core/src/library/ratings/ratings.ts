@@ -23,7 +23,7 @@ export const getRating = async (userId: string, seriesId: string): Promise<Ratin
 /**
  * Rates a series from 1 to 5 stars, replacing an earlier rating.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const setRating = async (userId: string, seriesId: string, rating: number) => {
 	await assertSeriesExists(seriesId);

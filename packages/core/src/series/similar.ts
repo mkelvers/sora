@@ -6,7 +6,7 @@ import { catalogSeriesAllowed } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime, animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
-import { SeriesNotFoundError } from "../errors";
+import { UnknownSeriesError } from "../errors";
 import type { SeriesCard } from "../models/series";
 import { FranchiseWalk } from "./franchise-walk";
 import { toSeriesCards } from "./queries";
@@ -26,7 +26,7 @@ import { toSeriesCards } from "./queries";
  *
  * Reads only the database.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const getSimilarSeries = async (id: string): Promise<SeriesCard[]> => {
 	/** Formats a recommendation is shown as: the show or film, not a special or OVA. */
@@ -44,7 +44,7 @@ export const getSimilarSeries = async (id: string): Promise<SeriesCard[]> => {
 	const [row] = await db.select().from(series).where(eq(series.id, id)).limit(1);
 
 	if (!row) {
-		throw new SeriesNotFoundError(id);
+		throw new UnknownSeriesError(id);
 	}
 
 	const { ids, crossovers, apart } = await new FranchiseWalk(row.anilistId).reach();

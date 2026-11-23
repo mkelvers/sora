@@ -1,7 +1,7 @@
 import { attempt, hour } from "@sora/shared";
 
 import { config } from "../../config";
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { rewrite } from "./playlist";
 import { readahead } from "./readahead";
@@ -307,7 +307,7 @@ export const warmStream = async (
  *
  * `Range` is forwarded so players can seek in progressive files.
  *
- * @throws {InvalidStreamTokenError} for a forged, malformed, or expired
+ * @throws {StreamTokenError} for a forged, malformed, or expired
  *   token, or one issued to another account.
  * @throws {StreamUpstreamError} when the upstream and its mirrors fail.
  */
@@ -323,7 +323,7 @@ export const proxyStream = async (
 	const target = verify(token, config.streamSigningSecret);
 
 	if (target.accountId !== request.accountId) {
-		throw new InvalidStreamTokenError("Stream token was issued to another account");
+		throw new StreamTokenError("Stream token was issued to another account");
 	}
 
 	const resource = new Resource(target);

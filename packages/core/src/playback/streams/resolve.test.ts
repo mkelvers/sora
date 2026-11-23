@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { defined } from "@sora/shared";
 
 import { anime } from "../../catalog/models/anime.fixture";
-import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
+import { UnknownEpisodeError, PlaybackUnavailableError } from "../../errors";
 import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { EpisodeVersion } from "../episodes/versions";
@@ -1245,7 +1245,7 @@ describe("resolvePlayback", () => {
 		]);
 
 		await expect(resolvePlayback(request, options, dependencies)).rejects.toBeInstanceOf(
-			EpisodeNotFoundError,
+			UnknownEpisodeError,
 		);
 	});
 });

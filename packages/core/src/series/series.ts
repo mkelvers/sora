@@ -5,7 +5,7 @@ import { toCard } from "../catalog/models/anime";
 import type { AnimeCard, AnimeStatus } from "../catalog/models/anime";
 import { fuzzyDate } from "../catalog/models/text";
 import { getStoredCards, mayGainEpisodes } from "../catalog/queries/anime";
-import { AnimeNotFoundError } from "../errors";
+import { UnknownAnimeError } from "../errors";
 import { getLogoPath, tmdbImageUrl } from "../tmdb/resources";
 import type { TmdbMovie, TmdbShow } from "../tmdb/resources";
 import { franchiseRelations, loadByIds } from "./entries";
@@ -173,7 +173,7 @@ export const layoutEpisodes = (
  * the stored layout. Matches are stored, so laying out a known entry again
  * mostly reuses them.
  *
- * @throws {AnimeNotFoundError} when the ID is unknown to AniList or
+ * @throws {UnknownAnimeError} when the ID is unknown to AniList or
  *   belongs to adult media.
  * @throws {UpstreamUnavailableError} when AniList or TMDB fail.
  */
@@ -182,7 +182,7 @@ export const layOut = async (anilistId: number): Promise<SeriesLayout> => {
 	const entry = loaded.get(anilistId);
 
 	if (!entry) {
-		throw new AnimeNotFoundError(anilistId);
+		throw new UnknownAnimeError(anilistId);
 	}
 
 	const mapping = await new Mapper(entry).resolve();

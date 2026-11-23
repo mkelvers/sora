@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { series, titleArtwork, titleImage } from "../database/schema/series";
-import { SeriesNotFoundError } from "../errors";
+import { UnknownSeriesError } from "../errors";
 import type { ImageType, SeriesImage } from "../models/series";
 import { getImages, getSeasonPosters, getShow, tmdbImageUrl } from "../tmdb/resources";
 import type { TmdbImage } from "../tmdb/resources";
@@ -30,7 +30,7 @@ export class TitleImages {
 	/**
 	 * The images of a series' title, and whether they were ever fetched.
 	 *
-	 * @throws {SeriesNotFoundError} when the ID does not identify a series.
+	 * @throws {UnknownSeriesError} when the ID does not identify a series.
 	 */
 	static async of(id: string) {
 		const [row] = await db
@@ -44,7 +44,7 @@ export class TitleImages {
 			.limit(1);
 
 		if (!row) {
-			throw new SeriesNotFoundError(id);
+			throw new UnknownSeriesError(id);
 		}
 
 		return {

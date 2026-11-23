@@ -9,7 +9,7 @@ export type Json =
 			[key: string]: Json;
 	  };
 
-/** An error class, such as `RangeError` or `AnimeNotFoundError`. */
+/** An error class, such as `RangeError` or `UnknownAnimeError`. */
 type ErrorClass = abstract new (...args: never[]) => Error;
 
 /** The errors `attempt` hands back: the expected classes, or any `Error` when none are named. */
@@ -42,7 +42,7 @@ export type Attempt<TData, TError extends Error = Error> =
  *
  * @example
  * ```ts
- * const { data, error } = await attempt(getAnime(id), AnimeNotFoundError);
+ * const { data, error } = await attempt(getAnime(id), UnknownAnimeError);
  * if (error) {
  *   return null;
  * }

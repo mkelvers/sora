@@ -5,7 +5,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { attempt, parseRetryAfter, second } from "@sora/shared";
 
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import { Host } from "./host";
 import { isBareImage } from "./segment";
 import type { StreamTargetKind } from "./token";
@@ -92,7 +92,7 @@ export class Hops {
 	 * Tokens are signed, but playlist URIs come from third-party servers, so a
 	 * hostile playlist could otherwise point the proxy at internal services.
 	 *
-	 * @throws {InvalidStreamTokenError} for a URL that is not public.
+	 * @throws {StreamTokenError} for a URL that is not public.
 	 * @throws {StreamUpstreamError} when the host fails or answers with an error.
 	 */
 	async follow(url: string, redirects = 0): Promise<Upstream> {
@@ -105,13 +105,13 @@ export class Hops {
 		const parsed = new URL(url);
 
 		if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-			throw new InvalidStreamTokenError("Stream target must use HTTP");
+			throw new StreamTokenError("Stream target must use HTTP");
 		}
 
 		const host = new Host(parsed.hostname.replaceAll(/^\[|\]$/gu, "").toLowerCase());
 
 		if (host.internal) {
-			throw new InvalidStreamTokenError("Stream target is not a public host");
+			throw new StreamTokenError("Stream target is not a public host");
 		}
 
 		const endsAt = Date.now() + this.#timeoutMs;

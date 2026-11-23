@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import type { UpscaleStatus } from "../database/schema/series";
-import { InvalidInputError, SeriesNotFoundError } from "../errors";
+import { InvalidInputError, UnknownSeriesError } from "../errors";
 import { hasLiveUpscaleJob, requestUpscale } from "../scheduler/queue";
 import { isCollage } from "./collage";
 import { storeImageEdges } from "./edges";
@@ -138,7 +138,7 @@ class Upscale {
  * Asking again keeps a live job, chooses a ready upscale, or queues a new
  * attempt after a failure or a lost job.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  * @throws {InvalidInputError} when the URL is not one of the title's backdrops.
  */
 export const requestBackdropUpscale = async (id: string, url: string) => {
@@ -151,7 +151,7 @@ export const requestBackdropUpscale = async (id: string, url: string) => {
 		.limit(1);
 
 	if (!row) {
-		throw new SeriesNotFoundError(id);
+		throw new UnknownSeriesError(id);
 	}
 
 	const [image] = await db

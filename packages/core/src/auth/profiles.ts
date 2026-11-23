@@ -13,7 +13,7 @@ import {
 	profilePreference,
 	seriesState,
 } from "../database/schema/library";
-import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
+import { InvalidInputError, LastProfileError, UnknownProfileError } from "../errors";
 import { newId } from "../ids";
 import { ProfileInputSchema } from "../models/profile";
 import type { Profile, ProfileInput } from "../models/profile";
@@ -47,7 +47,7 @@ export const listProfiles = async (userId: string): Promise<Profile[]> => {
 /**
  * Loads one of an account's profiles.
  *
- * @throws {ProfileNotFoundError} when the account has no such profile.
+ * @throws {UnknownProfileError} when the account has no such profile.
  */
 export const getProfile = async (userId: string, id: string): Promise<Profile> => {
 	const [row] = await db
@@ -57,7 +57,7 @@ export const getProfile = async (userId: string, id: string): Promise<Profile> =
 		.limit(1);
 
 	if (!row) {
-		throw new ProfileNotFoundError(id);
+		throw new UnknownProfileError(id);
 	}
 
 	return new ProfileRow(row).profile;
@@ -108,7 +108,7 @@ export const createProfile = async (userId: string, input: ProfileInput): Promis
  * Renames a profile, or changes its color or avatar.
  *
  * @throws {InvalidInputError} when the input is invalid.
- * @throws {ProfileNotFoundError} when the account has no such profile.
+ * @throws {UnknownProfileError} when the account has no such profile.
  */
 export const updateProfile = async (
 	userId: string,
@@ -138,7 +138,7 @@ export const updateProfile = async (
 		.returning();
 
 	if (!row) {
-		throw new ProfileNotFoundError(id);
+		throw new UnknownProfileError(id);
 	}
 
 	return new ProfileRow(row).profile;
@@ -148,7 +148,7 @@ export const updateProfile = async (
  * Deletes a profile with its watchlist, progress, rewatches, preferences,
  * and featured titles.
  *
- * @throws {ProfileNotFoundError} when the account has no such profile.
+ * @throws {UnknownProfileError} when the account has no such profile.
  * @throws {LastProfileError} when it is the account's only profile.
  */
 export const deleteProfile = async (userId: string, id: string) => {

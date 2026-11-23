@@ -27,7 +27,7 @@ import {
 	titleFacts,
 	tmdbMapping,
 } from "../database/schema/series";
-import { EpisodeNotFoundError, InvalidInputError, SeriesNotFoundError } from "../errors";
+import { UnknownEpisodeError, InvalidInputError, UnknownSeriesError } from "../errors";
 import type {
 	ContentLanguage,
 	Episode,
@@ -112,13 +112,13 @@ class Title {
 	/**
 	 * A stored series' row.
 	 *
-	 * @throws {SeriesNotFoundError} when the ID does not identify a series.
+	 * @throws {UnknownSeriesError} when the ID does not identify a series.
 	 */
 	static async load(id: string) {
 		const [row] = await db.select().from(series).where(eq(series.id, id)).limit(1);
 
 		if (!row) {
-			throw new SeriesNotFoundError(id);
+			throw new UnknownSeriesError(id);
 		}
 
 		return row;
@@ -550,7 +550,7 @@ class Title {
  * Reads only the database: titles are laid out when first found, and the
  * scheduler keeps them current.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const getSeries = async (id: string): Promise<Series> => {
 	const [found] = await db
@@ -567,7 +567,7 @@ export const getSeries = async (id: string): Promise<Series> => {
 		.limit(1);
 
 	if (!found) {
-		throw new SeriesNotFoundError(id);
+		throw new UnknownSeriesError(id);
 	}
 
 	const row = found.series;
@@ -646,7 +646,7 @@ export const getSeries = async (id: string): Promise<Series> => {
  * Checks that a series is stored, for operations that take a series ID but
  * do not read the series itself.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const assertSeriesExists = async (id: string) => {
 	const [stored] = await db
@@ -658,7 +658,7 @@ export const assertSeriesExists = async (id: string) => {
 		.limit(1);
 
 	if (!stored) {
-		throw new SeriesNotFoundError(id);
+		throw new UnknownSeriesError(id);
 	}
 };
 
@@ -670,7 +670,7 @@ export const assertSeriesExists = async (id: string) => {
  * either end: playing never runs on into another title, such as the next
  * season.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const getAdjacentEpisodes = async (
 	id: string,
@@ -721,7 +721,7 @@ export const listedEpisodesOf = async (titles: readonly SeriesRow[]) => {
  * for the scheduler, and its episodes' audio is `null` until it has run;
  * the scheduler keeps the lists current as the anime airs.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const getSeriesEpisodes = async (id: string): Promise<Episode[]> => {
 	const row = await Title.load(id);
@@ -735,7 +735,7 @@ export const getSeriesEpisodes = async (id: string): Promise<Episode[]> => {
  * `offset`, and how many episodes the title lists in all. Only the slice's
  * episodes are looked up for their audio and fillers.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const getSeriesEpisodePage = async (
 	id: string,
@@ -762,15 +762,15 @@ export const getSeriesEpisodePage = async (
 /**
  * One episode of a series, as {@link getSeriesEpisodes} lists it.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {EpisodeNotFoundError} when the series does not list the episode.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
+ * @throws {UnknownEpisodeError} when the series does not list the episode.
  */
 export const getSeriesEpisode = async (id: string, number: number): Promise<Episode> => {
 	const episodes = await getSeriesEpisodes(id);
 	const episode = episodes.find((candidate) => candidate.number === number);
 
 	if (!episode) {
-		throw new EpisodeNotFoundError(id, number);
+		throw new UnknownEpisodeError(id, number);
 	}
 
 	return episode;

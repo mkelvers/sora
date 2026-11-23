@@ -6,7 +6,7 @@ import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
 import { anikotoSeries, providerEpisodes, providerMapping } from "../database/schema/playback";
 import { series, seriesEpisode } from "../database/schema/series";
-import { EpisodeNotFoundError, SeriesNotFoundError } from "../errors";
+import { UnknownEpisodeError, UnknownSeriesError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";
 
@@ -26,8 +26,8 @@ export interface LocatedEpisode {
 /**
  * Finds the AniList entry an episode of a series belongs to.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {EpisodeNotFoundError} when the series has no such episode.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
+ * @throws {UnknownEpisodeError} when the series has no such episode.
  */
 export const locateEpisode = async (id: string, number: number): Promise<LocatedEpisode> => {
 	const [row] = await db
@@ -44,11 +44,11 @@ export const locateEpisode = async (id: string, number: number): Promise<Located
 		.limit(1);
 
 	if (!row) {
-		throw new SeriesNotFoundError(id);
+		throw new UnknownSeriesError(id);
 	}
 
 	if (row.number === null) {
-		throw new EpisodeNotFoundError(id, number);
+		throw new UnknownEpisodeError(id, number);
 	}
 
 	return {

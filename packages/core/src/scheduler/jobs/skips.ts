@@ -3,7 +3,7 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
-import { EpisodeNotFoundError, PlaybackUnavailableError, SeriesNotFoundError } from "../../errors";
+import { UnknownEpisodeError, PlaybackUnavailableError, UnknownSeriesError } from "../../errors";
 import { detectSkipSegments, listenToSong } from "../../playback/skips/detect";
 import type { ListenedSong } from "../../playback/skips/detect";
 import {
@@ -58,8 +58,8 @@ export const detectSegments: Task = async (payload, helpers) => {
 
 	const located = await attempt(
 		locateEpisode(request.seriesId, request.episode),
-		EpisodeNotFoundError,
-		SeriesNotFoundError,
+		UnknownEpisodeError,
+		UnknownSeriesError,
 	);
 
 	if (located.error) {
@@ -70,7 +70,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 	const versions = await attempt(
 		resolveVideos(request),
 		PlaybackUnavailableError,
-		EpisodeNotFoundError,
+		UnknownEpisodeError,
 	);
 
 	if (versions.error) {

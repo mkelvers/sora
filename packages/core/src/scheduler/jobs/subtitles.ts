@@ -3,7 +3,7 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { config } from "../../config";
-import { EpisodeNotFoundError, SeriesNotFoundError } from "../../errors";
+import { UnknownEpisodeError, UnknownSeriesError } from "../../errors";
 import { probeSubtitleLanguages } from "../../playback/streams/resolve";
 import { recordSubtitleLanguages } from "../../playback/streams/subtitle-languages";
 import { SubtitleRefinementError } from "../../playback/subtitles/audio";
@@ -64,11 +64,11 @@ export const probeLanguages: Task = async (payload, helpers) => {
 			episode: 1,
 			seriesId,
 		}),
-		EpisodeNotFoundError,
-		SeriesNotFoundError,
+		UnknownEpisodeError,
+		UnknownSeriesError,
 	);
 
-	if (error instanceof EpisodeNotFoundError) {
+	if (error instanceof UnknownEpisodeError) {
 		await recordSubtitleLanguages(seriesId, []);
 	}
 

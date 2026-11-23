@@ -1,7 +1,7 @@
 import { attempt } from "@sora/shared";
 
 import { getAnime } from "../../catalog/queries/anime";
-import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
+import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { InFlight } from "../../in-flight";
 import type { ContentLanguage } from "../../models/series";
 import { scheduleEpisodeLookups } from "../../scheduler/queue";
@@ -217,7 +217,7 @@ class Listings {
 		return Listings.#inFlight.run(anilistId, async () => {
 			const anime = await attempt(
 				this.#dependencies.getAnime(anilistId),
-				AnimeNotFoundError,
+				UnknownAnimeError,
 				UpstreamUnavailableError,
 			);
 

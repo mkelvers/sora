@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { config } from "../../config";
-import { EpisodeNotFoundError, InvalidInputError, PlaybackUnavailableError } from "../../errors";
+import { UnknownEpisodeError, InvalidInputError, PlaybackUnavailableError } from "../../errors";
 import type { ProviderAttempt } from "../../errors";
 import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
@@ -908,8 +908,8 @@ class Resolution {
  * headers and hosts stay on the server. They expire with their tokens.
  *
  * @throws {InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {EpisodeNotFoundError} when the series has no such episode,
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
+ * @throws {UnknownEpisodeError} when the series has no such episode,
  *   or no provider lists it.
  * @throws {PlaybackUnavailableError} when providers list the episode but
  *   none can currently stream any version of it.
@@ -1001,7 +1001,7 @@ export const resolvePlayback = async (
 	}
 
 	if (!results.some((result) => result.listed)) {
-		throw new EpisodeNotFoundError(seriesId, episode);
+		throw new UnknownEpisodeError(seriesId, episode);
 	}
 
 	throw new PlaybackUnavailableError(
@@ -1018,8 +1018,8 @@ export const resolvePlayback = async (
  * listened to. An episode nobody can stream stores none, so the series is
  * not looked at again until it is played.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {EpisodeNotFoundError} when the series has no such episode.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
+ * @throws {UnknownEpisodeError} when the series has no such episode.
  */
 export const probeSubtitleLanguages = async (
 	request: PlaybackRequest,

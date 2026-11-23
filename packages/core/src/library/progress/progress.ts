@@ -76,8 +76,8 @@ export const getProgress = async (
  * says, and finishing its last episode ends a rewatch of it.
  *
  * @throws {InvalidInputError} when the input fails {@link ProgressInputSchema}.
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {EpisodeNotFoundError} when the series has no such episode.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
+ * @throws {UnknownEpisodeError} when the series has no such episode.
  */
 export const saveProgress = async (
 	userId: string,
@@ -145,8 +145,8 @@ export const saveProgress = async (
  * viewing left them unfinished, so the episodes finished then keep when
  * they were.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {EpisodeNotFoundError} when the series has no such episode.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
+ * @throws {UnknownEpisodeError} when the series has no such episode.
  */
 export const markWatched = async (userId: string, seriesId: string, episode?: number) => {
 	const viewer = new Viewer(userId);
@@ -235,8 +235,8 @@ export const markWatched = async (userId: string, seriesId: string, episode?: nu
  * watched or started: in the rewatch they are in the middle of, if any,
  * else in their first viewing. {@link removeProgress} forgets every episode.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {EpisodeNotFoundError} when the series has no such episode.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
+ * @throws {UnknownEpisodeError} when the series has no such episode.
  */
 export const markUnwatched = async (userId: string, address: EpisodeAddress) => {
 	const viewer = new Viewer(userId);
@@ -260,7 +260,7 @@ export const markUnwatched = async (userId: string, address: EpisodeAddress) => 
  * once every episode it lists is finished, unless they are rewatching it.
  * During a rewatch both follow only what the user played since starting it.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const getSeriesProgress = async (
 	userId: string,
@@ -325,7 +325,7 @@ export const getSeriesProgress = async (
  * (see {@link SeriesProgress.episodes}), and the episode to play next
  * follows it.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const startRewatch = async (userId: string, seriesId: string) => {
 	const viewer = new Viewer(userId);
@@ -477,7 +477,7 @@ export const getContinueWatching = async (userId: string): Promise<ContinueWatch
  * the user's progress in it. Playing or marking an episode of it afterwards
  * brings the card back.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const dismissContinueWatching = async (userId: string, seriesId: string) => {
 	await assertSeriesExists(seriesId);
@@ -501,7 +501,7 @@ export const dismissContinueWatching = async (userId: string, seriesId: string) 
  * viewing and any rewatch of it, so the series is no longer one they are in
  * the middle of.
  *
- * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UnknownSeriesError} when the ID does not identify a series.
  */
 export const removeProgress = async (userId: string, seriesId: string) => {
 	await assertSeriesExists(seriesId);

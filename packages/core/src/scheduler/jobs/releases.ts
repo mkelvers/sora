@@ -7,7 +7,7 @@ import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { providerEpisodes, providerMapping } from "../../database/schema/playback";
 import { series } from "../../database/schema/series";
-import { AnimeNotFoundError } from "../../errors";
+import { UnknownAnimeError } from "../../errors";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
 import type { ProviderUnit } from "../../playback/episodes/episodes";
 import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catalog";
@@ -63,7 +63,7 @@ class Looks {
 	 * @throws {Error} when AniKoto fails.
 	 */
 	static async refresh(anilistId: number): Promise<ProviderUnit[] | null> {
-		const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+		const { data, error } = await attempt(getAnime(anilistId), UnknownAnimeError);
 
 		if (error) {
 			return null;

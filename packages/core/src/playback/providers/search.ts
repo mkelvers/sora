@@ -9,7 +9,7 @@ import type { Anime, AnimeFormat } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries } from "../../database/schema/playback";
-import { AnimeNotFoundError } from "../../errors";
+import { UnknownAnimeError } from "../../errors";
 import { Rows } from "./rows";
 import { Series } from "./series";
 
@@ -401,7 +401,7 @@ export class Search {
 		}
 
 		// A prequel AniList has since removed or marked adult.
-		const { data, error } = await attempt(getAnime(prequel.id), AnimeNotFoundError);
+		const { data, error } = await attempt(getAnime(prequel.id), UnknownAnimeError);
 
 		if (error) {
 			return null;

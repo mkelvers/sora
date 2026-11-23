@@ -3,7 +3,7 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
-import { AnimeNotFoundError } from "../../errors";
+import { UnknownAnimeError } from "../../errors";
 import { getProviderUnits } from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
 import { parseInput } from "../payload";
@@ -25,7 +25,7 @@ export const lookUp: Task = async (rawPayload, helpers) => {
 		rawPayload,
 	);
 
-	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(getAnime(anilistId), UnknownAnimeError);
 
 	if (error) {
 		helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);

@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { attempt } from "@sora/shared";
 import { z } from "zod";
 
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { Secret } from "./secret";
 
@@ -96,7 +96,7 @@ const tagLength = 16;
 /**
  * Decrypts and authenticates a token produced by {@link signStreamTarget}.
  *
- * @throws {InvalidStreamTokenError} when the token is malformed, was
+ * @throws {StreamTokenError} when the token is malformed, was
  *   not made with `secret`, or has expired.
  */
 export const verify = (token: string, secret: string, now = new Date()): StreamTarget => {
@@ -105,14 +105,14 @@ export const verify = (token: string, secret: string, now = new Date()): StreamT
 	const malformed = !encodedVector || !encodedSealed || rest.length > 0;
 
 	if (malformed) {
-		throw new InvalidStreamTokenError("Malformed stream token");
+		throw new StreamTokenError("Malformed stream token");
 	}
 
 	const initializationVector = Buffer.from(encodedVector, "base64url");
 	const sealed = Buffer.from(encodedSealed, "base64url");
 
 	if (initializationVector.length !== 12 || sealed.length <= tagLength) {
-		throw new InvalidStreamTokenError("Malformed stream token");
+		throw new StreamTokenError("Malformed stream token");
 	}
 
 	const { data: json, error: unsealError } = attempt(() => {
@@ -126,23 +126,23 @@ export const verify = (token: string, secret: string, now = new Date()): StreamT
 	}, Error);
 
 	if (unsealError) {
-		throw new InvalidStreamTokenError("Stream token is not valid");
+		throw new StreamTokenError("Stream token is not valid");
 	}
 
 	const { data, error } = attempt(() => JSON.parse(json), SyntaxError);
 
 	if (error) {
-		throw new InvalidStreamTokenError("Stream token payload is not JSON");
+		throw new StreamTokenError("Stream token payload is not JSON");
 	}
 
 	const parsed = StreamTargetSchema.safeParse(data);
 
 	if (!parsed.success) {
-		throw new InvalidStreamTokenError("Stream token payload is invalid");
+		throw new StreamTokenError("Stream token payload is invalid");
 	}
 
 	if (parsed.data.e * 1000 <= now.getTime()) {
-		throw new InvalidStreamTokenError("Stream token has expired");
+		throw new StreamTokenError("Stream token has expired");
 	}
 
 	return {

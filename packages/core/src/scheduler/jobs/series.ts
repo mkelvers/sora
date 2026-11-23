@@ -12,7 +12,7 @@ import { db } from "../../database/client";
 import { animeSearch, tmdbResponse } from "../../database/schema/catalog";
 import { providerEpisodes } from "../../database/schema/playback";
 import { series, seriesEpisode, tmdbMapping } from "../../database/schema/series";
-import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
+import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
 import { episodeReleasedAt } from "../../series/episodes";
@@ -58,7 +58,7 @@ export const storeEntry: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const { data, error } = await attempt(storeSeries(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(storeSeries(anilistId), UnknownAnimeError);
 
 	if (error) {
 		// Searches queue every entry they find that is not stored, so an entry

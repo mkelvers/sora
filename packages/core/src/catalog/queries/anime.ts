@@ -7,7 +7,7 @@ import type { AnimeDetailsFragment } from "../../anilist/graphql.generated";
 import { zAnimeDetailsQuery, zLatestAiringQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema/catalog";
-import { AnimeNotFoundError } from "../../errors";
+import { UnknownAnimeError } from "../../errors";
 import { startTrackingAiring } from "../../scheduler/queue";
 import { toDetails, toCard } from "../models/anime";
 import type { Anime, AnimeCard } from "../models/anime";
@@ -82,7 +82,7 @@ class Details {
 	 * finished already; its end date, when AniList has none yet, is the day in
 	 * Japan that episode aired.
 	 *
-	 * @throws {AnimeNotFoundError} for unknown and adult anime.
+	 * @throws {UnknownAnimeError} for unknown and adult anime.
 	 * @throws {UpstreamUnavailableError} when AniList cannot be reached.
 	 */
 	async fetch(anilistId: number): Promise<AnimeDetailsFragment> {
@@ -93,7 +93,7 @@ class Details {
 		const media = loaded.get(anilistId);
 
 		if (!media || media.isAdult) {
-			throw new AnimeNotFoundError(anilistId);
+			throw new UnknownAnimeError(anilistId);
 		}
 
 		if (media.status !== "RELEASING" || media.nextAiringEpisode) {
@@ -181,7 +181,7 @@ export const mayGainEpisodes = (
  * airing, or finished recently, is handed to the airing scheduler, which keeps
  * the stored copy current until its final episode is out.
  *
- * @throws {AnimeNotFoundError} when the ID is unknown to AniList, or
+ * @throws {UnknownAnimeError} when the ID is unknown to AniList, or
  *   belongs to adult media, which the catalog never serves.
  * @throws {UpstreamUnavailableError} when the anime is not stored yet
  *   and AniList cannot be reached.
@@ -223,7 +223,7 @@ export const getAnime = async (anilistId: number): Promise<Anime> => {
  * Only the scheduler calls this: the airing scheduler, and
  * {@link refreshStaleAnime}. Nothing else updates a stored anime.
  *
- * @throws {AnimeNotFoundError} when AniList no longer serves the anime.
+ * @throws {UnknownAnimeError} when AniList no longer serves the anime.
  * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 export const refreshAnime = async (anilistId: number): Promise<Anime> => {
@@ -282,7 +282,7 @@ export const refreshStaleAnime = async () => {
 	const gone: number[] = [];
 	await Promise.all(
 		stale.map(async ({ anilistId }) => {
-			const { error } = await attempt(refreshAnime(anilistId), AnimeNotFoundError);
+			const { error } = await attempt(refreshAnime(anilistId), UnknownAnimeError);
 
 			if (error) {
 				gone.push(anilistId);
