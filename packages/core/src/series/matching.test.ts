@@ -31,16 +31,24 @@ const weekly = (
 		{
 			length: count,
 		},
-		(_, index) => ({
-			air_date: start ? addDays(start, index * 7) : null,
-			episode_number: first + index,
-			id: season * 10_000 + first + index,
-			name: null,
-			overview: null,
-			runtime: options.runtime ?? 24,
-			season_number: season,
-			still_path: null,
-		}),
+		(_, index) => {
+			let airDate: string | null = null;
+
+			if (start) {
+				airDate = addDays(start, index * 7);
+			}
+
+			return {
+				air_date: airDate,
+				episode_number: first + index,
+				id: season * 10_000 + first + index,
+				name: null,
+				overview: null,
+				runtime: options.runtime ?? 24,
+				season_number: season,
+				still_path: null,
+			};
+		},
 	);
 };
 
