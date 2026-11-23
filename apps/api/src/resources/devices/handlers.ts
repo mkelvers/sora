@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { listDevices, signOutDevice, signOutOtherDevices } from "@sora/core/auth";
+import { devices } from "@sora/core/auth";
 import { isWebClientKey } from "@sora/core/playback";
 
 import { onInvalidRequest } from "../../errors";
@@ -18,27 +18,27 @@ export const handlers = new OpenAPIHono<V1Env>({
 			userAgent = c.req.header("X-Sora-User-Agent") ?? null;
 		}
 
-		const devices = await listDevices(c.get("accountId"), c.get("sessionId"), userAgent);
+		const results = await devices.list(c.get("accountId"), c.get("sessionId"), userAgent);
 
 		return c.json(
 			{
 				meta: {
-					count: devices.length,
+					count: results.length,
 				},
-				results: devices,
+				results,
 			},
 			200,
 		);
 	})
 
 	.openapi(contract.signOutDevice, async (c) => {
-		await signOutDevice(c.get("accountId"), c.req.valid("param").device_id);
+		await devices.signOut(c.get("accountId"), c.req.valid("param").device_id);
 
 		return c.body(null, 204);
 	})
 
 	.openapi(contract.signOutOtherDevices, async (c) => {
-		await signOutOtherDevices(c.get("accountId"), c.get("sessionId"));
+		await devices.signOutOthers(c.get("accountId"), c.get("sessionId"));
 
 		return c.body(null, 204);
 	});

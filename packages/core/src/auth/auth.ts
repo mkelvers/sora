@@ -6,7 +6,7 @@ import { bearer, username } from "better-auth/plugins";
 import { config } from "../config";
 import { db } from "../database/client";
 import { account, session, user, verification } from "../database/schema/auth";
-import { createProfile } from "./profiles";
+import { profiles } from "./profiles";
 import { limitSignIn } from "./sign-in-policy";
 
 /**
@@ -45,7 +45,7 @@ export const auth = betterAuth({
 		user: {
 			create: {
 				after: async (created) => {
-					await createProfile(created.id, {
+					await profiles.create(created.id, {
 						name: created.name,
 					});
 				},
