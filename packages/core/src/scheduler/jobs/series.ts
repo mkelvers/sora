@@ -19,7 +19,6 @@ import { releaseTime } from "../../series/episodes";
 import { mappings } from "../../series/mapping";
 import { store } from "../../series/store";
 import { editsWindowMs, getShow, withEdits } from "../../tmdb/resources";
-import { withChoices } from "../../tmdb/stills";
 import { parseInput } from "../payload";
 import { scheduleSeriesStore, scheduleRefresh } from "../queue";
 import { Absence } from "./absence";
@@ -322,7 +321,7 @@ export const refreshEpisodeDetails = async (
 				return 0;
 			}
 
-			return await new StoredEpisodes(seriesId).copy(await withChoices(showId, edited.data));
+			return await new StoredEpisodes(seriesId).copy(showId, edited.data);
 		},
 	);
 

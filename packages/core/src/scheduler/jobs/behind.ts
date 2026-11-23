@@ -152,7 +152,7 @@ export class Behind {
 		let mapping: typeof tmdbMapping.$inferSelect | undefined;
 
 		if (show) {
-			copied = await new StoredEpisodes(row.series_id).copy(show.episodes);
+			copied = await new StoredEpisodes(row.series_id).copy(showId, show.episodes);
 
 			// A series is matched to TMDB's episodes once a day at most, so one
 			// matched before TMDB listed its latest episodes keeps linking only

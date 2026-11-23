@@ -8,24 +8,104 @@ import { Logger } from "graphile-worker";
 import { db } from "../../database/client";
 import { tmdbResponse } from "../../database/schema/catalog";
 import { providerEpisodes } from "../../database/schema/playback";
-import { series, titleEpisode, tmdbMapping } from "../../database/schema/series";
+import { episodeStill, series, titleEpisode, tmdbMapping } from "../../database/schema/series";
 import { aniKoto } from "../../playback/providers/registry";
 import { refreshEpisodeDetails, refreshEpisodeListings } from "./series";
+import { StoredEpisodes } from "./stored-episodes";
 
 beforeEach(async () => {
 	// The job scans the entire catalogue. Keep it on the fixtures even when
 	// the integration suite runs on a populated development database.
 	await Promise.all(
-		[series, titleEpisode, providerEpisodes, tmdbMapping, tmdbResponse].map((table) => {
-			const name = sql.identifier(getTableName(table));
+		[series, titleEpisode, episodeStill, providerEpisodes, tmdbMapping, tmdbResponse].map(
+			(table) => {
+				const name = sql.identifier(getTableName(table));
 
-			return db.execute(sql`
+				return db.execute(sql`
 				create temporary table ${name}
 				(like public.${name} including all)
 				on commit drop
 			`);
-		}),
+			},
+		),
 	);
+});
+
+test("partial metadata preserves stored details and honors a rejected still", async () => {
+	const id = "partial-metadata";
+	const showId = 459;
+	const stillUrl = "https://image.tmdb.org/t/p/original/still.jpg";
+	const airedOn = "2026-11-22";
+
+	await db.insert(series).values({
+		anilistId: 125,
+		id,
+		key: `tv:${showId}`,
+		kind: "tv",
+		laidOutAt: new Date(),
+		title: "Partial metadata",
+	});
+
+	await db.insert(titleEpisode).values({
+		airDate: airedOn,
+		number: 1,
+		overview: "The party joins a guild.",
+		seriesId: id,
+		stillUrl,
+		title: "The Guild",
+		tmdbEpisodeNumber: 1,
+		tmdbSeasonNumber: 1,
+	});
+
+	const upstream = {
+		air_date: null,
+		episode_number: 1,
+		id: 460,
+		name: "Episode 1",
+		overview: null,
+		runtime: null,
+		season_number: 1,
+		still_path: null,
+	};
+
+	const episodes = new StoredEpisodes(id);
+
+	await episodes.copy(showId, [upstream]);
+
+	const [preserved] = await db.select().from(titleEpisode).where(eq(titleEpisode.seriesId, id));
+
+	expect(preserved).toMatchObject({
+		airDate: airedOn,
+		overview: "The party joins a guild.",
+		stillUrl,
+		title: "The Guild",
+	});
+
+	await db.insert(episodeStill).values({
+		chosenAt: new Date(),
+		episodeNumber: 1,
+		path: null,
+		seasonNumber: 1,
+		showId,
+	});
+
+	await episodes.copy(showId, [
+		{
+			...upstream,
+			name: "Comrades in the Guild",
+			overview: "The party meets its new guild.",
+			still_path: "/new-still.jpg",
+		},
+	]);
+
+	const [updated] = await db.select().from(titleEpisode).where(eq(titleEpisode.seriesId, id));
+
+	expect(updated).toMatchObject({
+		airDate: airedOn,
+		overview: "The party meets its new guild.",
+		stillUrl: null,
+		title: "Comrades in the Guild",
+	});
 });
 
 test("refreshing episode listings handles an unlisted episode without a release date", async () => {

@@ -2,7 +2,7 @@ import { sequence } from "@sora/shared";
 import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { titleEpisode } from "../../database/schema/series";
+import { episodeStill, titleEpisode } from "../../database/schema/series";
 import { imageUrl } from "../../tmdb/resources";
 import type { TmdbEpisode } from "../../tmdb/resources";
 
@@ -15,12 +15,12 @@ export class StoredEpisodes {
 	}
 
 	/**
-	 * Copies TMDB's details of `episodes` onto the series' episodes, as a
-	 * layout would derive them (see `layoutEpisodes`). Returns how many
-	 * episodes changed.
+	 * Applies available TMDB details and the stored still choices. A partial
+	 * response leaves existing details in place. Returns the number of changes.
 	 */
-	async copy(episodes: readonly TmdbEpisode[]): Promise<number> {
+	async copy(showId: number, episodes: readonly TmdbEpisode[]): Promise<number> {
 		const seriesId = this.#seriesId;
+		const placeholderTitle = /^episode [0-9]+$/iu;
 
 		const tmdbEpisodes = new Map(
 			episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]),
@@ -29,6 +29,8 @@ export class StoredEpisodes {
 		const stored = await db
 			.select({
 				airDate: titleEpisode.airDate,
+				chosenEpisode: episodeStill.episodeNumber,
+				chosenPath: episodeStill.path,
 				number: titleEpisode.number,
 				overview: titleEpisode.overview,
 				runtimeMinutes: titleEpisode.runtimeMinutes,
@@ -38,6 +40,14 @@ export class StoredEpisodes {
 				tmdbSeasonNumber: titleEpisode.tmdbSeasonNumber,
 			})
 			.from(titleEpisode)
+			.leftJoin(
+				episodeStill,
+				and(
+					eq(episodeStill.showId, showId),
+					eq(episodeStill.seasonNumber, titleEpisode.tmdbSeasonNumber),
+					eq(episodeStill.episodeNumber, titleEpisode.tmdbEpisodeNumber),
+				),
+			)
 			.where(and(eq(titleEpisode.seriesId, seriesId), isNotNull(titleEpisode.tmdbEpisodeNumber)));
 
 		const updates = stored.flatMap((episode) => {
@@ -49,21 +59,36 @@ export class StoredEpisodes {
 				return [];
 			}
 
+			const { name, still_path: stillPath } = tmdbEpisode;
+			let title: string | undefined;
+			let stillUrl: string | null | undefined;
+
+			if (name !== null && !placeholderTitle.test(name)) {
+				title = name;
+			}
+
+			if (episode.chosenEpisode !== null) {
+				// A stored null means the still was checked and rejected.
+				stillUrl = imageUrl(episode.chosenPath, "original");
+			} else if (stillPath !== null) {
+				stillUrl = imageUrl(stillPath, "original");
+			}
+
 			const details = {
-				airDate: tmdbEpisode.air_date,
-				overview: tmdbEpisode.overview,
-				// Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
-				runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
-				stillUrl: imageUrl(tmdbEpisode.still_path, "original"),
-				title: tmdbEpisode.name,
+				airDate: tmdbEpisode.air_date ?? undefined,
+				overview: tmdbEpisode.overview ?? undefined,
+				runtimeMinutes: tmdbEpisode.runtime ?? undefined,
+				stillUrl,
+				title,
 			};
 
 			const unchanged =
-				episode.airDate === details.airDate &&
-				episode.overview === details.overview &&
-				episode.runtimeMinutes === details.runtimeMinutes &&
-				episode.stillUrl === details.stillUrl &&
-				episode.title === details.title;
+				(details.airDate === undefined || episode.airDate === details.airDate) &&
+				(details.overview === undefined || episode.overview === details.overview) &&
+				(details.runtimeMinutes === undefined ||
+					episode.runtimeMinutes === details.runtimeMinutes) &&
+				(details.stillUrl === undefined || episode.stillUrl === details.stillUrl) &&
+				(details.title === undefined || episode.title === details.title);
 
 			if (unchanged) {
 				return [];
