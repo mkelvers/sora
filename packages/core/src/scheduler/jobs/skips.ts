@@ -16,7 +16,7 @@ import {
 import { themeSongsFor } from "../../playback/skips/themes";
 import { resolveVideos } from "../../playback/streams/resolve";
 import { locateEpisode } from "../../series/episodes";
-import { parsePayload } from "../payload";
+import { parseInput } from "../payload";
 
 const unsettled = {
 	ending: null,
@@ -36,8 +36,8 @@ const unsettled = {
  * A song or video that cannot be read is passed over, the video stored as
  * unsettled so it is tried again in two weeks rather than every day.
  */
-export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
-	const { ahead, ...request } = parsePayload(
+export const detectSegments: Task = async (payload, helpers) => {
+	const { ahead, ...request } = parseInput(
 		z.object({
 			ahead: z.boolean().default(false),
 			episode: z.number().int().positive(),

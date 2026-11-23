@@ -10,7 +10,7 @@ import { expireMapping, mappedEpisodes } from "../../series/mapping";
 import { continuesPastLinks } from "../../series/matching";
 import { getShow } from "../../tmdb/resources";
 import type { TmdbShow } from "../../tmdb/resources";
-import { scheduleStoredSeriesRefresh } from "../queue";
+import { scheduleRefresh } from "../queue";
 import { Absence } from "./absence";
 import { StoredEpisodes } from "./stored-episodes";
 
@@ -68,7 +68,7 @@ export class Behind {
 			await expireMapping(row.anilist_id);
 		}
 
-		await scheduleStoredSeriesRefresh(row.anilist_id);
+		await scheduleRefresh(row.anilist_id);
 
 		return {
 			fetched: 0,
@@ -84,7 +84,7 @@ export class Behind {
 		logger: Parameters<Task>[1]["logger"],
 	): Promise<Outcome> {
 		/** How long a show whose episode TMDB has not listed for years goes unasked. */
-		const longestListingWaitMs = 30 * day;
+		const longestWaitMs = 30 * day;
 
 		const row = this.#row;
 		let unlistedMs = Infinity;
@@ -92,7 +92,7 @@ export class Behind {
 
 		if (row.is_unlisted) {
 			unlistedMs = new Absence(row.unlisted_for_ms).recheckAfter({
-				max: longestListingWaitMs,
+				max: longestWaitMs,
 				min: hour,
 			});
 		}
@@ -178,7 +178,7 @@ export class Behind {
 				await expireMapping(row.anilist_id);
 			}
 
-			await scheduleStoredSeriesRefresh(row.anilist_id);
+			await scheduleRefresh(row.anilist_id);
 
 			return {
 				fetched: 1,

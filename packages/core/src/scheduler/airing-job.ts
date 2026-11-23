@@ -12,7 +12,7 @@ export class AiringJob {
 
 	/**
 	 * Each anime has at most one pending airing check, identified by this key.
-	 * It is also written in SQL by `reviveAiringChecks`.
+	 * It is also written in SQL by `reviveChecks`.
 	 */
 	get key(): string {
 		return `airing:${this.#payload.anilistId}`;

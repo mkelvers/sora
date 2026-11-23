@@ -7,10 +7,10 @@ import { animeScheduleRelease, animeScheduleShow } from "../../database/schema/p
 import { series } from "../../database/schema/series";
 import { getStoredUnits } from "../../playback/episodes/episodes";
 import { aniKoto } from "../../playback/providers/registry";
-import { scheduleAniKotoPoll } from "../queue";
+import { schedulePoll } from "../queue";
 
 /** The graphile-worker task that schedules looks on AniKoto for the day's dubs. */
-export const syncDubScheduleTask = "sync-dub-schedule";
+export const syncScheduleTask = "sync-dub-schedule";
 
 /**
  * Schedules a look on AniKoto (see `pollAniKoto`) for each dub AnimeSchedule
@@ -22,13 +22,13 @@ export const syncDubScheduleTask = "sync-dub-schedule";
  * without asking AnimeSchedule itself. Only dubs of stored series that
  * AniKoto does not carry yet are looked for.
  */
-export const syncDubSchedule: Task = async (_payload, helpers) => {
+export const syncSchedule: Task = async (_payload, helpers) => {
 	/**
 	 * How long after AnimeSchedule's time a dub is first looked for on
 	 * AniKoto. Of a week's dubs, AniKoto changed the series 8 to 35 minutes
 	 * after it.
 	 */
-	const firstLookDelayMs = 5 * minute;
+	const firstLookMs = 5 * minute;
 
 	/** How far ahead each daily run schedules dubs: a day, with room for a run that starts late. */
 	const scheduleAheadMs = 26 * hour;
@@ -107,14 +107,14 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 	});
 
 	await inSequence(uncarried, ({ anilistId, release }) =>
-		scheduleAniKotoPoll(
+		schedulePoll(
 			{
 				anilistId,
 				attempt: 0,
 				episode: release.episode,
 				language: "dub",
 			},
-			new Date(release.airsAt.getTime() + firstLookDelayMs),
+			new Date(release.airsAt.getTime() + firstLookMs),
 		),
 	);
 	const scheduled = uncarried.length;

@@ -2,12 +2,12 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { upscaleBackdrop } from "../../series/upscale";
-import { parsePayload } from "../payload";
+import { parseInput } from "../payload";
 
 /** Upscales the backdrop a viewer asked for; see {@link upscaleBackdrop}. */
-export const upscaleBackdropJob: Task = async (payload) => {
+export const enlargeBackdrop: Task = async (payload) => {
 	await upscaleBackdrop(
-		parsePayload(
+		parseInput(
 			z.object({
 				id: z.uuid(),
 			}),

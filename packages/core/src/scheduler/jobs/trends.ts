@@ -11,7 +11,7 @@ import { worthFeaturing } from "../../library/featured/featured";
 import { activityKeptFor, dateBefore } from "../../library/featured/rotation";
 
 /** The graphile-worker task that stores AniList's daily activity of the titles the home page may feature. */
-export const storeAnimeTrendsTask = "store-anime-trends";
+export const storeActivityTask = "store-anime-trends";
 
 /** The whole days AniList recorded for some entries after a moment and before now. */
 class Trends {
@@ -78,7 +78,7 @@ class Trends {
  * already stored is asked only for the days since its newest; a new one for
  * the whole month, once. About a hundred entries a day are a few requests.
  */
-export const storeAnimeTrendsJob: Task = async (_payload, helpers) => {
+export const storeActivity: Task = async (_payload, helpers) => {
 	/** Entries asked for in one request, so each request's pages stay few. */
 	const entriesPerRequest = 100;
 

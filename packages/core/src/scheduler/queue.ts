@@ -13,7 +13,7 @@ export const trackAiringTask = "track-airing";
  * The priority of every airing check. graphile-worker runs lower numbers
  * first, so a due check runs ahead of any queued series layout, however long
  * that queue grows; otherwise a new episode waits behind hundreds of layouts.
- * It is also written in SQL by `reviveAiringChecks`.
+ * It is also written in SQL by `reviveChecks`.
  */
 export const airingCheckPriority = -1;
 
@@ -73,10 +73,10 @@ export const startTrackingAiring = async (anilistId: number) => {
 };
 
 /** The graphile-worker task that watches AniKoto for one aired episode. */
-export const pollAniKotoTask = "poll-anikoto";
+export const pollAnikotoTask = "poll-anikoto";
 
-/** Where watching AniKoto for an aired episode left off; see {@link pollAniKotoTask}. */
-export interface PollAniKotoPayload {
+/** Where watching AniKoto for an aired episode left off; see {@link pollAnikotoTask}. */
+export interface PollPayload {
 	anilistId: number;
 	/** The aired episode AniKoto does not carry yet. */
 	episode: number;
@@ -92,7 +92,7 @@ export interface PollAniKotoPayload {
  * {@link airingCheckPriority}, since a viewer may be waiting on the
  * episode.
  */
-export const scheduleAniKotoPoll = async (payload: PollAniKotoPayload, runAt: Date) => {
+export const schedulePoll = async (payload: PollPayload, runAt: Date) => {
 	let language = "";
 
 	if (payload.language === "dub") {
@@ -101,7 +101,7 @@ export const scheduleAniKotoPoll = async (payload: PollAniKotoPayload, runAt: Da
 
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${pollAniKotoTask},
+      identifier => ${pollAnikotoTask},
       payload => json_build_object(
         'anilistId', ${payload.anilistId}::int,
         'episode', ${payload.episode}::float8,
@@ -125,7 +125,7 @@ export const storeSeriesTask = "store-series";
  * rather than after a slot among long catalogue jobs frees up; see
  * {@link startScheduler}.
  */
-export const storeSeriesNowTask = "store-series-now";
+export const storeNowTask = "store-series-now";
 
 /**
  * How soon a series should be stored. graphile-worker runs lower numbers
@@ -193,7 +193,7 @@ export const scheduleSeriesStore = async (
 	const kept = JobPriority.kept(jobKey, seriesStorePriority(priority, rank));
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${kept.task(storeSeriesTask, storeSeriesNowTask)},
+      identifier => ${kept.task(storeSeriesTask, storeNowTask)},
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${jobKey},
       job_key_mode => 'preserve_run_at',
@@ -208,7 +208,7 @@ export const scheduleSeriesStore = async (
  * did not list before, reach the stored series, and when what the layout is
  * derived from changed.
  */
-export const scheduleStoredSeriesRefresh = async (
+export const scheduleRefresh = async (
 	anilistId: number,
 	priority: Exclude<SeriesStorePriority, "waiting"> = "current",
 ) => {
@@ -216,7 +216,7 @@ export const scheduleStoredSeriesRefresh = async (
 	const kept = JobPriority.kept(jobKey, seriesStorePriorities[priority]);
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${kept.task(storeSeriesTask, storeSeriesNowTask)},
+      identifier => ${kept.task(storeSeriesTask, storeNowTask)},
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${jobKey},
       job_key_mode => 'preserve_run_at',
@@ -227,10 +227,10 @@ export const scheduleStoredSeriesRefresh = async (
 };
 
 /** The graphile-worker task that looks one AniList entry up on every stream provider. */
-export const lookUpEpisodesTask = "look-up-episodes";
+export const lookupEpisodesTask = "look-up-episodes";
 
-/** {@link lookUpEpisodesTask} for episodes a viewer is waiting on; see {@link storeSeriesNowTask}. */
-export const lookUpEpisodesNowTask = "look-up-episodes-now";
+/** {@link lookupEpisodesTask} for episodes a viewer is waiting on; see {@link storeNowTask}. */
+export const lookupNowTask = "look-up-episodes-now";
 
 /**
  * Queues looking AniList entries up on every stream provider and storing
@@ -262,7 +262,7 @@ export const scheduleEpisodeLookups = async (
 
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${new JobPriority(sql`entry.priority`).task(lookUpEpisodesTask, lookUpEpisodesNowTask)},
+      identifier => ${new JobPriority(sql`entry.priority`).task(lookupEpisodesTask, lookupNowTask)},
       payload => json_build_object('anilistId', entry.anilist_id),
       job_key => 'episodes:' || entry.anilist_id,
       job_key_mode => 'preserve_run_at',
@@ -309,10 +309,10 @@ export const requestRefinement = async (payload: RefineSubtitlesPayload) => {
 };
 
 /** The graphile-worker task that finds where an episode's theme songs play; see `detectSkipSegments`. */
-export const detectSkipSegmentsTask = "detect-skip-segments";
+export const detectSegmentsTask = "detect-skip-segments";
 
-/** The episode {@link detectSkipSegmentsTask} looks at. */
-export interface DetectSkipSegmentsPayload {
+/** The episode {@link detectSegmentsTask} looks at. */
+export interface SkipDetectionPayload {
 	seriesId: string;
 	episode: number;
 	/**
@@ -329,10 +329,10 @@ export interface DetectSkipSegmentsPayload {
  * each reads several minutes of every video, and the job itself passes over
  * videos already looked at.
  */
-export const requestSkipDetection = async (payload: DetectSkipSegmentsPayload) => {
+export const requestSkipDetection = async (payload: SkipDetectionPayload) => {
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${detectSkipSegmentsTask},
+      identifier => ${detectSegmentsTask},
       payload => json_build_object(
         'seriesId', ${payload.seriesId}::text,
         'episode', ${payload.episode}::int,

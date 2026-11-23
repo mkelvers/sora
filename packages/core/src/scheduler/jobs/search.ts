@@ -10,14 +10,14 @@ import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series } from "../../database/schema/series";
 import { carriedByAniKoto } from "../../series/episodes";
-import { parsePayload } from "../payload";
+import { parseInput } from "../payload";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
 /** The graphile-worker task that queues popular titles to be stored. */
 export const backfillSeriesTask = "backfill-series";
 
 /** The graphile-worker task that keeps the search index current. */
-export const syncSearchIndexTask = "sync-search-index";
+export const syncIndexTask = "sync-search-index";
 
 /**
  * Brings the search index up to date with AniList.
@@ -30,8 +30,8 @@ export const syncSearchIndexTask = "sync-search-index";
  * starts storing popular titles as soon as they are indexed, not at the next
  * half hour.
  */
-export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(
+export const syncIndex: Task = async (rawPayload, helpers) => {
+	const payload = parseInput(
 		z
 			.object({
 				full: z.boolean().optional(),

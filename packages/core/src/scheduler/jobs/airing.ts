@@ -6,12 +6,12 @@ import { z } from "zod";
 import { getAnime, refreshAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { AnimeNotFoundError } from "../../errors";
-import { parsePayload } from "../payload";
+import { parseInput } from "../payload";
 import {
 	airingCheckPriority,
 	scheduleAiringCheck,
-	scheduleAniKotoPoll,
-	scheduleStoredSeriesRefresh,
+	schedulePoll,
+	scheduleRefresh,
 	trackAiringTask,
 } from "../queue";
 import { planNextCheck } from "./airing-plan";
@@ -32,8 +32,8 @@ import { Tracked } from "./tracked";
  * Throwing lets graphile-worker retry the run with backoff, which is how an
  * AniList outage is handled.
  */
-export const trackAiring: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(
+export const track: Task = async (rawPayload, helpers) => {
+	const payload = parseInput(
 		z.object({
 			anilistId: z.number().int().positive(),
 			attempt: z.number().int().nonnegative(),
@@ -69,11 +69,11 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 		JSON.stringify(tracked.layout) !== JSON.stringify(new Tracked(before.data).layout);
 
 	if (isChanged) {
-		await scheduleStoredSeriesRefresh(anime.data.id);
+		await scheduleRefresh(anime.data.id);
 	}
 
 	let latestAired: AiringState["latestAiredEpisode"] = null;
-	let nextAiringAt: Date | null = null;
+	let nextAt: Date | null = null;
 
 	// An anime AniKoto does not carry has no episode to wait for; the
 	// half-hourly look picks it up once AniKoto adds it.
@@ -82,14 +82,14 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 	}
 
 	if (anime.data.nextEpisode) {
-		nextAiringAt = new Date(anime.data.nextEpisode.airingAt);
+		nextAt = new Date(anime.data.nextEpisode.airingAt);
 	}
 
 	const plan = planNextCheck(
 		{
 			latestAiredEpisode: latestAired,
 			latestReleasedEpisode: onAniKoto.latest,
-			nextAiringAt,
+			nextAt,
 			startDate: anime.data.startDate,
 			status: anime.data.status,
 		},
@@ -106,7 +106,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 	// A newly aired episode is watched for on AniKoto from five minutes on,
 	// between the tracker's own checks.
 	if (plan.awaitedEpisode !== null && plan.attempt === 0) {
-		await scheduleAniKotoPoll(
+		await schedulePoll(
 			{
 				anilistId: anime.data.id,
 				attempt: 0,
@@ -128,7 +128,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 };
 
 /** The graphile-worker task that restarts tracking for airing anime that lost their check. */
-export const reviveAiringChecksTask = "revive-airing-checks";
+export const reviveChecksTask = "revive-airing-checks";
 
 /**
  * Restarts tracking for every stored anime that is not finished but has no
@@ -137,7 +137,7 @@ export const reviveAiringChecksTask = "revive-airing-checks";
  *
  * Runs periodically as a safety net; normally each check schedules the next.
  */
-export const reviveAiringChecks: Task = async (_payload, helpers) => {
+export const reviveChecks: Task = async (_payload, helpers) => {
 	const revived = await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${trackAiringTask},

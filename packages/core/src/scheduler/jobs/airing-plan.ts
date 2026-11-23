@@ -7,7 +7,7 @@ import { AiringSchedule } from "./airing-schedule";
 export interface AiringState {
 	status: AnimeStatus | null;
 	/** When AniList expects the next episode, if it has announced one. */
-	nextAiringAt: Date | null;
+	nextAt: Date | null;
 	/**
 	 * The latest episode AniList says has aired, or `null` when none has, or
 	 * when AniKoto does not carry the anime, so there is none to wait for.

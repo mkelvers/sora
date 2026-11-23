@@ -9,7 +9,7 @@ import { recordSubtitleLanguages } from "../../playback/streams/subtitle-languag
 import { SubtitleRefinementError } from "../../playback/subtitles/audio";
 import { listenToDub } from "../../playback/subtitles/listen";
 import { getRefinement, isRefinementDue, saveRefinement } from "../../playback/subtitles/store";
-import { parsePayload } from "../payload";
+import { parseInput } from "../payload";
 
 /**
  * Times the sub's subtitles to when the dub's characters speak, by
@@ -17,12 +17,12 @@ import { parsePayload } from "../payload";
  * `listenToDub`. Playback uses it from then on. A dub that does not speak
  * the sub's script is recorded as such and tried again in a week.
  */
-export const refineSubtitles: Task = async (payload) => {
+export const refineCues: Task = async (payload) => {
 	if (!config.subtitleAlignmentPython) {
 		throw new SubtitleRefinementError("SUBTITLE_ALIGNMENT_PYTHON is not set");
 	}
 
-	const { seriesId, episode, key } = parsePayload(
+	const { seriesId, episode, key } = parseInput(
 		z.object({
 			episode: z.number().int().positive(),
 			key: z.string().min(1),
@@ -51,8 +51,8 @@ export const refineSubtitles: Task = async (payload) => {
  * for a series nobody has played yet; see `probeSubtitleLanguages`. A series
  * without a first episode stores none, so it is not asked about again.
  */
-export const probeSubtitles: Task = async (payload, helpers) => {
-	const { seriesId } = parsePayload(
+export const probeLanguages: Task = async (payload, helpers) => {
+	const { seriesId } = parseInput(
 		z.object({
 			seriesId: z.string().min(1),
 		}),

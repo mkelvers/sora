@@ -6,7 +6,7 @@ import type { JobHelpers, Task } from "graphile-worker";
 import { z } from "zod";
 
 import { lookUpEpisodes } from "./jobs/episodes";
-import { InvalidPayloadError, failInvalidPayloads, parsePayload } from "./payload";
+import { InvalidPayloadError, failInvalid, parseInput } from "./payload";
 
 const task = "test-task";
 
@@ -58,7 +58,7 @@ class RunningJob {
 
 	/** Runs `run` as {@link task} the way the scheduler does. */
 	async run(run: Task, payload: Parameters<Task>[0]) {
-		const wrapped = failInvalidPayloads({
+		const wrapped = failInvalid({
 			[task]: run,
 		})[task];
 
@@ -70,14 +70,14 @@ class RunningJob {
 	}
 }
 
-describe("parsePayload", () => {
+describe("parseInput", () => {
 	const schema = z.object({
 		anilistId: z.number().int().positive(),
 	});
 
 	test("returns the payload when it matches", () => {
 		expect(
-			parsePayload(schema, {
+			parseInput(schema, {
 				anilistId: 1,
 			}),
 		).toEqual({
@@ -87,19 +87,19 @@ describe("parsePayload", () => {
 
 	test("throws InvalidPayloadError naming the field when it does not", () => {
 		expect(() =>
-			parsePayload(schema, {
+			parseInput(schema, {
 				anilistId: -155_682_372,
 			}),
 		).toThrow(InvalidPayloadError);
 		expect(() =>
-			parsePayload(schema, {
+			parseInput(schema, {
 				anilistId: -155_682_372,
 			}),
 		).toThrow("anilistId");
 	});
 });
 
-describe("failInvalidPayloads", () => {
+describe("failInvalid", () => {
 	test("fails a job with an invalid payload for good on its first attempt", async () => {
 		const job = new RunningJob();
 		const { query } = job;

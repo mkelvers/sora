@@ -182,7 +182,7 @@ export const animeSearchTag = pgTable(
  * AniList's daily statistics of the entries the home page may feature: how
  * much activity each saw on a day, and how many users listed it. Kept for
  * about a month, so the home page can tell a title people are coming back to
- * from one they are leaving (see `storeAnimeTrendsJob`).
+ * from one they are leaving (see `storeActivity`).
  */
 export const animeTrend = pgTable(
 	"anime_trend",

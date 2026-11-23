@@ -20,8 +20,8 @@ import { expireMapping } from "../../series/mapping";
 import { storedSeriesIds, storeSeries } from "../../series/store";
 import { editsWindowMs, getShow, withEdits } from "../../tmdb/resources";
 import { withChoices } from "../../tmdb/stills";
-import { parsePayload } from "../payload";
-import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
+import { parseInput } from "../payload";
+import { scheduleSeriesStore, scheduleRefresh } from "../queue";
 import { Absence } from "./absence";
 import { Behind, storedShowMs } from "./behind";
 import { StoredEpisodes } from "./stored-episodes";
@@ -36,8 +36,8 @@ import { StoredEpisodes } from "./stored-episodes";
  * Nothing is done when the series was laid out after the job was last
  * queued: that layout already has what the job was queued for.
  */
-export const storeSeriesJob: Task = async (rawPayload, helpers) => {
-	const { anilistId } = parsePayload(
+export const storeEntry: Task = async (rawPayload, helpers) => {
+	const { anilistId } = parseInput(
 		z.object({
 			anilistId: z.number().int().positive(),
 		}),
@@ -74,7 +74,7 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 };
 
 /** The graphile-worker task that finds new entries to store. */
-export const discoverSeriesEntriesTask = "discover-series-entries";
+export const discoverEntriesTask = "discover-series-entries";
 
 /**
  * Finds AniList entries whose series should be stored and queues storing
@@ -92,7 +92,7 @@ export const discoverSeriesEntriesTask = "discover-series-entries";
  * An entry that qualifies for none of these yet is simply looked at again
  * on the next run.
  */
-export const discoverSeriesEntries: Task = async (_payload, helpers) => {
+export const discoverEntries: Task = async (_payload, helpers) => {
 	/** Upcoming entries premiering within this window are stored ahead of time. */
 	const premiereWindowMs = 14 * day;
 
@@ -184,7 +184,7 @@ const airedLately = sql`${episodeReleasedAt} between now() - make_interval(secs 
 const isUnnamed = sql`(${seriesEpisode.title} is null or ${seriesEpisode.title} ~* '^episode [0-9]+$')`;
 
 /** The graphile-worker task that fills in details TMDB added after an episode aired. */
-export const refreshEpisodeDetailsTask = "refresh-episode-details";
+export const refreshDetailsTask = "refresh-episode-details";
 
 /**
  * Fills in the title, overview, runtime, and still TMDB got for an episode
@@ -218,7 +218,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 	 * the same copy for ten minutes, so runs any closer would be answered with
 	 * what the run before got.
 	 */
-	const detailsRunEveryMs = 12 * minute;
+	const runEveryMs = 12 * minute;
 
 	const awaited = await db.execute<{
 		series_id: string;
@@ -296,7 +296,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 
 						const recheckMs = new Absence(episode.missing_for_ms).recheckAfter({
 							max: editsWindowMs,
-							min: detailsRunEveryMs,
+							min: runEveryMs,
 						});
 
 						return [
@@ -334,7 +334,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 };
 
 /** The graphile-worker task that picks up episodes TMDB starts to list. */
-export const refreshEpisodeListingsTask = "refresh-episode-listings";
+export const refreshListingsTask = "refresh-episode-listings";
 
 /**
  * Asks TMDB again for the shows of stored series with an episode that a
@@ -400,7 +400,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 			await expireMapping(row.anilist_id);
 		}
 
-		await scheduleStoredSeriesRefresh(row.anilist_id);
+		await scheduleRefresh(row.anilist_id);
 	});
 
 	const unlisted = sql`(

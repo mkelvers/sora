@@ -12,8 +12,8 @@ import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/ep
 import type { ProviderUnit } from "../../playback/episodes/episodes";
 import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catalog";
 import { aniKoto, providerHttp } from "../../playback/providers/registry";
-import { parsePayload } from "../payload";
-import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
+import { parseInput } from "../payload";
+import { schedulePoll, scheduleRefresh } from "../queue";
 
 /**
  * Fetches again the AniKoto episode lists of stored entries whose AniKoto
@@ -80,7 +80,7 @@ class Looks {
 		const known = stored?.units.at(-1)?.number ?? 0;
 
 		if (latest > known) {
-			await scheduleStoredSeriesRefresh(anilistId);
+			await scheduleRefresh(anilistId);
 		}
 
 		return units;
@@ -208,7 +208,7 @@ class Looks {
 const looks = new Looks();
 
 /** The graphile-worker task that picks up what AniKoto changed. */
-export const watchAniKotoReleasesTask = "watch-anikoto-releases";
+export const watchAnikotoTask = "watch-anikoto-releases";
 
 /**
  * Picks up what AniKoto changed (see {@link Looks.pickUp}) every
@@ -216,7 +216,7 @@ export const watchAniKotoReleasesTask = "watch-anikoto-releases";
  * {@link pollAniKoto}), so this catches the rest: dubs, which AniList does
  * not schedule, and episodes of entries it has no schedule for.
  */
-export const watchAniKotoReleases: Task = async (_payload, helpers) => {
+export const watchAnikoto: Task = async (_payload, helpers) => {
 	await looks.pickUp(helpers.logger);
 };
 
@@ -224,7 +224,7 @@ export const watchAniKotoReleases: Task = async (_payload, helpers) => {
  * Looks on AniKoto for an episode AniList says has aired, or for its dub
  * once AnimeSchedule says it is out, and looks again after the next of
  * its delays until AniKoto carries it. Queued by the
- * airing tracker when an episode airs, and by `syncDubSchedule` for
+ * airing tracker when an episode airs, and by `syncSchedule` for
  * a dub.
  *
  * A look reads what AniKoto changed (see {@link Looks.pickUp}),
@@ -246,7 +246,7 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 		(minutes) => minutes * minute,
 	);
 
-	const payload = parsePayload(
+	const payload = parseInput(
 		z.object({
 			anilistId: z.number().int().positive(),
 			attempt: z.number().int().nonnegative(),
@@ -298,7 +298,7 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 	const delay = delaysMs[payload.attempt];
 
 	if (delay !== undefined) {
-		await scheduleAniKotoPoll(
+		await schedulePoll(
 			{
 				anilistId,
 				attempt: payload.attempt + 1,

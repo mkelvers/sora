@@ -29,10 +29,10 @@ export class AiringSchedule {
 		const state = this.#state;
 		const now = this.#now;
 
-		if (state.nextAiringAt) {
+		if (state.nextAt) {
 			// A broadcast time in the past means AniList has not caught up yet.
-			if (state.nextAiringAt > now) {
-				return state.nextAiringAt;
+			if (state.nextAt > now) {
+				return state.nextAt;
 			}
 
 			return new Date(now.getTime() + AiringSchedule.#premiereIntervalMs);

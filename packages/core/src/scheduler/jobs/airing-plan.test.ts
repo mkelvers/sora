@@ -10,7 +10,7 @@ const now = new Date("2026-09-23T12:00:00Z");
 const base: AiringState = {
 	latestAiredEpisode: null,
 	latestReleasedEpisode: null,
-	nextAiringAt: null,
+	nextAt: null,
 	startDate: null,
 	status: "RELEASING",
 };
@@ -22,14 +22,14 @@ const fresh = {
 
 describe("planNextCheck", () => {
 	test("checks at the next broadcast when every aired episode is released", () => {
-		const nextAiringAt = new Date("2026-09-25T08:00:00Z");
+		const nextAt = new Date("2026-09-25T08:00:00Z");
 
 		const plan = planNextCheck(
 			{
 				...base,
 				latestAiredEpisode: 5,
 				latestReleasedEpisode: 5,
-				nextAiringAt,
+				nextAt,
 			},
 			fresh,
 			now,
@@ -39,7 +39,7 @@ describe("planNextCheck", () => {
 			attempt: 0,
 			awaitedEpisode: null,
 			done: false,
-			runAt: nextAiringAt,
+			runAt: nextAt,
 		});
 	});
 
@@ -49,7 +49,7 @@ describe("planNextCheck", () => {
 				...base,
 				latestAiredEpisode: 6,
 				latestReleasedEpisode: 5,
-				nextAiringAt: new Date("2026-09-30T08:00:00Z"),
+				nextAt: new Date("2026-09-30T08:00:00Z"),
 			},
 			fresh,
 			now,
@@ -69,7 +69,7 @@ describe("planNextCheck", () => {
 				...base,
 				latestAiredEpisode: 6,
 				latestReleasedEpisode: 5,
-				nextAiringAt: new Date("2026-09-30T08:00:00Z"),
+				nextAt: new Date("2026-09-30T08:00:00Z"),
 			},
 			{
 				attempt: 2,
@@ -85,14 +85,14 @@ describe("planNextCheck", () => {
 	});
 
 	test("stops retrying an episode after the last attempt but keeps the broadcast check", () => {
-		const nextAiringAt = new Date("2026-09-30T08:00:00Z");
+		const nextAt = new Date("2026-09-30T08:00:00Z");
 
 		const plan = planNextCheck(
 			{
 				...base,
 				latestAiredEpisode: 6,
 				latestReleasedEpisode: 5,
-				nextAiringAt,
+				nextAt,
 			},
 			{
 				attempt: maximumReleaseAttempts - 1,
@@ -102,7 +102,7 @@ describe("planNextCheck", () => {
 		);
 
 		expect(plan).toMatchObject({
-			runAt: nextAiringAt,
+			runAt: nextAt,
 		});
 	});
 
@@ -185,12 +185,12 @@ describe("planNextCheck", () => {
 
 	test("uses the announced premiere time over the premiere-day window", () => {
 		// Psyren: AniList lists episode 1 for 2026-10-05 23:00 JST.
-		const nextAiringAt = new Date(1_791_208_800_000);
+		const nextAt = new Date(1_791_208_800_000);
 
 		const plan = planNextCheck(
 			{
 				...base,
-				nextAiringAt,
+				nextAt,
 				startDate: "2026-10-05",
 				status: "NOT_YET_RELEASED",
 			},
@@ -199,7 +199,7 @@ describe("planNextCheck", () => {
 		);
 
 		expect(plan).toMatchObject({
-			runAt: nextAiringAt,
+			runAt: nextAt,
 		});
 	});
 
@@ -225,7 +225,7 @@ describe("planNextCheck", () => {
 				...base,
 				latestAiredEpisode: 4,
 				latestReleasedEpisode: 4,
-				nextAiringAt: new Date(now.getTime() - minute),
+				nextAt: new Date(now.getTime() - minute),
 			},
 			fresh,
 			now,
@@ -268,7 +268,7 @@ describe("a double-episode premiere", () => {
 				...base,
 				latestAiredEpisode: extendThroughReleased(1, [2]),
 				latestReleasedEpisode: 1,
-				nextAiringAt: new Date("2026-10-03T15:14:00Z"),
+				nextAt: new Date("2026-10-03T15:14:00Z"),
 			},
 			{
 				attempt: 0,

@@ -6,7 +6,7 @@ import { getAnime } from "../../catalog/queries/anime";
 import { AnimeNotFoundError } from "../../errors";
 import { getProviderUnits } from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
-import { parsePayload } from "../payload";
+import { parseInput } from "../payload";
 
 /**
  * Looks one AniList entry up on every stream provider and stores their
@@ -18,7 +18,7 @@ import { parsePayload } from "../payload";
  * the others are stored, so graphile-worker retries it with backoff.
  */
 export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
-	const { anilistId } = parsePayload(
+	const { anilistId } = parseInput(
 		z.object({
 			anilistId: z.number().int().positive(),
 		}),

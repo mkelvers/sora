@@ -3,10 +3,10 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { streamProviders } from "../../playback/providers/registry";
-import { parsePayload } from "../payload";
+import { parseInput } from "../payload";
 
 /** The graphile-worker task that mirrors provider catalogues. */
-export const syncProviderCatalogsTask = "sync-provider-catalogs";
+export const syncProvidersTask = "sync-provider-catalogs";
 
 /**
  * Brings up to date the local copies of provider catalogues that series are
@@ -16,8 +16,8 @@ export const syncProviderCatalogsTask = "sync-provider-catalogs";
  * `{ full: true }` to drop what they removed. A failing provider fails the
  * job once the others are synced, so graphile-worker retries it with backoff.
  */
-export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(
+export const syncProviders: Task = async (rawPayload, helpers) => {
+	const payload = parseInput(
 		z
 			.object({
 				full: z.boolean().optional(),

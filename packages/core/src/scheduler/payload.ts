@@ -6,7 +6,7 @@ import { Causes } from "./causes";
 
 /**
  * A job's payload does not match what its task expects. It fails the same
- * way on every attempt, so {@link failInvalidPayloads} fails the job for
+ * way on every attempt, so {@link failInvalid} fails the job for
  * good rather than letting graphile-worker retry it.
  */
 export class InvalidPayloadError extends Error {
@@ -14,7 +14,7 @@ export class InvalidPayloadError extends Error {
 }
 
 /** Reads a job's payload with `schema`, throwing {@link InvalidPayloadError} when it does not match. */
-export const parsePayload = <TSchema extends z.ZodType>(
+export const parseInput = <TSchema extends z.ZodType>(
 	schema: TSchema,
 	payload: Parameters<Task>[0],
 ): z.output<TSchema> => {
@@ -37,7 +37,7 @@ export const parsePayload = <TSchema extends z.ZodType>(
  * Has each task fail its job for good when it throws
  * {@link InvalidPayloadError}, on the first attempt, so a payload that can
  * never be read is not retried 25 times. The job stays in the queue as
- * failed, with the error as its `last_error`, until `pruneDeadJobsJob`
+ * failed, with the error as its `last_error`, until `pruneDead`
  * logs and drops it. Every other error rethrows with its causes in its
  * message (see {@link Causes.described}), so graphile-worker retries it with
  * backoff as before.
@@ -49,7 +49,7 @@ export const parsePayload = <TSchema extends z.ZodType>(
  * and graphile-worker's own failure handling then records the error and
  * unlocks it, never to be picked up again.
  */
-export const failInvalidPayloads = (tasks: Record<string, Task>): TaskList =>
+export const failInvalid = (tasks: Record<string, Task>): TaskList =>
 	Object.fromEntries(
 		Object.entries(tasks).map(([name, task]): [string, Task] => [
 			name,
