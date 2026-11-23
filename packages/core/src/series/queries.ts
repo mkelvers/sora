@@ -22,8 +22,8 @@ import {
 import {
 	imageEdge,
 	series,
-	seriesEpisode,
-	seriesRelated,
+	titleEpisode,
+	titleRelation,
 	titleFacts,
 	tmdbMapping,
 } from "../database/schema/series";
@@ -69,20 +69,20 @@ export const listedEpisodeDatesOf = async (titles: readonly SeriesRow[]) => {
 	const [rows, onAniKoto] = await Promise.all([
 		db
 			.select({
-				airDate: seriesEpisode.airDate,
-				airedAt: seriesEpisode.airedAt,
-				number: seriesEpisode.number,
-				seriesId: seriesEpisode.seriesId,
-				tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
+				airDate: titleEpisode.airDate,
+				airedAt: titleEpisode.airedAt,
+				number: titleEpisode.number,
+				seriesId: titleEpisode.seriesId,
+				tmdbEpisodeNumber: titleEpisode.tmdbEpisodeNumber,
 			})
-			.from(seriesEpisode)
+			.from(titleEpisode)
 			.where(
 				inArray(
-					seriesEpisode.seriesId,
+					titleEpisode.seriesId,
 					titles.map((title) => title.id),
 				),
 			)
-			.orderBy(asc(seriesEpisode.number)),
+			.orderBy(asc(titleEpisode.number)),
 		loadCarried(titles.map((title) => title.anilistId)),
 	]);
 
@@ -155,14 +155,14 @@ class Title {
 			db
 				.select({
 					from: series.anilistId,
-					relation: seriesRelated.relation,
-					to: seriesRelated.anilistId,
+					relation: titleRelation.relation,
+					to: titleRelation.anilistId,
 				})
-				.from(seriesRelated)
-				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
+				.from(titleRelation)
+				.innerJoin(series, eq(series.id, titleRelation.seriesId))
 				.where(
 					inArray(
-						seriesRelated.seriesId,
+						titleRelation.seriesId,
 						titles.map((title) => title.id),
 					),
 				),
@@ -305,9 +305,9 @@ class Title {
 		const [episodes, onAniKoto] = await Promise.all([
 			db
 				.select()
-				.from(seriesEpisode)
-				.where(eq(seriesEpisode.seriesId, row.id))
-				.orderBy(asc(seriesEpisode.number)),
+				.from(titleEpisode)
+				.where(eq(titleEpisode.seriesId, row.id))
+				.orderBy(asc(titleEpisode.number)),
 			loadCarried([row.anilistId]),
 		]);
 
@@ -488,7 +488,7 @@ class Title {
 	}
 
 	/** `episodes` as listed: with their stills, audio, and whether each is filler. */
-	async describe(episodes: (typeof seriesEpisode.$inferSelect)[]): Promise<Episode[]> {
+	async describe(episodes: (typeof titleEpisode.$inferSelect)[]): Promise<Episode[]> {
 		const row = this.#row;
 		const first = episodes.at(0);
 		const last = episodes.at(-1);
@@ -500,16 +500,16 @@ class Title {
 
 			return await db
 				.select({
-					number: seriesEpisode.number,
+					number: titleEpisode.number,
 					stillUrl: effectiveStill,
 				})
-				.from(seriesEpisode)
-				.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
+				.from(titleEpisode)
+				.innerJoin(series, eq(series.id, titleEpisode.seriesId))
 				.where(
 					and(
-						eq(seriesEpisode.seriesId, row.id),
-						gte(seriesEpisode.number, first.number),
-						lte(seriesEpisode.number, last.number),
+						eq(titleEpisode.seriesId, row.id),
+						gte(titleEpisode.number, first.number),
+						lte(titleEpisode.number, last.number),
 					),
 				);
 		};
@@ -695,14 +695,14 @@ export const listedEpisodesOf = async (titles: readonly SeriesRow[]) => {
 	const [rows, onAniKoto] = await Promise.all([
 		db
 			.select()
-			.from(seriesEpisode)
+			.from(titleEpisode)
 			.where(
 				inArray(
-					seriesEpisode.seriesId,
+					titleEpisode.seriesId,
 					titles.map((title) => title.id),
 				),
 			)
-			.orderBy(asc(seriesEpisode.number)),
+			.orderBy(asc(titleEpisode.number)),
 		loadCarried(titles.map((title) => title.anilistId)),
 	]);
 
@@ -989,9 +989,9 @@ export const getLatestReleases = async (
 					series.id,
 					db
 						.selectDistinct({
-							seriesId: seriesEpisode.seriesId,
+							seriesId: titleEpisode.seriesId,
 						})
-						.from(seriesEpisode)
+						.from(titleEpisode)
 						.where(releasedBetween(since, now)),
 				),
 			),

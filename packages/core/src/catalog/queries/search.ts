@@ -3,7 +3,7 @@ import { and, asc, desc, eq, max, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { animeSearch, catalogSync } from "../../database/schema/catalog";
+import { animeSearch, fullSync } from "../../database/schema/catalog";
 import type { BrowseQuery } from "./browse-query";
 import { Filters } from "./filters";
 import { catalogName, Sync } from "./sync";
@@ -73,8 +73,8 @@ class SearchIndex {
 
 		const [row] = await db
 			.select()
-			.from(catalogSync)
-			.where(eq(catalogSync.catalog, catalogName))
+			.from(fullSync)
+			.where(eq(fullSync.catalog, catalogName))
 			.limit(1);
 
 		this.#complete = row !== undefined;

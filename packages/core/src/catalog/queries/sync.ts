@@ -7,7 +7,7 @@ import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
 import type { MediaSort, SearchIndexPageQuery } from "../../anilist/graphql.generated";
 import { zSearchIndexPageQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
-import { animeSearch, animeSearchTag, catalogSync } from "../../database/schema/catalog";
+import { animeSearch, animeSearchTag, fullSync } from "../../database/schema/catalog";
 import { UpstreamUnavailableError } from "../../errors";
 import { IndexedEntry } from "./indexed-entry";
 import type { IndexedMedia } from "./indexed-entry";
@@ -85,14 +85,14 @@ export class Sync {
 					};
 
 					await db
-						.insert(catalogSync)
+						.insert(fullSync)
 						.values({
 							catalog: catalogName,
 							...values,
 						})
 						.onConflictDoUpdate({
 							set: values,
-							target: catalogSync.catalog,
+							target: fullSync.catalog,
 						});
 				}
 

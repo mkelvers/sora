@@ -17,7 +17,7 @@ export const avatarStyle = pgEnum("avatar_style", ["sprouts", "critters"]);
  * Better Auth requires an e-mail, so it holds `<username>@sora.invalid`,
  * which is never shown or used.
  */
-export const authUser = pgTable("auth_user", {
+export const user = pgTable("auth_user", {
 	createdAt: timestamptz("created_at").notNull().defaultNow(),
 	displayUsername: text("display_username").notNull(),
 	email: text("email").notNull().unique(),
@@ -30,7 +30,7 @@ export const authUser = pgTable("auth_user", {
 });
 
 /** A signed-in device or browser. The token is what clients present. */
-export const authSession = pgTable(
+export const session = pgTable(
 	"auth_session",
 	{
 		createdAt: timestamptz("created_at").notNull().defaultNow(),
@@ -42,7 +42,7 @@ export const authSession = pgTable(
 		userAgent: text("user_agent"),
 		userId: text("user_id")
 			.notNull()
-			.references(() => authUser.id, {
+			.references(() => user.id, {
 				onDelete: "cascade",
 			}),
 	},
@@ -50,7 +50,7 @@ export const authSession = pgTable(
 );
 
 /** How an account signs in; for Sora only the hashed password. */
-export const authAccount = pgTable(
+export const account = pgTable(
 	"auth_account",
 	{
 		accessToken: text("access_token"),
@@ -67,7 +67,7 @@ export const authAccount = pgTable(
 		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
 		userId: text("user_id")
 			.notNull()
-			.references(() => authUser.id, {
+			.references(() => user.id, {
 				onDelete: "cascade",
 			}),
 	},
@@ -75,7 +75,7 @@ export const authAccount = pgTable(
 );
 
 /** Short-lived codes, such as for resetting a password. */
-export const authVerification = pgTable(
+export const verification = pgTable(
 	"auth_verification",
 	{
 		createdAt: timestamptz("created_at").notNull().defaultNow(),
@@ -107,7 +107,7 @@ export const profile = pgTable(
 		name: text("name").notNull(),
 		userId: text("user_id")
 			.notNull()
-			.references(() => authUser.id, {
+			.references(() => user.id, {
 				onDelete: "cascade",
 			}),
 	},

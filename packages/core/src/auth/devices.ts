@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, ne } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { authSession } from "../database/schema/auth";
+import { session } from "../database/schema/auth";
 import type { SignedInDevice } from "../models/account";
 import { Device, presentAddress } from "./device";
 
@@ -20,27 +20,27 @@ export const listDevices = async (
 	if (currentUserAgent) {
 		const [current] = await db
 			.select({
-				userAgent: authSession.userAgent,
+				userAgent: session.userAgent,
 			})
-			.from(authSession)
-			.where(and(eq(authSession.id, currentSessionId), eq(authSession.userId, accountId)))
+			.from(session)
+			.where(and(eq(session.id, currentSessionId), eq(session.userId, accountId)))
 			.limit(1);
 
 		if (current && new Device(current.userAgent).kind === "unknown") {
 			await db
-				.update(authSession)
+				.update(session)
 				.set({
 					userAgent: currentUserAgent,
 				})
-				.where(and(eq(authSession.id, currentSessionId), eq(authSession.userId, accountId)));
+				.where(and(eq(session.id, currentSessionId), eq(session.userId, accountId)));
 		}
 	}
 
 	const rows = await db
 		.select()
-		.from(authSession)
-		.where(and(eq(authSession.userId, accountId), gt(authSession.expiresAt, new Date())))
-		.orderBy(desc(authSession.updatedAt));
+		.from(session)
+		.where(and(eq(session.userId, accountId), gt(session.expiresAt, new Date())))
+		.orderBy(desc(session.updatedAt));
 
 	return rows.map((row) => {
 		const device = new Device(row.userAgent);
@@ -60,14 +60,12 @@ export const listDevices = async (
 
 /** Signs one of an account's devices out. Another account's session, or one already gone, is left alone. */
 export const signOutDevice = async (accountId: string, sessionId: string) => {
-	await db
-		.delete(authSession)
-		.where(and(eq(authSession.id, sessionId), eq(authSession.userId, accountId)));
+	await db.delete(session).where(and(eq(session.id, sessionId), eq(session.userId, accountId)));
 };
 
 /** Signs every device of an account out but the one the request came from. */
 export const signOutOtherDevices = async (accountId: string, currentSessionId: string) => {
 	await db
-		.delete(authSession)
-		.where(and(eq(authSession.userId, accountId), ne(authSession.id, currentSessionId)));
+		.delete(session)
+		.where(and(eq(session.userId, accountId), ne(session.id, currentSessionId)));
 };

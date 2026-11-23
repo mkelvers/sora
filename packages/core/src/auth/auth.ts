@@ -5,7 +5,7 @@ import { bearer, username } from "better-auth/plugins";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { authAccount, authSession, authUser, authVerification } from "../database/schema/auth";
+import { account, session, user, verification } from "../database/schema/auth";
 import { createProfile } from "./profiles";
 import { limitSignIn } from "./sign-in-policy";
 
@@ -35,18 +35,18 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, {
 		provider: "pg",
 		schema: {
-			account: authAccount,
-			session: authSession,
-			user: authUser,
-			verification: authVerification,
+			account,
+			session,
+			user,
+			verification,
 		},
 	}),
 	databaseHooks: {
 		user: {
 			create: {
-				after: async (user) => {
-					await createProfile(user.id, {
-						name: user.name,
+				after: async (created) => {
+					await createProfile(created.id, {
+						name: created.name,
 					});
 				},
 			},

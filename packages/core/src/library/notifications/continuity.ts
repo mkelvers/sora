@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { series, seriesRelated } from "../../database/schema/series";
+import { series, titleRelation } from "../../database/schema/series";
 
 /** The seasons connected to the ones a profile follows, as AniList relates them by sequel and prequel. */
 export class Continuity {
@@ -77,22 +77,22 @@ export class Continuity {
 
 		const columns = {
 			from: series.anilistId,
-			to: seriesRelated.anilistId,
+			to: titleRelation.anilistId,
 		};
 
-		const continues = inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]);
+		const continues = inArray(titleRelation.relation, ["SEQUEL", "PREQUEL"]);
 
 		const [outgoing, incoming] = await Promise.all([
 			db
 				.select(columns)
 				.from(series)
-				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+				.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
 				.where(and(continues, inArray(series.anilistId, frontier))),
 			db
 				.select(columns)
-				.from(seriesRelated)
-				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
-				.where(and(continues, inArray(seriesRelated.anilistId, frontier))),
+				.from(titleRelation)
+				.innerJoin(series, eq(series.id, titleRelation.seriesId))
+				.where(and(continues, inArray(titleRelation.anilistId, frontier))),
 		]);
 
 		const edges = [...outgoing, ...incoming];

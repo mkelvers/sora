@@ -210,7 +210,7 @@ export const animeTrend = pgTable(
  * When each mirrored catalogue last finished a full sync. A catalogue is
  * only relied on once one has: a partly filled one would miss titles.
  */
-export const catalogSync = pgTable("catalog_sync", {
+export const fullSync = pgTable("catalog_sync", {
 	catalog: text("catalog").primaryKey(),
 	fullSyncAt: timestamptz("full_sync_at").notNull(),
 });

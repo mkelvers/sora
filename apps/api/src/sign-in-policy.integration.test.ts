@@ -87,7 +87,7 @@ describe("password sign-in policy", () => {
 
 	test("shares five address attempts and rejects malformed input before looking up an account", async () => {
 		const address = "198.51.100.12";
-		using lookup = spyOn(db.query.authUser, "findFirst");
+		using lookup = spyOn(db.query.user, "findFirst");
 
 		const unparsed = await signIn.send("username", address, "{");
 		expect(unparsed.status).toBe(400);
@@ -169,7 +169,7 @@ describe("password sign-in policy", () => {
 
 	test("rejects new address buckets at capacity and admits them after expiry", async () => {
 		clock.mockReturnValue(4 * minute);
-		using lookup = spyOn(db.query.authUser, "findFirst");
+		using lookup = spyOn(db.query.user, "findFirst");
 
 		const malformed = JSON.stringify({
 			password: 1,

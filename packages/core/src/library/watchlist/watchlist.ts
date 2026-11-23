@@ -2,7 +2,7 @@ import { and, desc, eq, isNotNull, ne, notExists, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
+import { series, titleEpisode } from "../../database/schema/series";
 import type { WatchlistEntry, WatchlistStatus, WatchlistStatusEntry } from "../../models/library";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 import { clearSeries } from "../state";
@@ -140,7 +140,7 @@ export const followPlayback = async (
 			.select({
 				episodes: sql<
 					number | null
-				>`(select max(${seriesEpisode.number}) from ${seriesEpisode} where ${seriesEpisode.seriesId} = ${series.id})`,
+				>`(select max(${titleEpisode.number}) from ${titleEpisode} where ${titleEpisode.seriesId} = ${series.id})`,
 				status: series.status,
 			})
 			.from(series)
@@ -150,11 +150,11 @@ export const followPlayback = async (
 			.select({
 				count: sql<number>`count(*)::int`,
 			})
-			.from(seriesEpisode)
+			.from(titleEpisode)
 			.where(
 				and(
-					eq(seriesEpisode.seriesId, seriesId),
-					ne(seriesEpisode.number, playback.episode),
+					eq(titleEpisode.seriesId, seriesId),
+					ne(titleEpisode.number, playback.episode),
 					notExists(
 						db
 							.select({
@@ -165,7 +165,7 @@ export const followPlayback = async (
 								and(
 									eq(episodeProgress.userId, userId),
 									eq(episodeProgress.seriesId, seriesId),
-									eq(episodeProgress.episode, seriesEpisode.number),
+									eq(episodeProgress.episode, titleEpisode.number),
 									eq(episodeProgress.finished, true),
 								),
 							),

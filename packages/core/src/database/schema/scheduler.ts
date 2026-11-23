@@ -10,7 +10,7 @@ import { timestamptz } from "./columns";
  *
  * Rows of pools that stopped are pruned once they are a day old.
  */
-export const schedulerPool = pgTable("scheduler_pool", {
+export const pool = pgTable("scheduler_pool", {
 	heartbeatAt: timestamptz("heartbeat_at").notNull(),
 	/** graphile-worker's ID for the pool, such as `pool-8fbf68f75db1169558`, as jobs' `locked_by` names it. */
 	poolId: text("pool_id").primaryKey(),

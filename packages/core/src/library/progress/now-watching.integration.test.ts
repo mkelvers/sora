@@ -4,7 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
+import { series, titleEpisode } from "../../database/schema/series";
 import { getNowWatching } from "./now-watching";
 
 describe("portfolio titles", () => {
@@ -58,7 +58,7 @@ describe("portfolio titles", () => {
 					status: "FINISHED",
 					title,
 				});
-				await db.insert(seriesEpisode).values([
+				await db.insert(titleEpisode).values([
 					{
 						number: 1,
 						seriesId: id,

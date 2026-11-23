@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
+import { series, titleEpisode } from "../../database/schema/series";
 import type { LibraryExport } from "../../models/transfer";
 import { exportLibrary, importLibrary, undoImport } from "./transfer";
 
@@ -121,7 +121,7 @@ describe("library import and export", () => {
 				title: `Transfer test ${title.anilistId}`,
 			})),
 		);
-		await db.insert(seriesEpisode).values(
+		await db.insert(titleEpisode).values(
 			titles.flatMap((title) =>
 				Array.from(
 					{

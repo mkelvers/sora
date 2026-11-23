@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
+import { series, titleEpisode } from "../../database/schema/series";
 import { getSeries, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
 import {
 	getWatchlist,
@@ -116,7 +116,7 @@ describe("saved short titles", () => {
 	});
 
 	test("completes at the stored playable finale instead of AniList's short count", async () => {
-		await db.insert(seriesEpisode).values({
+		await db.insert(titleEpisode).values({
 			number: 24,
 			seriesId: id,
 		});
@@ -130,7 +130,7 @@ describe("saved short titles", () => {
 	});
 
 	test("does not complete when the finale is finished without the episodes before it", async () => {
-		await db.insert(seriesEpisode).values({
+		await db.insert(titleEpisode).values({
 			number: 23,
 			seriesId: id,
 		});

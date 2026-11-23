@@ -2,7 +2,7 @@ import { attempt, defined, sequence } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { episodeStill, series, seriesEpisode } from "../database/schema/series";
+import { episodeStill, series, titleEpisode } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
 import { getEpisodeStills, tmdbImageUrl } from "../tmdb/resources";
 import { hasBlackBars, rankStills, showsText } from "../tmdb/stills";
@@ -128,14 +128,14 @@ export const storeStill = async (
 		});
 
 	await db
-		.update(seriesEpisode)
+		.update(titleEpisode)
 		.set({
 			stillUrl: tmdbImageUrl(path, "original"),
 		})
 		.where(
 			and(
 				inArray(
-					seriesEpisode.seriesId,
+					titleEpisode.seriesId,
 					db
 						.select({
 							id: series.id,
@@ -143,8 +143,8 @@ export const storeStill = async (
 						.from(series)
 						.where(eq(series.key, `tv:${showId}`)),
 				),
-				eq(seriesEpisode.tmdbSeasonNumber, seasonNumber),
-				eq(seriesEpisode.tmdbEpisodeNumber, episodeNumber),
+				eq(titleEpisode.tmdbSeasonNumber, seasonNumber),
+				eq(titleEpisode.tmdbEpisodeNumber, episodeNumber),
 			),
 		);
 };

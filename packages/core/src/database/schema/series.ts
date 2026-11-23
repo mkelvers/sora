@@ -61,7 +61,7 @@ export const tmdbHint = pgTable("tmdb_hint", {
 	showId: integer("show_id"),
 });
 
-export const seriesKind = pgEnum("series_kind", ["tv", "movie", "standalone"]);
+export const kind = pgEnum("series_kind", ["tv", "movie", "standalone"]);
 
 /** An artwork override meaning the series shows no image of that kind. */
 export const noArtwork = "";
@@ -70,7 +70,7 @@ export const noArtwork = "";
  * One title as clients see it: one AniList entry, such as a season of a
  * show, a film, or an OVA. Entries of one franchise are titles of their own,
  * told apart by their titles and found from one another as
- * {@link seriesRelated} links them.
+ * {@link titleRelation} links them.
  *
  * `id` is Sora's own ID and the only one clients ever see. It belongs to
  * `anilistId` for good and never changes when the series is laid out again.
@@ -89,7 +89,7 @@ export const series = pgTable(
 		 * Seasons of one show share it.
 		 */
 		key: text("key").notNull(),
-		kind: seriesKind("kind").notNull(),
+		kind: kind("kind").notNull(),
 		/** When the episodes were last laid out. */
 		laidOutAt: timestamptz("laid_out_at").notNull(),
 		logoUrl: text("logo_url"),
@@ -189,7 +189,7 @@ export const titleFacts = pgTable("title_facts", {
  * episodes, from 1. Its details come from the TMDB episode it was matched
  * to, when there is one.
  */
-export const seriesEpisode = pgTable(
+export const titleEpisode = pgTable(
 	"series_episode",
 	{
 		/** `YYYY-MM-DD`, in the calendar of the country it aired in, as TMDB lists it. */
@@ -340,7 +340,7 @@ export const imageEdge = pgTable("image_edge", {
  * A related entry is recorded by its AniList ID rather than by its series
  * ID, because it may not be stored yet.
  */
-export const seriesRelated = pgTable(
+export const titleRelation = pgTable(
 	"series_related",
 	{
 		anilistId: integer("anilist_id").notNull(),

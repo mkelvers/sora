@@ -8,7 +8,7 @@ import {
 	importRecord,
 	seriesState,
 } from "../../database/schema/library";
-import { seriesEpisode } from "../../database/schema/series";
+import { titleEpisode } from "../../database/schema/series";
 import type { WatchlistStatus } from "../../models/library";
 import type { ImportConnection, LibraryExport, LibraryImportReport } from "../../models/transfer";
 import { scheduleSeriesStore } from "../../scheduler/queue";
@@ -177,19 +177,19 @@ export class Importer {
 			if (through.length) {
 				released = await tx
 					.select({
-						number: seriesEpisode.number,
-						runtimeMinutes: seriesEpisode.runtimeMinutes,
-						seriesId: seriesEpisode.seriesId,
+						number: titleEpisode.number,
+						runtimeMinutes: titleEpisode.runtimeMinutes,
+						seriesId: titleEpisode.seriesId,
 					})
-					.from(seriesEpisode)
+					.from(titleEpisode)
 					.where(
 						and(
 							inArray(
-								seriesEpisode.seriesId,
+								titleEpisode.seriesId,
 								through.map((addition) => addition.seriesId),
 							),
 							or(
-								and(isNull(seriesEpisode.airedAt), isNull(seriesEpisode.airDate)),
+								and(isNull(titleEpisode.airedAt), isNull(titleEpisode.airDate)),
 								lte(episodeReleasedAt, now),
 							),
 						),

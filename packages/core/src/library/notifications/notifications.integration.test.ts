@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { episodeDub } from "../../database/schema/playback";
-import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
+import { series, titleEpisode, titleRelation } from "../../database/schema/series";
 import { getNotifications } from "./notifications";
 
 describe("notifications across seasons", () => {
@@ -35,7 +35,7 @@ describe("notifications across seasons", () => {
 				title: `Notification test ${index}`,
 			})),
 		);
-		await db.insert(seriesRelated).values([
+		await db.insert(titleRelation).values([
 			{
 				anilistId: defined(anilistIds[1]),
 				position: 0,
@@ -55,7 +55,7 @@ describe("notifications across seasons", () => {
 				seriesId: first,
 			},
 		]);
-		await db.insert(seriesEpisode).values([
+		await db.insert(titleEpisode).values([
 			{
 				airedAt: new Date(now.getTime() - 40 * day),
 				number: 1,
@@ -240,7 +240,7 @@ describe("notifications across seasons", () => {
 			status: "NOT_YET_RELEASED",
 			title: "Notification test announced",
 		});
-		await db.insert(seriesRelated).values({
+		await db.insert(titleRelation).values({
 			anilistId: defined(anilistIds[2]),
 			position: 0,
 			relation: "PREQUEL",

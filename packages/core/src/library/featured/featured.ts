@@ -6,8 +6,8 @@ import { animeSearch, animeTrend } from "../../database/schema/catalog";
 import { featuredPick, seriesState } from "../../database/schema/library";
 import {
 	series,
-	seriesEpisode,
-	seriesRelated,
+	titleEpisode,
+	titleRelation,
 	titleArtwork,
 	titleBackdropUpscale,
 	titleImage,
@@ -236,8 +236,8 @@ class Picker {
 					key: series.key,
 				})
 				.from(series)
-				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
-				.where(eq(seriesRelated.relation, "PARENT")),
+				.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
+				.where(eq(titleRelation.relation, "PARENT")),
 		]);
 
 		const current = entries.filter((entry) => isCurrent(entry, now));
@@ -323,12 +323,12 @@ class Picker {
 
 		const rows = await db
 			.select({
-				lastAiredAt: max(seriesEpisode.airedAt),
-				seriesId: seriesEpisode.seriesId,
+				lastAiredAt: max(titleEpisode.airedAt),
+				seriesId: titleEpisode.seriesId,
 			})
-			.from(seriesEpisode)
-			.where(and(inArray(seriesEpisode.seriesId, [...seriesIds]), lte(seriesEpisode.airedAt, now)))
-			.groupBy(seriesEpisode.seriesId);
+			.from(titleEpisode)
+			.where(and(inArray(titleEpisode.seriesId, [...seriesIds]), lte(titleEpisode.airedAt, now)))
+			.groupBy(titleEpisode.seriesId);
 
 		return new Map(
 			rows.flatMap((row) => {

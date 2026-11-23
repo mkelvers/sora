@@ -7,7 +7,7 @@ import {
 	imageEdge,
 	noArtwork,
 	series,
-	seriesEpisode,
+	titleEpisode,
 	titleArtwork,
 } from "../database/schema/series";
 import { getUpscaledBackdrop, upscaleIdOf } from "./upscaled-backdrop";
@@ -47,7 +47,7 @@ export const effectiveLogo = sql<string | null>`nullif(coalesce(
  */
 export const effectiveStill = sql<
 	string | null
->`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else coalesce(${seriesEpisode.stillUrl}, ${effectiveBackdrop}) end`;
+>`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${titleEpisode.stillUrl}) else coalesce(${titleEpisode.stillUrl}, ${effectiveBackdrop}) end`;
 
 /** An image, by its URL, whose edges are measured. */
 class Picture {

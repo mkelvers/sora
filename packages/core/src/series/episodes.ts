@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
 import { anikotoSeries, providerEpisodes, providerMapping } from "../database/schema/playback";
-import { series, seriesEpisode } from "../database/schema/series";
+import { series, titleEpisode } from "../database/schema/series";
 import { UnknownEpisodeError, UnknownSeriesError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";
@@ -33,12 +33,12 @@ export const locateEpisode = async (id: string, number: number): Promise<Located
 	const [row] = await db
 		.select({
 			anilistId: series.anilistId,
-			number: seriesEpisode.number,
+			number: titleEpisode.number,
 		})
 		.from(series)
 		.leftJoin(
-			seriesEpisode,
-			and(eq(seriesEpisode.seriesId, series.id), eq(seriesEpisode.number, number)),
+			titleEpisode,
+			and(eq(titleEpisode.seriesId, series.id), eq(titleEpisode.number, number)),
 		)
 		.where(eq(series.id, id))
 		.limit(1);
@@ -87,7 +87,7 @@ export interface EpisodeListingRow {
  * air date when AniList has no airing time. See {@link releasedAtOf} for an
  * episode already loaded.
  */
-export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
+export const episodeReleasedAt = sql<Date>`coalesce(${titleEpisode.airedAt}, (${titleEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
 
 /**
  * Whether an episode came out from `since` to `until`, in a query.
@@ -99,11 +99,11 @@ export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, ($
 export const releasedBetween = (since: Date, until: Date) =>
 	and(
 		or(
-			and(gte(seriesEpisode.airedAt, since), lte(seriesEpisode.airedAt, until)),
+			and(gte(titleEpisode.airedAt, since), lte(titleEpisode.airedAt, until)),
 			and(
-				isNull(seriesEpisode.airedAt),
-				gte(seriesEpisode.airDate, since.toISOString().slice(0, 10)),
-				lte(seriesEpisode.airDate, until.toISOString().slice(0, 10)),
+				isNull(titleEpisode.airedAt),
+				gte(titleEpisode.airDate, since.toISOString().slice(0, 10)),
+				lte(titleEpisode.airDate, until.toISOString().slice(0, 10)),
 			),
 		),
 		gte(episodeReleasedAt, since),

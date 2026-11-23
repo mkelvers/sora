@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { authUser } from "../database/schema/auth";
+import { user } from "../database/schema/auth";
 import { Attempts } from "./attempts";
 
 const Username = z.string().regex(/^[a-zA-Z0-9_.]{3,30}$/u);
@@ -71,13 +71,13 @@ export const limitSignIn = createAuthMiddleware(async (endpoint) => {
 	}
 
 	const { identity } = parsed.data;
-	let column: typeof authUser.email | typeof authUser.username = authUser.email;
+	let column: typeof user.email | typeof user.username = user.email;
 
 	if (byUsername) {
-		column = authUser.username;
+		column = user.username;
 	}
 
-	const account = await db.query.authUser.findFirst({
+	const account = await db.query.user.findFirst({
 		columns: { id: true },
 		where: eq(column, identity),
 	});

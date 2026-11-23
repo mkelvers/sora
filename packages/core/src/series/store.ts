@@ -5,7 +5,7 @@ import { getAnime } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
-import { series, seriesEpisode, seriesRelated } from "../database/schema/series";
+import { series, titleEpisode, titleRelation } from "../database/schema/series";
 import { newId } from "../ids";
 import {
 	scheduleEpisodeLookups,
@@ -119,14 +119,14 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 
 		const earlierEpisodes = await tx
 			.select({
-				airedAt: seriesEpisode.airedAt,
-				number: seriesEpisode.number,
+				airedAt: titleEpisode.airedAt,
+				number: titleEpisode.number,
 			})
-			.from(seriesEpisode)
-			.where(eq(seriesEpisode.seriesId, id));
+			.from(titleEpisode)
+			.where(eq(titleEpisode.seriesId, id));
 
 		const airedBefore = new Map(earlierEpisodes.map((row) => [row.number, row.airedAt]));
-		await tx.delete(seriesEpisode).where(eq(seriesEpisode.seriesId, id));
+		await tx.delete(titleEpisode).where(eq(titleEpisode.seriesId, id));
 
 		const episodes = built.episodes.map((episode) => {
 			let airedAt: Date | null = null;
@@ -159,14 +159,14 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 		});
 
 		await sequence.all(chunked(episodes, episodeInsertBatch), async (batch) => {
-			await tx.insert(seriesEpisode).values(batch);
+			await tx.insert(titleEpisode).values(batch);
 		});
 
-		await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, id));
+		await tx.delete(titleRelation).where(eq(titleRelation.seriesId, id));
 
 		if (built.related.length > 0) {
 			await tx
-				.insert(seriesRelated)
+				.insert(titleRelation)
 				.values(
 					built.related.map((related, position) => ({
 						seriesId: id,

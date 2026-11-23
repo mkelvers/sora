@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
 import { db } from "../../database/client";
-import { episodeStill, series, seriesEpisode } from "../../database/schema/series";
+import { episodeStill, series, titleEpisode } from "../../database/schema/series";
 import { UpstreamUnavailableError } from "../../errors";
 import { chooseStill, storeStill } from "../../series/stills";
 
@@ -36,26 +36,26 @@ export const chooseFrames: Task = async (_payload, helpers) => {
 	}>(sql`
     select
       substring(${series.key} from '[0-9]+$')::int as show_id,
-      ${seriesEpisode.tmdbSeasonNumber} as season_number,
-      ${seriesEpisode.tmdbEpisodeNumber} as episode_number,
-      min(${seriesEpisode.stillUrl}) as still_url
-    from ${seriesEpisode}
-    inner join ${series} on ${series.id} = ${seriesEpisode.seriesId}
+      ${titleEpisode.tmdbSeasonNumber} as season_number,
+      ${titleEpisode.tmdbEpisodeNumber} as episode_number,
+      min(${titleEpisode.stillUrl}) as still_url
+    from ${titleEpisode}
+    inner join ${series} on ${series.id} = ${titleEpisode.seriesId}
     left join ${episodeStill}
       on ${episodeStill.showId} = substring(${series.key} from '[0-9]+$')::int
-      and ${episodeStill.seasonNumber} = ${seriesEpisode.tmdbSeasonNumber}
-      and ${episodeStill.episodeNumber} = ${seriesEpisode.tmdbEpisodeNumber}
+      and ${episodeStill.seasonNumber} = ${titleEpisode.tmdbSeasonNumber}
+      and ${episodeStill.episodeNumber} = ${titleEpisode.tmdbEpisodeNumber}
     where ${series.key} ~ '^tv:[0-9]+$'
-      and ${seriesEpisode.tmdbEpisodeNumber} is not null
+      and ${titleEpisode.tmdbEpisodeNumber} is not null
       and (
         ${episodeStill.showId} is null
         or (
           ${episodeStill.chosenAt} < now() - ${day / 1000} * interval '1 second'
-          and ${seriesEpisode.airDate} >= to_char(now() - ${settleAfterDays} * interval '1 day', 'YYYY-MM-DD')
+          and ${titleEpisode.airDate} >= to_char(now() - ${settleAfterDays} * interval '1 day', 'YYYY-MM-DD')
         )
       )
     group by 1, 2, 3
-    order by max(${seriesEpisode.airDate}) desc nulls last
+    order by max(${titleEpisode.airDate}) desc nulls last
     limit ${episodesPerRun}
   `);
 

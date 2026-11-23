@@ -3,7 +3,7 @@ import { inArray, lt, sql } from "drizzle-orm";
 import { consoleLogFactory, Logger } from "graphile-worker";
 
 import { db } from "../database/client";
-import { schedulerPool } from "../database/schema/scheduler";
+import { pool } from "../database/schema/scheduler";
 
 const logger = new Logger(consoleLogFactory).scope({
 	label: "pools",
@@ -48,7 +48,7 @@ export const watchPools = (): PoolWatch => {
 
 		if (ours.size > 0) {
 			await db
-				.insert(schedulerPool)
+				.insert(pool)
 				.values(
 					[...ours].map((id) => ({
 						heartbeatAt: now,
@@ -59,7 +59,7 @@ export const watchPools = (): PoolWatch => {
 					set: {
 						heartbeatAt: now,
 					},
-					target: schedulerPool.poolId,
+					target: pool.poolId,
 				});
 		}
 
@@ -81,9 +81,9 @@ export const watchPools = (): PoolWatch => {
     where jobs.locked_by is not null
       and jobs.locked_at < ${cutoff.toISOString()}::timestamptz
       and not exists (
-        select 1 from ${schedulerPool}
-        where ${schedulerPool.poolId} = jobs.locked_by
-          and ${schedulerPool.heartbeatAt} >= ${cutoff.toISOString()}::timestamptz
+        select 1 from ${pool}
+        where ${pool.poolId} = jobs.locked_by
+          and ${pool.heartbeatAt} >= ${cutoff.toISOString()}::timestamptz
       )
   `);
 
@@ -101,9 +101,7 @@ export const watchPools = (): PoolWatch => {
 			);
 		}
 
-		await db
-			.delete(schedulerPool)
-			.where(lt(schedulerPool.heartbeatAt, new Date(now.getTime() - day)));
+		await db.delete(pool).where(lt(pool.heartbeatAt, new Date(now.getTime() - day)));
 	};
 
 	const beatAfter = async (previous: Promise<void>) => {
@@ -140,7 +138,7 @@ export const watchPools = (): PoolWatch => {
 			await running;
 
 			if (ours.size > 0) {
-				await db.delete(schedulerPool).where(inArray(schedulerPool.poolId, [...ours]));
+				await db.delete(pool).where(inArray(pool.poolId, [...ours]));
 			}
 		},
 	};

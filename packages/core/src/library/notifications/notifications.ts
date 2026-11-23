@@ -10,7 +10,7 @@ import {
 	seriesState,
 } from "../../database/schema/library";
 import { episodeDub } from "../../database/schema/playback";
-import { series, seriesEpisode } from "../../database/schema/series";
+import { series, titleEpisode } from "../../database/schema/series";
 import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { episodeReleasedAt, releasedBetween } from "../../series/episodes";
@@ -297,38 +297,38 @@ export const getNotifications = async (
 	});
 
 	const episodeColumns = {
-		number: seriesEpisode.number,
-		seriesId: seriesEpisode.seriesId,
+		number: titleEpisode.number,
+		seriesId: titleEpisode.seriesId,
 		stillUrl: effectiveStill,
-		title: seriesEpisode.title,
+		title: titleEpisode.title,
 	};
 
 	const [aired, dubs, played, dismissals, reads] = await Promise.all([
 		db
 			.select({
 				...episodeColumns,
-				releasedAt: sql<Date>`${episodeReleasedAt}`.mapWith(seriesEpisode.airedAt),
+				releasedAt: sql<Date>`${episodeReleasedAt}`.mapWith(titleEpisode.airedAt),
 			})
-			.from(seriesEpisode)
-			.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
-			.where(and(inArray(seriesEpisode.seriesId, seriesIds), releasedBetween(since, now))),
+			.from(titleEpisode)
+			.innerJoin(series, eq(series.id, titleEpisode.seriesId))
+			.where(and(inArray(titleEpisode.seriesId, seriesIds), releasedBetween(since, now))),
 		db
 			.select({
 				...episodeColumns,
-				releasedAt: sql<Date>`${episodeDub.releasedAt}`.mapWith(seriesEpisode.airedAt),
+				releasedAt: sql<Date>`${episodeDub.releasedAt}`.mapWith(titleEpisode.airedAt),
 			})
-			.from(seriesEpisode)
-			.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
+			.from(titleEpisode)
+			.innerJoin(series, eq(series.id, titleEpisode.seriesId))
 			.innerJoin(
 				episodeDub,
 				and(
 					eq(episodeDub.anilistId, series.anilistId),
-					eq(episodeDub.episode, seriesEpisode.number),
+					eq(episodeDub.episode, titleEpisode.number),
 				),
 			)
 			.where(
 				and(
-					inArray(seriesEpisode.seriesId, seriesIds),
+					inArray(titleEpisode.seriesId, seriesIds),
 					isNotNull(episodeDub.releasedAt),
 					gt(episodeDub.releasedAt, since),
 					lte(episodeDub.releasedAt, now),
