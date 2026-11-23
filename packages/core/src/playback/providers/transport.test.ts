@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { HttpClient } from "anime-sdk";
 
-import { providerTransport } from "./transport";
+import { transport } from "./transport";
 
 const server = Bun.serve({
 	fetch: (request) => {
@@ -24,9 +24,9 @@ const server = Bun.serve({
 
 afterAll(() => server.stop(true));
 
-describe("providerTransport", () => {
+describe("transport", () => {
 	test("cuts a long Retry-After", async () => {
-		const response = await providerTransport.fetch(`${server.url}?retry_after=3600`, {});
+		const response = await transport.fetch(`${server.url}?retry_after=3600`, {});
 		expect(response.status).toBe(429);
 		expect(response.headers.get("Retry-After")).toBe("10");
 		expect(await response.text()).toBe("slow down");
@@ -35,7 +35,7 @@ describe("providerTransport", () => {
 	test("cuts a Retry-After given as a date", async () => {
 		const date = new Date(Date.now() + 3_600_000).toUTCString();
 
-		const response = await providerTransport.fetch(
+		const response = await transport.fetch(
 			`${server.url}?retry_after=${encodeURIComponent(date)}`,
 			{},
 		);
@@ -44,10 +44,10 @@ describe("providerTransport", () => {
 	});
 
 	test("leaves a short Retry-After and other responses alone", async () => {
-		const short = await providerTransport.fetch(`${server.url}?retry_after=2`, {});
+		const short = await transport.fetch(`${server.url}?retry_after=2`, {});
 		expect(short.headers.get("Retry-After")).toBe("2");
 
-		const plain = await providerTransport.fetch(String(server.url), {});
+		const plain = await transport.fetch(String(server.url), {});
 		expect(await plain.text()).toBe("ok");
 	});
 
@@ -58,7 +58,7 @@ describe("providerTransport", () => {
 			disableRateLimit: true,
 			retry: false,
 			timeoutMs: 3000,
-			transport: providerTransport,
+			transport,
 		});
 
 		const failure = await http

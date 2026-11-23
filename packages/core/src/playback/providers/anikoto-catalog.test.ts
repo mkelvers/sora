@@ -1,63 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import type { Anime } from "../../catalog/models/anime";
-import { anime } from "../../catalog/models/anime.fixture";
-import { bestIdMatch, parseCatalogSeries, strictTitle } from "./anikoto-catalog";
+import { animeWith, format, frieren, series } from "./anikoto-catalog.fixture";
+import { Search, strictTitle } from "./search";
+import { Series } from "./series";
 
-/** Frieren as AniKoto's catalogue listing sends it. */
-const frieren = {
-	alternative: "Sousou no Frieren",
-	ani_id: "154587",
-	episodes: "28",
-	id: 6351,
-	mal_id: "52991",
-	native: "葬送のフリーレン",
-	rating: "PG-13",
-	terms_by_type: {
-		type: ["TV"],
-	},
-	title: "Frieren: Beyond Journey's End",
-	titles: "Frieren: Beyond Journey's End",
-	updated_at: "2024-10-18 09:15:13",
-	year: 2023,
-};
-
-/** An AniList entry with what matching reads; the rest is left blank. */
-const animeWith = (fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime => ({
-	...anime(fields.id),
-	status: "FINISHED",
-	...fields,
-});
-
-/** A stored AniKoto series, as the mirror holds it. */
-const series = (
-	fields: Partial<NonNullable<ReturnType<typeof parseCatalogSeries>>> & {
-		anikotoId: number;
-		title: string;
-	},
-) => ({
-	anilistId: null,
-	episodes: null,
-	format: null,
-	malId: null,
-	rating: null,
-	titles: [fields.title],
-	updatedAt: new Date(0),
-	year: null,
-	...fields,
-});
-
-const format = (type: string) =>
-	parseCatalogSeries({
-		...frieren,
-		terms_by_type: {
-			type: [type],
-		},
-	})?.format;
-
-describe("parseCatalogSeries", () => {
+describe("Series.row", () => {
 	test("reads IDs, format, and every title", () => {
-		expect(parseCatalogSeries(frieren)).toEqual({
+		expect(new Series(frieren).row).toEqual({
 			anikotoId: 6351,
 			anilistId: 154_587,
 			episodes: 28,
@@ -73,13 +22,13 @@ describe("parseCatalogSeries", () => {
 
 	test("reads AniKoto's empty strings as unknown", () => {
 		expect(
-			parseCatalogSeries({
+			new Series({
 				...frieren,
 				ani_id: "",
 				episodes: "",
 				rating: "",
 				year: null,
-			}),
+			}).row,
 		).toMatchObject({
 			anilistId: null,
 			episodes: null,
@@ -87,10 +36,10 @@ describe("parseCatalogSeries", () => {
 			year: null,
 		});
 		expect(
-			parseCatalogSeries({
+			new Series({
 				...frieren,
 				rating: "None",
-			})?.rating,
+			}).row?.rating,
 		).toBeNull();
 	});
 
@@ -102,10 +51,10 @@ describe("parseCatalogSeries", () => {
 	});
 
 	test("keeps a title with a comma whole as well as split", () => {
-		const titles = parseCatalogSeries({
+		const titles = new Series({
 			...frieren,
 			titles: "Katainaka no Ossan, Kensei ni Naru, 片田舎のおっさん、剣聖になる",
-		})?.titles;
+		}).row?.titles;
 
 		expect(titles).toContain("Katainaka no Ossan, Kensei ni Naru, 片田舎のおっさん、剣聖になる");
 		expect(titles).toContain("Katainaka no Ossan");
@@ -114,21 +63,21 @@ describe("parseCatalogSeries", () => {
 
 	test("rejects a series without a title or change date", () => {
 		expect(
-			parseCatalogSeries({
+			new Series({
 				...frieren,
 				title: "",
-			}),
+			}).row,
 		).toBeNull();
 		expect(
-			parseCatalogSeries({
+			new Series({
 				...frieren,
 				updated_at: "yesterday",
-			}),
+			}).row,
 		).toBeNull();
 	});
 });
 
-describe("bestIdMatch", () => {
+describe("Search.best", () => {
 	test("passes over a film that carries its show's IDs, as for Demon Slayer", () => {
 		// AniKoto files Sibling's Bond, a compilation film, under the show's
 		// AniList and MyAnimeList IDs; the show itself has only the latter.
@@ -153,7 +102,7 @@ describe("bestIdMatch", () => {
 		});
 
 		expect(
-			bestIdMatch(
+			new Search(
 				animeWith({
 					episodes: 26,
 					format: "TV",
@@ -167,8 +116,7 @@ describe("bestIdMatch", () => {
 						romaji: "Kimetsu no Yaiba",
 					},
 				}),
-				[film, show],
-			)?.anikotoId,
+			).best([film, show])?.anikotoId,
 		).toBe(1551);
 	});
 
@@ -184,7 +132,7 @@ describe("bestIdMatch", () => {
 		});
 
 		expect(
-			bestIdMatch(
+			new Search(
 				animeWith({
 					episodes: 12,
 					format: "TV",
@@ -192,8 +140,7 @@ describe("bestIdMatch", () => {
 					malId: 57_334,
 					seasonYear: 2024,
 				}),
-				[dandadan],
-			)?.anikotoId,
+			).best([dandadan])?.anikotoId,
 		).toBe(4);
 	});
 
@@ -206,7 +153,7 @@ describe("bestIdMatch", () => {
 		};
 
 		expect(
-			bestIdMatch(
+			new Search(
 				animeWith({
 					episodes: 12,
 					format: "TV",
@@ -214,59 +161,56 @@ describe("bestIdMatch", () => {
 					malId: 51_705,
 					seasonYear: 2023,
 				}),
-				[
-					series({
-						anikotoId: 6593,
-						title: "Love Flops (Uncensored)",
-						...shared,
-					}),
-					series({
-						anikotoId: 7144,
-						title: "Love Flops",
-						...shared,
-					}),
-				],
-			)?.anikotoId,
+			).best([
+				series({
+					anikotoId: 6593,
+					title: "Love Flops (Uncensored)",
+					...shared,
+				}),
+				series({
+					anikotoId: 7144,
+					title: "Love Flops",
+					...shared,
+				}),
+			])?.anikotoId,
 		).toBe(7144);
 	});
 
 	test("never matches a film to a show", () => {
 		expect(
-			bestIdMatch(
+			new Search(
 				animeWith({
 					format: "MOVIE",
 					id: 195_200,
 					malId: 62_546,
 				}),
-				[
-					series({
-						anikotoId: 1,
-						format: "TV",
-						malId: 62_546,
-						title: "Demon Slayer: Kimetsu no Yaiba",
-					}),
-				],
-			),
+			).best([
+				series({
+					anikotoId: 1,
+					format: "TV",
+					malId: 62_546,
+					title: "Demon Slayer: Kimetsu no Yaiba",
+				}),
+			]),
 		).toBeNull();
 	});
 
 	test("accepts a web series AniKoto lists as TV", () => {
 		expect(
-			bestIdMatch(
+			new Search(
 				animeWith({
 					format: "ONA",
 					id: 177_709,
 					malId: 58_939,
 				}),
-				[
-					series({
-						anikotoId: 7498,
-						format: "TV",
-						malId: 58_939,
-						title: "Sakamoto Days",
-					}),
-				],
-			)?.anikotoId,
+			).best([
+				series({
+					anikotoId: 7498,
+					format: "TV",
+					malId: 58_939,
+					title: "Sakamoto Days",
+				}),
+			])?.anikotoId,
 		).toBe(7498);
 	});
 });

@@ -73,24 +73,19 @@ export interface OperationRow {
 }
 
 /**
- * Start of the first hour that counts as recent. Hours are stored by their
- * start, so an hour counts if any of it is within {@link failingAfterMs}.
- */
-const recentFrom = (now: Date) =>
-	new Date(Math.floor((now.getTime() - failingAfterMs) / hour) * hour);
-
-/**
  * Folds per-operation rows into one {@link ProviderHealth} per provider in
- * `providerIds`. Rows of other providers, such as removed ones, are ignored.
+ * `ids`. Rows of other providers, such as removed ones, are ignored.
  */
-export const summarizeHealth = (
-	providerIds: readonly string[],
+export const summarize = (
+	ids: readonly string[],
 	rows: readonly OperationRow[],
 	now: Date,
 ): ProviderHealth[] => {
-	const recent = recentFrom(now).getTime();
+	// Hours are stored by their start, so an hour counts as recent if any of it
+	// is within failingAfterMs.
+	const recent = Math.floor((now.getTime() - failingAfterMs) / hour) * hour;
 
-	return providerIds.map((provider) => {
+	return ids.map((provider) => {
 		const own = rows.filter((row) => row.provider === provider);
 
 		const latest = (pick: (row: OperationRow) => Date | null) => {
@@ -117,8 +112,15 @@ export const summarizeHealth = (
 			(row) => lastErrorAt !== null && row.lastErrorAt?.getTime() === lastErrorAt.getTime(),
 		);
 
-		const failing: ProviderStatus = recentCalls >= failingAfterCalls ? "failing" : "idle";
-		const status: ProviderStatus = lastOk !== null && lastOk.getTime() >= recent ? "ok" : failing;
+		let status: ProviderStatus = "idle";
+
+		if (recentCalls >= failingAfterCalls) {
+			status = "failing";
+		}
+
+		if (lastOk !== null && lastOk.getTime() >= recent) {
+			status = "ok";
+		}
 
 		return {
 			last_error: lastError?.lastError ?? null,
@@ -156,7 +158,10 @@ export const getProviderHealth = async (now = new Date()): Promise<ProviderHealt
 
 	const windowStart = new Date(now.getTime() - summaryWindowMs);
 	const inWindow = sql`${providerCalls.hour} >= ${windowStart}`;
-	const isRecent = sql`${providerCalls.hour} >= ${recentFrom(now)}`;
+	// Hours are stored by their start, so an hour counts as recent if any of it
+	// is within failingAfterMs.
+	const recentFrom = new Date(Math.floor((now.getTime() - failingAfterMs) / hour) * hour);
+	const isRecent = sql`${providerCalls.hour} >= ${recentFrom}`;
 	const calls = sql`${providerCalls.ok} + ${providerCalls.empty} + ${providerCalls.failed}`;
 
 	const rows = await db
@@ -195,7 +200,7 @@ export const getProviderHealth = async (now = new Date()): Promise<ProviderHealt
 		.from(providerCalls)
 		.groupBy(providerCalls.provider, providerCalls.operation);
 
-	return summarizeHealth(
+	return summarize(
 		streamProviders.map((provider) => provider.id),
 		rows,
 		now,

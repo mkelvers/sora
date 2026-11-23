@@ -1,11 +1,11 @@
 import { AllmangaProvider, AnimeParadiseProvider, HttpClient, MappingClient } from "anime-sdk";
 
-import { AniKotoStreamProvider } from "./anikoto";
-import { recordingCalls } from "./calls";
-import { MegaPlayStreamProvider } from "./megaplay";
+import { AniKoto } from "./anikoto";
+import { recorded } from "./calls";
+import { MegaPlay } from "./megaplay";
 import type { StreamProvider } from "./provider";
 import { SdkStreamProvider } from "./sdk";
-import { providerTransport } from "./transport";
+import { transport } from "./transport";
 
 /**
  * Shared HTTP client for every scraper, so per-host rate limits and retries
@@ -34,7 +34,7 @@ export const providerHttp = new HttpClient({
 		},
 	},
 	timeoutMs: 20_000,
-	transport: providerTransport,
+	transport,
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
@@ -63,8 +63,8 @@ export const isServedSubtitle = (track: { language: string; label: string }) => 
 };
 
 /** AniKoto, which playback tries first, and which decides what episodes seasons list. */
-export const aniKoto = recordingCalls(
-	new AniKotoStreamProvider(providerHttp, {
+export const aniKoto = recorded(
+	new AniKoto(providerHttp, {
 		listsLanguages: true,
 		locale: "en",
 	}),
@@ -86,7 +86,7 @@ export const streamProviders: readonly StreamProvider[] = [
 		}),
 		// MegaPlay's lists are made up from AniList's episode count and claim sub
 		// and dub for every episode.
-		new MegaPlayStreamProvider(providerHttp, mappingClient, {
+		new MegaPlay(providerHttp, mappingClient, {
 			listsLanguages: false,
 			locale: "en",
 		}),
@@ -94,5 +94,5 @@ export const streamProviders: readonly StreamProvider[] = [
 			listsLanguages: true,
 			locale: "en",
 		}),
-	].map((provider) => recordingCalls(provider)),
+	].map((provider) => recorded(provider)),
 ];
