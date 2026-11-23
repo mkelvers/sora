@@ -3,7 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, titleEpisode } from "../../database/schema/series";
-import { getContinueWatching } from "./progress";
+import { progress } from "./progress";
 
 /**
  * Titles from the profile's active viewing, played within 30 days and not
@@ -65,7 +65,7 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
       )
     `)
 			.orderBy(desc(activity.watchedAt), series.id),
-		getContinueWatching(profileId),
+		progress.continueWatching(profileId),
 	]);
 
 	const watching = new Set(continueWatching.map((entry) => entry.series.id));

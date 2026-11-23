@@ -22,18 +22,7 @@ export {
 
 export { preferences } from "./preferences/preferences";
 
-export {
-	dismissContinueWatching,
-	getContinueWatching,
-	getProgress,
-	getSeriesProgress,
-	markUnwatched,
-	markWatched,
-	removeProgress,
-	saveProgress,
-	startRewatch,
-	type EpisodeAddress,
-} from "./progress/progress";
+export { type EpisodeAddress, progress } from "./progress/progress";
 
 export { ratings } from "./ratings/ratings";
 
