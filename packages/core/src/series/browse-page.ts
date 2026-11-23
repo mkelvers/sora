@@ -65,7 +65,7 @@ export class BrowsePage {
 	 * @returns Each stored entry's series, and the entries the page wanted that
 	 *   are still being prepared, with their places.
 	 */
-	async seriesIds(anilistIds: readonly number[]) {
+	async stored(anilistIds: readonly number[]) {
 		const window = this.#window;
 		const found = await storedSeriesIds(anilistIds);
 

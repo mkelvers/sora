@@ -854,7 +854,7 @@ export const browseSeries = async (
 			pageStart,
 			perPage,
 			wanted: page * perPage + 1,
-		}).seriesIds(ranked);
+		}).stored(ranked);
 
 		const ordered = ranked.flatMap((anilistId) => seriesIds.get(anilistId) ?? []);
 		const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
@@ -900,7 +900,7 @@ export const browseSeries = async (
 		pageStart: 0,
 		perPage: found.perPage,
 		wanted: Number.POSITIVE_INFINITY,
-	}).seriesIds(anilistIds);
+	}).stored(anilistIds);
 
 	const cards = new Map(found.items.map((anime) => [anime.id, anime]));
 	const items = await cardsOf(anilistIds.flatMap((anilistId) => seriesIds.get(anilistId) ?? []));
