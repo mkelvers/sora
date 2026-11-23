@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { TmdbEpisode, TmdbMovieResult } from "../tmdb/resources";
 import {
-	bestSimilarity,
 	continuesPastLinks,
 	placeAfterInCollection,
 	placeAsMovie,
@@ -10,117 +8,18 @@ import {
 	placeInEpisodeGroups,
 	titleSimilarity,
 } from "./matching";
-import type { MatchSubject, ShowCandidate } from "./matching";
-
-const addDays = (date: string, days: number) =>
-	new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-
-/** A weekly run of TMDB episodes, numbered from `first`. Dates are `null` when `start` is. */
-const weekly = (
-	season: number,
-	start: string | null,
-	count: number,
-	options: {
-		first?: number;
-		runtime?: number;
-	} = {},
-): TmdbEpisode[] => {
-	const first = options.first ?? 1;
-
-	return Array.from(
-		{
-			length: count,
-		},
-		(_, index) => {
-			let airDate: string | null = null;
-
-			if (start) {
-				airDate = addDays(start, index * 7);
-			}
-
-			return {
-				air_date: airDate,
-				episode_number: first + index,
-				id: season * 10_000 + first + index,
-				name: null,
-				overview: null,
-				runtime: options.runtime ?? 24,
-				season_number: season,
-				still_path: null,
-			};
-		},
-	);
-};
-
-const special = (episode: number, airDate: string, runtime: number): TmdbEpisode => ({
-	air_date: airDate,
-	episode_number: episode,
-	id: episode,
-	name: null,
-	overview: null,
-	runtime,
-	season_number: 0,
-	still_path: null,
-});
-
-const subject = (overrides: Partial<MatchSubject>): MatchSubject => {
-	const titles = overrides.titles ?? ["Example"];
-
-	return {
-		airsFrom: null,
-		durationMinutes: 24,
-		endDate: null,
-		episodes: null,
-		format: "TV",
-		primaryTitleCount: titles.length,
-		startDate: null,
-		...overrides,
-		titles,
-	};
-};
-
-const show = (episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
-	isFranchiseShow: false,
-	prequel: null,
-	show: {
-		episodes,
-		id: 1,
-		name: "Example",
-		originalName: "Example",
-	},
-	...overrides,
-});
-
-/** A prequel run through a season up to `episode`, from the season's first episode. */
-const endingAt = (season: number, episode: number) => ({
-	first: {
-		episodeNumber: 1,
-		seasonNumber: season,
-	},
-	last: {
-		episodeNumber: episode,
-		seasonNumber: season,
-	},
-});
-
-const movie = (overrides: Partial<TmdbMovieResult>): TmdbMovieResult => ({
-	id: 1,
-	original_title: "Example",
-	popularity: 1,
-	release_date: null,
-	title: "Example",
-	...overrides,
-});
-
-const range = (placement: ReturnType<typeof placeInShow>) => {
-	if (placement?.mediaType !== "tv") {
-		return null;
-	}
-
-	return placement.episodes.map(
-		(link) => `${link.anilistEpisode}:S${link.seasonNumber}E${link.episodeNumber}`,
-	);
-};
+import {
+	endingAt,
+	haikyu,
+	movie,
+	range,
+	same,
+	show,
+	special,
+	subject,
+	tonikawa,
+	weekly,
+} from "./matching.fixture";
 
 describe("placeInShow", () => {
 	test("matches Saiki K.'s 120 shorts to the 24 compiled playback episodes", () => {
@@ -861,31 +760,6 @@ describe("placeInShow", () => {
 	});
 });
 
-// Haikyu!!: TMDB dates Land vs. Air twelve days after AniList, and Lev
-// Appears four months after, beyond the air-date window.
-const named = (episode: number, airDate: string, name: string) => ({
-	...special(episode, airDate, 24),
-	name,
-});
-
-const haikyu = (overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
-	isFranchiseShow: true,
-	prequel: null,
-	show: {
-		episodes: [
-			...weekly(1, "2014-04-06", 3),
-			named(1, "2015-03-04", "Lev Appears!"),
-			named(2, "2020-01-22", "Land vs. Air"),
-			named(3, "2020-01-22", "The Path of the Ball"),
-			named(4, "2020-03-04", "Puppet Theatre"),
-		],
-		id: 60_863,
-		name: "Haikyu!!",
-		originalName: "ハイキュー!!",
-	},
-	...overrides,
-});
-
 describe("placeInShow by special name", () => {
 	test("finds an OVA among its franchise's specials by what its title adds to the show's", () => {
 		const placement = placeInShow(
@@ -949,29 +823,6 @@ describe("placeInShow by special name", () => {
 });
 
 describe("placeInShow by the end of a run of specials", () => {
-	// TONIKAWA: AniList has High School Days from 2023-07-12, and TMDB files
-	// its four episodes under specials from 2023-08-02. Both end on 2023-08-23.
-	const tonikawa = (
-		specials: TmdbEpisode[],
-		overrides: Partial<ShowCandidate> = {},
-	): ShowCandidate => ({
-		isFranchiseShow: true,
-		prequel: endingAt(2, 12),
-		show: {
-			episodes: [
-				...weekly(1, "2020-10-03", 12),
-				...weekly(2, "2023-04-08", 12),
-				special(14, "2021-08-18", 24),
-				special(15, "2022-11-22", 22),
-				...specials,
-			],
-			id: 100_049,
-			name: "TONIKAWA: Over The Moon For You",
-			originalName: "トニカクカワイイ",
-		},
-		...overrides,
-	});
-
 	const highSchoolDays = subject({
 		endDate: "2023-08-23",
 		episodes: 4,
@@ -1252,8 +1103,6 @@ describe("titleSimilarity", () => {
 		expect(titleSimilarity("Attack on Titan", "Mushoku Tensei")).toBeLessThan(0.2);
 	});
 });
-
-const same = (a: string, b: string) => bestSimilarity([a], [b], { sameNumbers: true }) > 0;
 
 describe("bestSimilarity with sameNumbers", () => {
 	test("tells roman numerals apart", () => {
