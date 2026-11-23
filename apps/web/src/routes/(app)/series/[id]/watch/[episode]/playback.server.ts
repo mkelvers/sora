@@ -1,6 +1,6 @@
 import { route, SoraError } from "@sora/sdk";
 import type { PlaybackMedia, SoraClient } from "@sora/sdk";
-import { attempt, second } from "@sora/shared";
+import { attempt } from "@sora/shared";
 
 export type WatchMedia = Omit<PlaybackMedia, "provider" | "locale" | "hardsub">;
 
@@ -16,10 +16,7 @@ type WatchPlayback = EpisodeLinks &
 				media: WatchMedia[];
 		  }
 		| { status: "unavailable" }
-		| {
-				status: "temporary";
-				retryAt: number | null;
-		  }
+		| { status: "temporary" }
 		| { status: "failed" }
 	);
 
@@ -61,12 +58,11 @@ export const resolveEpisode = async (
 		if (!(playback.error instanceof SoraError)) {
 			return {
 				...links,
-				retryAt: null,
 				status: "temporary",
 			};
 		}
 
-		const { code, status, retryAfterSeconds } = playback.error;
+		const { code, status } = playback.error;
 		const missing = status === 404 && (code === "EPISODE_NOT_FOUND" || code === "SERIES_NOT_FOUND");
 
 		if (missing) {
@@ -79,19 +75,8 @@ export const resolveEpisode = async (
 		const temporary = status === 429 || (status >= 500 && status < 600);
 
 		if (temporary) {
-			let retryAt: number | null = null;
-
-			if (retryAfterSeconds !== null) {
-				const deadline = Date.now() + retryAfterSeconds * second;
-
-				if (Number.isSafeInteger(deadline)) {
-					retryAt = deadline;
-				}
-			}
-
 			return {
 				...links,
-				retryAt,
 				status: "temporary",
 			};
 		}
