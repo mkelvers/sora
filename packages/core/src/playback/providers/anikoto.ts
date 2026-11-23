@@ -5,11 +5,12 @@ import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import type { ContentLanguage } from "../../models/series";
-import { findAniKotoSeries, syncAniKotoCatalog } from "./anikoto-catalog";
+import { syncAniKotoCatalog } from "./anikoto-catalog";
 import { Embed } from "./embed";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
 import { rawEpisodeId, toEpisode } from "./sdk";
 import type { ProviderTraits } from "./sdk";
+import { Search } from "./search";
 
 const siteUrl = "https://anikototv.to";
 
@@ -24,7 +25,7 @@ interface ListedEpisode {
 
 /**
  * AniKoto: matched by ID against a mirror of its catalogue (see
- * {@link findAniKotoSeries}), with filler episodes marked, and streamed
+ * {@link Search.find}), with filler episodes marked, and streamed
  * through its MegaPlay player (see {@link Embed}), which
  * ships each stream's opening and ending.
  */
@@ -46,7 +47,7 @@ export class AniKoto implements StreamProvider {
 	}
 
 	async findMedia(anime: Anime): Promise<ProviderMatch | null> {
-		const match = await findAniKotoSeries(this.http, anime);
+		const match = await new Search(anime).find(this.http);
 
 		return (
 			match && {
