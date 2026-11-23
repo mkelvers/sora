@@ -1,6 +1,6 @@
 import type { WatchlistStatus } from "../../models/library";
 
-/** What {@link statusAfterPlayback} needs to know about one play of an episode. */
+/** What {@link afterPlayback} needs to know about one play of an episode. */
 export interface Playback {
 	/** Whether the user finished the episode. */
 	finished: boolean;
@@ -26,7 +26,7 @@ export interface Playback {
  * - Stopping partway changes nothing, and a series off the watchlist stays
  *   off it until its finale is finished.
  */
-export const statusAfterPlayback = (
+export const afterPlayback = (
 	current: WatchlistStatus | null,
 	playback: Playback,
 ): WatchlistStatus | null => {

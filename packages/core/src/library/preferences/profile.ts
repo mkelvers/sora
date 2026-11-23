@@ -7,14 +7,27 @@ import { InvalidInputError } from "../../errors";
 import { ProfilePreferencesUpdateSchema } from "../../models/library";
 import type { ProfilePreferences, ProfilePreferencesUpdate } from "../../models/library";
 
-const toPreferences = (row: typeof profilePreference.$inferSelect): ProfilePreferences => ({
-	hide_spoilers: row.hideSpoilers,
-	notifications: {
-		dubs: row.notifyDubs,
-		episodes: row.notifyEpisodes,
-		premieres: row.notifyPremieres,
-	},
-});
+/** A profile's stored display and notification preferences. */
+class Stored {
+	readonly #row: typeof profilePreference.$inferSelect;
+
+	constructor(row: typeof profilePreference.$inferSelect) {
+		this.#row = row;
+	}
+
+	get preferences(): ProfilePreferences {
+		const row = this.#row;
+
+		return {
+			hide_spoilers: row.hideSpoilers,
+			notifications: {
+				dubs: row.notifyDubs,
+				episodes: row.notifyEpisodes,
+				premieres: row.notifyPremieres,
+			},
+		};
+	}
+}
 
 /** A profile's display and notification preferences; the defaults until they pick anything. */
 export const getProfilePreferences = async (userId: string): Promise<ProfilePreferences> => {
@@ -34,7 +47,7 @@ export const getProfilePreferences = async (userId: string): Promise<ProfilePref
 		.limit(1);
 
 	if (row) {
-		return toPreferences(row);
+		return new Stored(row).preferences;
 	}
 
 	return defaults;
@@ -91,5 +104,5 @@ export const updateProfilePreferences = async (
 		})
 		.returning();
 
-	return toPreferences(defined(row));
+	return new Stored(defined(row)).preferences;
 };

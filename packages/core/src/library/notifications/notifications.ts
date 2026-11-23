@@ -10,12 +10,14 @@ import {
 	seriesState,
 } from "../../database/schema/library";
 import { episodeDub } from "../../database/schema/playback";
-import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
+import { series, seriesEpisode } from "../../database/schema/series";
 import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { episodeReleasedAt, releasedBetween } from "../../series/episodes";
 import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
 import { getProfilePreferences } from "../preferences/profile";
+import { Continuity } from "./continuity";
+import { Message } from "./message";
 
 /** A profile's latest notifications, and how many of all its notifications are unread. */
 export interface Notifications {
@@ -24,9 +26,9 @@ export interface Notifications {
 }
 
 /** How long a notification is listed after it came out. */
-const notificationLifetimeMs = 30 * day;
+const lifetimeMs = 30 * day;
 
-/** One episode that came out, or was dubbed, as {@link groupNotifications} reads it. */
+/** One episode that came out, or was dubbed, as {@link groupReleases} reads it. */
 export interface ReleasedEpisode {
 	seriesId: string;
 	/** The episode's number in the series, from 1. */
@@ -62,7 +64,7 @@ export type NotificationGroup = Omit<Notification, "series" | "message"> & {
  * @param dismissed - The IDs of the notifications the profile deleted.
  * @param read - The IDs of the notifications the profile marked read.
  */
-export const groupNotifications = (
+export const groupReleases = (
 	episodes: readonly ReleasedEpisode[],
 	dismissed: ReadonlySet<string> = new Set(),
 	read: ReadonlySet<string> = new Set(),
@@ -79,7 +81,13 @@ export const groupNotifications = (
 			const sorted = group.toSorted((left, right) => left.number - right.number);
 			const first = defined(sorted[0]);
 			const last = defined(sorted.at(-1));
-			const id = `${first.seriesId}:${first.number}${first.dubbed ? ":dub" : ""}`;
+			let suffix = "";
+
+			if (first.dubbed) {
+				suffix = ":dub";
+			}
+
+			const id = `${first.seriesId}:${first.number}${suffix}`;
 			const isPremiere = !first.dubbed && first.number === 1;
 			let kind: NotificationGroup["kind"] = "episodes";
 
@@ -96,6 +104,12 @@ export const groupNotifications = (
 				return [];
 			}
 
+			let still = last.stillUrl;
+
+			if (isPremiere) {
+				still = first.stillUrl;
+			}
+
 			return [
 				{
 					episode_title: last.title,
@@ -105,7 +119,7 @@ export const groupNotifications = (
 					last_episode: last.number,
 					released_at: first.releasedAt.toISOString(),
 					seriesId: first.seriesId,
-					still_url: isPremiere ? first.stillUrl : last.stillUrl,
+					still_url: still,
 					unread: !read.has(id),
 				},
 			];
@@ -116,7 +130,7 @@ export const groupNotifications = (
 		);
 };
 
-/** A connected season that was announced, as {@link announcementNotifications} reads it. */
+/** A connected season that was announced, as {@link announcements} reads it. */
 export interface AnnouncedSeries {
 	seriesId: string;
 	/** When Sora first stored the series, which stands in for when it was announced. */
@@ -131,7 +145,7 @@ export interface AnnouncedSeries {
  * @param dismissed - The IDs of the notifications the profile deleted.
  * @param read - The IDs of the notifications the profile marked read.
  */
-export const announcementNotifications = (
+export const announcements = (
 	announced: readonly AnnouncedSeries[],
 	dismissed: ReadonlySet<string> = new Set(),
 	read: ReadonlySet<string> = new Set(),
@@ -159,200 +173,10 @@ export const announcementNotifications = (
 	});
 
 /**
- * Finds the series a profile follows, including connected seasons, as
- * AniList relates them by sequel and prequel. Each uses the earliest
- * watchlist or recorded playback time in its connected seasons as the
- * cutoff for new releases.
- *
- * Relations are followed through series that are not followed too, so the
- * second sequel of a followed series is found while the first one is not
- * stored. Entries in `excluded` are left out, even when they were watched.
- *
- * @param followed - The AniList ID of each saved or played series and when it was followed.
- * @param excluded - AniList IDs not to notify about, such as those the profile dropped.
- */
-const followedSeries = async (
-	followed: ReadonlyMap<number, Date>,
-	excluded: ReadonlySet<number>,
-): Promise<Map<number, Date>> => {
-	/** How many entries {@link followedSeries} follows relations through at most. */
-	const continuityLimit = 500;
-
-	const neighbours = new Map<number, Set<number>>();
-
-	const link = (from: number, to: number) => {
-		neighbours.set(from, (neighbours.get(from) ?? new Set()).add(to));
-	};
-
-	const seen = new Set(followed.keys());
-
-	const follow = async (frontier: number[]): Promise<void> => {
-		if (frontier.length === 0 || seen.size > continuityLimit) {
-			return;
-		}
-
-		const columns = {
-			from: series.anilistId,
-			to: seriesRelated.anilistId,
-		};
-
-		const continues = inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]);
-
-		const [outgoing, incoming] = await Promise.all([
-			db
-				.select(columns)
-				.from(series)
-				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
-				.where(and(continues, inArray(series.anilistId, frontier))),
-			db
-				.select(columns)
-				.from(seriesRelated)
-				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
-				.where(and(continues, inArray(seriesRelated.anilistId, frontier))),
-		]);
-
-		const edges = [...outgoing, ...incoming];
-
-		const next: number[] = [];
-
-		for (const edge of edges) {
-			link(edge.from, edge.to);
-			link(edge.to, edge.from);
-
-			for (const id of [edge.from, edge.to]) {
-				if (!seen.has(id)) {
-					seen.add(id);
-					next.push(id);
-				}
-			}
-		}
-
-		await follow(next);
-	};
-
-	await follow([...seen]);
-
-	const followedFrom = new Map<number, Date>();
-
-	for (const [origin, addedAt] of followed) {
-		const reached = new Set([origin]);
-		const pending = [origin];
-
-		for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
-			for (const next of neighbours.get(id) ?? []) {
-				if (!reached.has(next)) {
-					reached.add(next);
-					pending.push(next);
-				}
-			}
-		}
-
-		for (const id of reached) {
-			const earlier = followedFrom.get(id);
-
-			const earliest = !excluded.has(id) && (!earlier || addedAt < earlier);
-
-			if (earliest) {
-				followedFrom.set(id, addedAt);
-			}
-		}
-	}
-
-	return followedFrom;
-};
-
-/**
- * When a title is set to start, in words, from AniList's fuzzy `startDate`:
- * "in 2027", "in April 2027", or "on April 4, 2027". Null without one.
- */
-export const startsWhen = (startDate: string | null): string | null => {
-	const [year, month, dayOfMonth] = (startDate ?? "").split("-").map(Number);
-
-	if (!year) {
-		return null;
-	}
-
-	if (!month) {
-		return `in ${year}`;
-	}
-
-	const date = new Date(Date.UTC(year, month - 1, dayOfMonth || 1));
-
-	const format = new Intl.DateTimeFormat("en-US", {
-		...(dayOfMonth && {
-			day: "numeric",
-		}),
-		month: "long",
-		timeZone: "UTC",
-		year: "numeric",
-	});
-
-	return `${dayOfMonth ? "on" : "in"} ${format.format(date)}`;
-};
-
-/** Describes the release and what the profile can watch, without promotional copy. */
-const notificationMessage = (
-	group: Pick<Notification, "kind" | "first_episode" | "last_episode" | "episode_title">,
-	title: {
-		movie: boolean;
-		startDate: string | null;
-	},
-) => {
-	const { movie } = title;
-
-	if (group.kind === "announced") {
-		const announced = movie ? "A new film has been announced." : "A new season has been announced.";
-		const starts = startsWhen(title.startDate);
-
-		if (starts) {
-			return `${announced} It is set to start ${starts}.`;
-		}
-
-		return `${announced} No start date has been set yet.`;
-	}
-
-	const first = group.first_episode ?? 1;
-	const last = group.last_episode ?? first;
-	const count = last - first + 1;
-	const range = `${first} through ${last}`;
-	const episodeTitle = group.episode_title ? `, "${group.episode_title}",` : "";
-
-	if (group.kind === "dub") {
-		if (movie) {
-			return "The English dub is now available. You can choose the dubbed version when you start the film.";
-		}
-
-		if (count === 1) {
-			return `The English dub of episode ${last}${episodeTitle} is now available. You can switch to English audio in the player for this episode.`;
-		}
-
-		return `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
-	}
-
-	if (group.kind === "premiere") {
-		if (movie) {
-			return "The film is now available to watch in Sora. Open its page to see the available audio versions and start watching.";
-		}
-
-		if (count > 1) {
-			return `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`;
-		}
-
-		return `The season has started. Episode 1${episodeTitle} is now available to watch, and you can open the season's page to see its episode list.`;
-	}
-
-	if (count > 1) {
-		return `${count} new episodes are now available to watch, episodes ${range}. You can find them in the episode list on the season's page.`;
-	}
-
-	return `Episode ${last}${episodeTitle} is now available to watch. You can find it in the episode list on the season's page.`;
-};
-
-/**
  * Lists what came out in the last 30 days for a profile's saved or played
  * series and their connected seasons,
  * newest first: one notification per series per moment (see
- * {@link groupNotifications}).
+ * {@link groupReleases}).
  *
  * Nothing is recorded as episodes come out: an episode counts from when it
  * aired (see {@link episodeReleasedAt}) and once its series lists it, so one
@@ -365,7 +189,7 @@ const notificationMessage = (
  * - Sequels and prequels notify of all releases, not only their premieres.
  * - A sequel or prequel that has not started and is not on the watchlist
  *   notifies that it was announced, counted from when it was first stored
- *   (see {@link announcementNotifications}). AniList adds an entry once a
+ *   (see {@link announcements}). AniList adds an entry once a
  *   season is announced, and the daily discovery stores it. The notification
  *   goes once the season starts, when its premiere takes over.
  * - A dropped series neither starts following nor receives notifications,
@@ -388,7 +212,7 @@ export const getNotifications = async (
 		unread: 0,
 	};
 
-	const since = new Date(now.getTime() - notificationLifetimeMs);
+	const since = new Date(now.getTime() - lifetimeMs);
 
 	const [states, watched] = await Promise.all([
 		db
@@ -441,7 +265,7 @@ export const getNotifications = async (
 		return nothing;
 	}
 
-	const following = await followedSeries(followed, excluded);
+	const following = await new Continuity(followed, excluded).series();
 
 	const rows = await db
 		.select()
@@ -452,20 +276,25 @@ export const getNotifications = async (
 	const cutoffs = new Map(rows.map((row) => [row.id, defined(following.get(row.anilistId))]));
 	const saved = new Set(states.map((state) => state.anilistId));
 
-	const announced = rows.flatMap((row): AnnouncedSeries[] =>
-		row.status === "NOT_YET_RELEASED" &&
-		!saved.has(row.anilistId) &&
-		row.createdAt > defined(cutoffs.get(row.id)) &&
-		row.createdAt > since &&
-		row.createdAt <= now
-			? [
-					{
-						seriesId: row.id,
-						storedAt: row.createdAt,
-					},
-				]
-			: [],
-	);
+	const announced = rows.flatMap((row): AnnouncedSeries[] => {
+		const isAnnounced =
+			row.status === "NOT_YET_RELEASED" &&
+			!saved.has(row.anilistId) &&
+			row.createdAt > defined(cutoffs.get(row.id)) &&
+			row.createdAt > since &&
+			row.createdAt <= now;
+
+		if (!isAnnounced) {
+			return [];
+		}
+
+		return [
+			{
+				seriesId: row.id,
+				storedAt: row.createdAt,
+			},
+		];
+	});
 
 	const episodeColumns = {
 		number: seriesEpisode.number,
@@ -570,8 +399,8 @@ export const getNotifications = async (
 	const read = new Set(reads.map((row) => row.notificationId));
 
 	const all = [
-		...groupNotifications(episodes, dismissed, read),
-		...announcementNotifications(announced, dismissed, read),
+		...groupReleases(episodes, dismissed, read),
+		...announcements(announced, dismissed, read),
 	]
 		.toSorted(
 			(left, right) =>
@@ -605,10 +434,10 @@ export const getNotifications = async (
 				return [
 					{
 						...group,
-						message: notificationMessage(group, {
+						message: new Message(group, {
 							movie: card.format === "MOVIE",
 							startDate: startDates.get(seriesId) ?? null,
-						}),
+						}).text,
 						series: card,
 					},
 				];
@@ -627,10 +456,10 @@ export const getNotifications = async (
  * Pass the IDs the profile was shown rather than marking everything, so a
  * notification that came out meanwhile stays unread.
  *
- * @param notificationIds - Each a `Notification.id`.
+ * @param ids - Each a `Notification.id`.
  */
-export const markNotificationsRead = async (userId: string, notificationIds: readonly string[]) => {
-	if (notificationIds.length === 0) {
+export const markNotificationsRead = async (userId: string, ids: readonly string[]) => {
+	if (ids.length === 0) {
 		return;
 	}
 
@@ -641,14 +470,14 @@ export const markNotificationsRead = async (userId: string, notificationIds: rea
 			.where(
 				and(
 					eq(notificationRead.userId, userId),
-					lt(notificationRead.readAt, new Date(now.getTime() - notificationLifetimeMs)),
+					lt(notificationRead.readAt, new Date(now.getTime() - lifetimeMs)),
 				),
 			);
 		await tx
 			.insert(notificationRead)
 			.values(
-				notificationIds.map((notificationId) => ({
-					notificationId,
+				ids.map((id) => ({
+					notificationId: id,
 					readAt: now,
 					userId,
 				})),
@@ -661,9 +490,9 @@ export const markNotificationsRead = async (userId: string, notificationIds: rea
  * Deletes one of a profile's notifications, so it is never listed again.
  * Deleting one that is not listed, or already deleted, changes nothing.
  *
- * @param notificationId - A `Notification.id`.
+ * @param id - A `Notification.id`.
  */
-export const dismissNotification = async (userId: string, notificationId: string) => {
+export const dismissNotification = async (userId: string, id: string) => {
 	const now = new Date();
 	await db.transaction(async (tx) => {
 		await tx
@@ -671,14 +500,14 @@ export const dismissNotification = async (userId: string, notificationId: string
 			.where(
 				and(
 					eq(notificationDismissal.userId, userId),
-					lt(notificationDismissal.dismissedAt, new Date(now.getTime() - notificationLifetimeMs)),
+					lt(notificationDismissal.dismissedAt, new Date(now.getTime() - lifetimeMs)),
 				),
 			);
 		await tx
 			.insert(notificationDismissal)
 			.values({
 				dismissedAt: now,
-				notificationId,
+				notificationId: id,
 				userId,
 			})
 			.onConflictDoNothing();

@@ -1,5 +1,5 @@
 import { inSequence } from "@sora/shared";
-import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../../database/client";
@@ -9,9 +9,8 @@ import {
 	importRecord,
 	seriesState,
 } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
+import { series } from "../../database/schema/series";
 import { InvalidInputError } from "../../errors";
-import type { WatchlistStatus } from "../../models/library";
 import { ImportConnectionSchema, LibraryImportSchema } from "../../models/transfer";
 import type {
 	ImportConnection,
@@ -20,18 +19,10 @@ import type {
 	LibraryImport,
 	LibraryImportReport,
 } from "../../models/transfer";
-import { scheduleSeriesStore } from "../../scheduler/queue";
-import { episodeReleasedAt } from "../../series/episodes";
-import { storedSeriesIds } from "../../series/store";
-import { readAniListAccount, readMyAnimeListAccount } from "./oauth";
-import { fromMal, parseMyAnimeListExport, readAniListUser } from "./sources";
-import type { ListEntry, MalEntry } from "./sources";
-
-/** Rows written by one statement, so none outgrows the database's parameter limit. */
-const batchSize = 1000;
-
-/** The titles listed in a report, and the most a single import asks the scheduler to add. */
-const reportedTitles = 50;
+import { Batches } from "./batches";
+import { Importer } from "./importer";
+import { readAnilistAccount, readMalAccount } from "./oauth";
+import { parseMalExport, readAnilist } from "./sources";
 
 /**
  * A profile's watchlist and history as a file, by AniList ID so another
@@ -98,315 +89,10 @@ export const exportLibrary = async (userId: string, now = new Date()): Promise<L
 	};
 };
 
-/** What an import adds for one title: its place on the watchlist and the episodes it was watched through. */
-interface Addition {
-	anilistId: number;
-	title: string | null;
-	status: WatchlistStatus | null;
-	addedAt: Date;
-	/** When the status last changed; the day it was added if the source has no later date. */
-	changedAt: Date;
-	/** Episodes from the first to watch through; `null` for every episode released. */
-	through: number | null | undefined;
-	/** Episodes exactly as a file recorded them. */
-	played: LibraryExport["history"];
-}
-
-const chunks = <T>(items: readonly T[]) =>
-	Array.from({ length: Math.ceil(items.length / batchSize) }, (_, index) =>
-		items.slice(index * batchSize, (index + 1) * batchSize),
-	);
-
-/**
- * Adds titles and episodes to a profile without changing what it already
- * has: a title already on its watchlist keeps its status, and an episode
- * already played keeps where it was. A title Sora does not hold yet is
- * reported, and queued for the scheduler to add so a later import takes it.
- */
-const applyAdditions = async (
-	userId: string,
-	additions: readonly Addition[],
-	now: Date,
-): Promise<LibraryImportReport> => {
-	const stored = await storedSeriesIds(additions.map((addition) => addition.anilistId));
-	const missing = additions.filter((addition) => !stored.has(addition.anilistId));
-
-	const present = additions.flatMap((addition) => {
-		const seriesId = stored.get(addition.anilistId);
-
-		if (seriesId === undefined) {
-			return [];
-		}
-
-		return [
-			{
-				...addition,
-				seriesId,
-			},
-		];
-	});
-
-	const addedSeriesIds: string[] = [];
-	const addedEpisodes: [string, number, boolean][] = [];
-	let importId: string | null = null;
-	await db.transaction(async (tx) => {
-		const listed = present.flatMap((addition) => {
-			if (addition.status) {
-				return [
-					{
-						addedAt: addition.addedAt,
-						seriesId: addition.seriesId,
-						status: addition.status,
-						statusChangedAt: addition.changedAt,
-						userId,
-					},
-				];
-			}
-
-			return [];
-		});
-
-		await inSequence(chunks(listed), async (batch) => {
-			const written = await tx
-				.insert(seriesState)
-				.values(batch)
-				.onConflictDoUpdate({
-					set: {
-						addedAt: sql`excluded.added_at`,
-						status: sql`excluded.status`,
-						statusChangedAt: sql`excluded.status_changed_at`,
-					},
-					setWhere: isNull(seriesState.status),
-					target: [seriesState.userId, seriesState.seriesId],
-				})
-				.returning({
-					seriesId: seriesState.seriesId,
-				});
-
-			addedSeriesIds.push(...written.map((row) => row.seriesId));
-		});
-
-		const recorded = present.flatMap((addition) =>
-			addition.played.map((row) => ({
-				durationSeconds: row.duration_seconds,
-				episode: row.episode,
-				finished: row.finished,
-				positionSeconds: row.position_seconds,
-				rewatch: row.rewatch,
-				seriesId: addition.seriesId,
-				userId,
-				watchedAt: new Date(row.watched_at),
-			})),
-		);
-
-		const through = present.filter((addition) => addition.through !== undefined);
-
-		const released = through.length
-			? await tx
-					.select({
-						number: seriesEpisode.number,
-						runtimeMinutes: seriesEpisode.runtimeMinutes,
-						seriesId: seriesEpisode.seriesId,
-					})
-					.from(seriesEpisode)
-					.where(
-						and(
-							inArray(
-								seriesEpisode.seriesId,
-								through.map((addition) => addition.seriesId),
-							),
-							or(
-								and(isNull(seriesEpisode.airedAt), isNull(seriesEpisode.airDate)),
-								lte(episodeReleasedAt, now),
-							),
-						),
-					)
-			: [];
-
-		const limits = new Map(through.map((addition) => [addition.seriesId, addition.through]));
-
-		const watched = released.flatMap((episode) => {
-			const limit = limits.get(episode.seriesId);
-
-			const pastLimit = limit !== null && limit !== undefined && episode.number > limit;
-
-			if (pastLimit) {
-				return [];
-			}
-
-			const durationSeconds = (episode.runtimeMinutes ?? 0) * 60;
-
-			return [
-				{
-					durationSeconds,
-					episode: episode.number,
-					finished: true,
-					positionSeconds: durationSeconds,
-					rewatch: false,
-					seriesId: episode.seriesId,
-					userId,
-					watchedAt: now,
-				},
-			];
-		});
-
-		await inSequence(chunks([...recorded, ...watched]), async (batch) => {
-			const written = await tx
-				.insert(episodeProgress)
-				.values(batch)
-				.onConflictDoNothing()
-				.returning({
-					episode: episodeProgress.episode,
-					rewatch: episodeProgress.rewatch,
-					seriesId: episodeProgress.seriesId,
-				});
-
-			addedEpisodes.push(
-				...written.map((row): [string, number, boolean] => [
-					row.seriesId,
-					row.episode,
-					row.rewatch,
-				]),
-			);
-		});
-
-		await tx.delete(importRecord).where(eq(importRecord.userId, userId));
-
-		if (addedSeriesIds.length || addedEpisodes.length) {
-			importId = crypto.randomUUID();
-			await tx.insert(importRecord).values({
-				episodes: addedEpisodes,
-				id: importId,
-				seriesIds: addedSeriesIds,
-				userId,
-			});
-		}
-	});
-
-	await Promise.all(
-		missing.slice(0, 100).map((addition) => scheduleSeriesStore(addition.anilistId, "backfill")),
-	);
-
-	return {
-		episodes_added: addedEpisodes.length,
-		import_id: importId,
-		not_in_sora: missing.slice(0, reportedTitles).map((addition) => ({
-			anilist_id: addition.anilistId,
-			title: addition.title,
-		})),
-		not_in_sora_count: missing.length,
-		watchlist_added: addedSeriesIds.length,
-		watchlist_kept: present.filter((addition) => addition.status).length - addedSeriesIds.length,
-	};
-};
-
-/**
- * A date a list gave, no later than `now`: a clock set wrong on the other
- * side must not put a title ahead of everything the person does next.
- */
-const notAfter = (date: Date | null, now: Date) => {
-	if (date && date < now) {
-		return date;
-	}
-
-	return now;
-};
-
-const toAdditions = (entries: readonly ListEntry[], now: Date): Addition[] =>
-	entries.map((entry) => ({
-		addedAt: notAfter(entry.addedAt, now),
-		anilistId: entry.anilistId,
-		changedAt: notAfter(entry.changedAt ?? entry.addedAt, now),
-		played: [],
-		status: entry.status,
-		through: entry.through,
-		title: entry.title,
-	}));
-
-const fromFile = (file: LibraryExport): Addition[] => {
-	const additions = new Map<number, Addition>();
-
-	const of = (anilistId: number, title: string | null) => {
-		const known = additions.get(anilistId);
-
-		if (known) {
-			return known;
-		}
-
-		const added: Addition = {
-			addedAt: new Date(),
-			anilistId,
-			changedAt: new Date(),
-			played: [],
-			status: null,
-			through: undefined,
-			title,
-		};
-
-		additions.set(anilistId, added);
-
-		return added;
-	};
-
-	for (const entry of file.watchlist) {
-		const addition = of(entry.anilist_id, entry.title);
-		addition.status = entry.status;
-		addition.addedAt = new Date(entry.added_at);
-		addition.changedAt = new Date(entry.changed_at ?? entry.added_at);
-	}
-
-	for (const row of file.history) {
-		of(row.anilist_id, null).played.push(row);
-	}
-
-	return [...additions.values()];
-};
-
-/** Adds MyAnimeList titles, and reports those Sora has no AniList entry for. */
-const applyMal = async (
-	userId: string,
-	entries: readonly MalEntry[],
-	now: Date,
-): Promise<LibraryImportReport> => {
-	const { matched, unmatched } = await fromMal(entries);
-	const report = await applyAdditions(userId, toAdditions(matched, now), now);
-
-	return {
-		...report,
-		not_in_sora: [
-			...report.not_in_sora,
-			...unmatched.map((entry) => ({
-				anilist_id: null,
-				title: entry.title,
-			})),
-		].slice(0, reportedTitles),
-		not_in_sora_count: report.not_in_sora_count + unmatched.length,
-	};
-};
-
-type AccountSource = ImportConnection["source"];
-
-const rememberConnection = async (userId: string, source: AccountSource, accountName: string) => {
-	await db
-		.insert(importConnection)
-		.values({
-			accountName,
-			source,
-			userId,
-		})
-		.onConflictDoUpdate({
-			set: {
-				accountName,
-				connectedAt: new Date(),
-			},
-			target: [importConnection.userId, importConnection.source],
-		});
-};
-
 /**
  * Puts what a file or another site's list holds into a profile: a Sora
  * export, an AniList user's public list, or a MyAnimeList export. It only
- * adds. See {@link applyAdditions} for what stays as it is.
+ * adds. See {@link Importer.add} for what stays as it is.
  *
  * From another site a title is put on the watchlist with its status, and
  * the episodes up to the ones watched are marked watched, as
@@ -431,33 +117,31 @@ export const importLibrary = async (
 
 	const { data } = parsed;
 
+	const importer = new Importer(userId, now);
+
 	if (data.source === "sora") {
-		return await applyAdditions(userId, fromFile(data.document), now);
+		return await importer.add(Importer.file(data.document));
 	}
 
 	if (data.source === "anilist") {
-		return await applyAdditions(
-			userId,
-			toAdditions(await readAniListUser(data.username), now),
-			now,
-		);
+		return await importer.add(importer.from(await readAnilist(data.username)));
 	}
 
 	if (data.source === "anilist_account") {
-		const { account, entries } = await readAniListAccount(data.authorization);
-		await rememberConnection(userId, data.source, account);
+		const { account, entries } = await readAnilistAccount(data.authorization);
+		await importer.remember(data.source, account);
 
-		return await applyAdditions(userId, toAdditions(entries, now), now);
+		return await importer.add(importer.from(entries));
 	}
 
 	if (data.source === "myanimelist_account") {
-		const { account, entries } = await readMyAnimeListAccount(data.authorization);
-		await rememberConnection(userId, data.source, account);
+		const { account, entries } = await readMalAccount(data.authorization);
+		await importer.remember(data.source, account);
 
-		return await applyMal(userId, entries, now);
+		return await importer.addMal(entries);
 	}
 
-	return await applyMal(userId, parseMyAnimeListExport(data.xml), now);
+	return await importer.addMal(parseMalExport(data.xml));
 };
 
 /** The accounts a profile connected to import from. */
@@ -474,7 +158,7 @@ export const listImportConnections = async (userId: string): Promise<ImportConne
 };
 
 /** Forgets a connected account. What it imported stays; one never connected is left alone. */
-export const disconnectImport = async (userId: string, source: AccountSource) => {
+export const disconnectImport = async (userId: string, source: ImportConnection["source"]) => {
 	await db
 		.delete(importConnection)
 		.where(and(eq(importConnection.userId, userId), eq(importConnection.source, source)));
@@ -504,7 +188,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 
 		const seriesIds = z.array(z.string()).parse(record.seriesIds);
 		const episodes = z.array(z.tuple([z.string(), z.number(), z.boolean()])).parse(record.episodes);
-		await inSequence(chunks(episodes), async (batch) => {
+		await inSequence(new Batches(episodes).all, async (batch) => {
 			const rows = JSON.stringify(
 				batch.map(([seriesId, episode, rewatch]) => ({
 					e: episode,
@@ -526,7 +210,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 			undone.episodes_removed += removed.length;
 		});
 
-		await inSequence(chunks(seriesIds), async (batch) => {
+		await inSequence(new Batches(seriesIds).all, async (batch) => {
 			const cleared = await tx
 				.update(seriesState)
 				.set({

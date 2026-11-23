@@ -7,7 +7,7 @@ import { MediaTrendsDocument } from "../../anilist/graphql.generated";
 import { zMediaTrendsQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { animeSearch, animeTrend } from "../../database/schema/catalog";
-import { isFeaturedEntry } from "../../library/featured/featured";
+import { worthFeaturing } from "../../library/featured/featured";
 import { activityKeptFor, dateBefore } from "../../library/featured/rotation";
 
 /** The graphile-worker task that stores AniList's daily activity of the titles the home page may feature. */
@@ -58,7 +58,7 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
 
 /**
  * Stores AniList's daily activity of every entry the home page may feature
- * (see `isFeaturedEntry`), so it can tell a title people are coming back to
+ * (see `worthFeaturing`), so it can tell a title people are coming back to
  * from one past its moment, and drops days older than it reads.
  *
  * Runs daily at 05:30 UTC, before the featured titles change. An entry
@@ -82,7 +82,7 @@ export const storeAnimeTrendsJob: Task = async (_payload, helpers) => {
 			)`,
 		})
 		.from(animeSearch)
-		.where(isFeaturedEntry(now));
+		.where(worthFeaturing(now));
 
 	// Entries are asked for together by the day they are known up to, so a
 	// request covers only days some of them miss.

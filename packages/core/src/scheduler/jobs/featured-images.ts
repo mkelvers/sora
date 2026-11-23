@@ -5,7 +5,7 @@ import type { Task } from "graphile-worker";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series, titleArtwork, titleImage } from "../../database/schema/series";
-import { isFeaturedEntry, minBackdropSize } from "../../library/featured/featured";
+import { worthFeaturing, minBackdropSize } from "../../library/featured/featured";
 import { listSeriesImages } from "../../series/artwork";
 import { isCollage } from "../../series/collage";
 
@@ -44,7 +44,7 @@ export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
 							and ${titleImage.isCollage} is null
 					)`,
 				),
-				isFeaturedEntry(new Date()),
+				worthFeaturing(new Date()),
 			),
 		)
 		.orderBy(desc(animeSearch.popularity))
