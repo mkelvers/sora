@@ -1,30 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import type { IContentUnit, MappingMethod, MappingResolution } from "anime-sdk";
+import type { IContentUnit, MappingResolution } from "anime-sdk";
 
-import type { Anime } from "../../catalog/models/anime";
-import { anime } from "../../catalog/models/anime.fixture";
 import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
 import type { SdkProvider } from "./sdk";
-
-const titled = (
-	titles: {
-		english?: string;
-		romaji?: string;
-	},
-	episodes: number | null,
-): Anime => ({
-	...anime(1),
-	episodes,
-	format: "TV",
-	status: "FINISHED",
-	title: {
-		display: titles.english ?? titles.romaji ?? "",
-		english: titles.english ?? null,
-		native: null,
-		romaji: titles.romaji ?? null,
-	},
-});
+import { resolved, titled } from "./sdk.fixture";
 
 const titan = titled(
 	{
@@ -98,50 +78,41 @@ const episodes: IContentUnit[] = Array.from({ length: 40 }, (_, index) => ({
 }));
 
 /** A provider whose search and episode list are stood in for, to see what `findMedia` does with them. */
-const providerFinding = (resolution: MappingResolution | null, units: Promise<IContentUnit[]>) => {
-	const fetched: string[] = [];
+class Finding {
+	readonly fetched: string[] = [];
+	readonly provider: SdkStreamProvider<SdkProvider>;
 
-	const provider = new SdkStreamProvider<SdkProvider>(
-		{
-			fetchContentUnits: (id) => {
-				fetched.push(id);
+	constructor(resolution: MappingResolution | null, units: Promise<IContentUnit[]>) {
+		this.provider = new SdkStreamProvider<SdkProvider>(
+			{
+				fetchContentUnits: (id) => {
+					this.fetched.push(id);
 
-				return units;
+					return units;
+				},
+				id: "stub",
+				resolveStream: () => Promise.reject(new Error("The stub streams nothing")),
 			},
-			id: "stub",
-			resolveStream: () => Promise.reject(new Error("The stub streams nothing")),
-		},
-		{
-			resolveProviderMediaId: () => Promise.resolve(resolution),
-		},
-		{
-			listsLanguages: true,
-			locale: "en",
-		},
-	);
-
-	return {
-		fetched,
-		provider,
-	};
-};
-
-const resolved = (method: MappingMethod, matchedTitle: string): MappingResolution => ({
-	matchedTitle,
-	method,
-	providerId: "stub",
-	rawMediaId: "abc",
-});
+			{
+				resolveProviderMediaId: () => Promise.resolve(resolution),
+			},
+			{
+				listsLanguages: true,
+				locale: "en",
+			},
+		);
+	}
+}
 
 describe("SdkStreamProvider.findMedia", () => {
 	test("finds nothing when the provider finds nothing", async () => {
-		const { provider, fetched } = providerFinding(null, Promise.resolve([]));
+		const { provider, fetched } = new Finding(null, Promise.resolve([]));
 		expect(await provider.findMedia(titan)).toBeNull();
 		expect(fetched).toEqual([]);
 	});
 
 	test("trusts an ID match without fetching its episodes", async () => {
-		const { provider, fetched } = providerFinding(
+		const { provider, fetched } = new Finding(
 			resolved("provider", "Anything At All"),
 			Promise.resolve([]),
 		);
@@ -156,7 +127,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	});
 
 	test("keeps a title match that fits, checking its episodes under the provider's ID", async () => {
-		const { provider, fetched } = providerFinding(
+		const { provider, fetched } = new Finding(
 			resolved("fuzzy", "Attack on Titan Season 2"),
 			Promise.resolve(episodes.slice(0, 12)),
 		);
@@ -167,7 +138,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	});
 
 	test("drops a title match for another season", async () => {
-		const { provider } = providerFinding(
+		const { provider } = new Finding(
 			resolved("fuzzy", "Attack on Titan Season 3"),
 			Promise.resolve(episodes.slice(0, 12)),
 		);
@@ -176,7 +147,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	});
 
 	test("drops a title match whose list runs far past the anime's episodes", async () => {
-		const { provider } = providerFinding(
+		const { provider } = new Finding(
 			resolved("fuzzy", "Attack on Titan Season 2"),
 			Promise.resolve(episodes),
 		);
@@ -185,7 +156,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	});
 
 	test("fails, rather than finding nothing, when the episode list cannot be fetched", async () => {
-		const { provider } = providerFinding(
+		const { provider } = new Finding(
 			resolved("fuzzy", "Attack on Titan Season 2"),
 			Promise.reject(new Error("provider down")),
 		);

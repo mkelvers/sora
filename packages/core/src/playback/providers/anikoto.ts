@@ -6,17 +6,12 @@ import { z } from "zod";
 import type { Anime } from "../../catalog/models/anime";
 import type { ContentLanguage } from "../../models/series";
 import { findAniKotoSeries, syncAniKotoCatalog } from "./anikoto-catalog";
-import { resolveMegaPlayEmbed } from "./megaplay";
+import { Embed } from "./embed";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
-import { rawEpisodeId, toProviderEpisode } from "./sdk";
+import { rawEpisodeId, toEpisode } from "./sdk";
 import type { ProviderTraits } from "./sdk";
 
 const siteUrl = "https://anikototv.to";
-
-/** AniKoto's episode list, as its watch page loads it: HTML in a JSON envelope. */
-const EpisodeListResponseSchema = z.object({
-	result: z.string(),
-});
 
 /** The languages AniKoto streams, in the order episode lists give them. */
 const languageOrder = ["sub", "dub"] as const satisfies readonly ContentLanguage[];
@@ -28,60 +23,12 @@ interface ListedEpisode {
 }
 
 /**
- * Reads AniKoto's episode list, as its watch page loads it. Each episode's
- * link carries `data-sub` and `data-dub` flags, which the watch page's
- * language switch follows, and a `filler` class on filler episodes.
-
- *
- * @returns Each listed episode's languages and filler flag, by number.
- * @throws {Error} when the list cannot be read or lists no episodes.
- */
-const fetchEpisodes = async (
-	http: HttpClient,
-	mediaId: string,
-): Promise<Map<number, ListedEpisode>> => {
-	const response = await http.get(`${siteUrl}/ajax/episode/list/${encodeURIComponent(mediaId)}`, {
-		headers: {
-			"X-Requested-With": "XMLHttpRequest",
-		},
-	});
-
-	const { result } = EpisodeListResponseSchema.parse(await response.json());
-
-	const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/gu) ?? [];
-
-	if (links.length === 0) {
-		throw new Error("AniKoto's episode list has no episodes");
-	}
-
-	const episodes = new Map<number, ListedEpisode>();
-
-	for (const link of links) {
-		const number = Number(/\bdata-num="(?<number>[^"]*)"/u.exec(link)?.[1]);
-
-		if (!Number.isFinite(number)) {
-			continue;
-		}
-
-		const classes = /\bclass="(?<classes>[^"]*)"/u.exec(link)?.[1]?.split(/\s+/u) ?? [];
-		episodes.set(number, {
-			isFiller: classes.includes("filler"),
-			languages: languageOrder.filter((language) =>
-				new RegExp(`\\bdata-${language}="1"`, "u").test(link),
-			),
-		});
-	}
-
-	return episodes;
-};
-
-/**
  * AniKoto: matched by ID against a mirror of its catalogue (see
  * {@link findAniKotoSeries}), with filler episodes marked, and streamed
- * through its MegaPlay player (see {@link resolveMegaPlayEmbed}), which
+ * through its MegaPlay player (see {@link Embed}), which
  * ships each stream's opening and ending.
  */
-export class AniKotoStreamProvider implements StreamProvider {
+export class AniKoto implements StreamProvider {
 	readonly locale: string;
 	readonly listsLanguages: boolean;
 	private readonly sdk: AnikotoProvider;
@@ -127,7 +74,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
 		const [units, { data, error }] = await Promise.all([
 			this.sdk.fetchContentUnits(`${this.id}:${mediaId}`),
-			attempt(fetchEpisodes(this.http, mediaId)),
+			attempt(this.episodes(mediaId)),
 		]);
 
 		if (error) {
@@ -135,7 +82,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 		}
 
 		return units.map((unit) => {
-			const episode = toProviderEpisode(unit);
+			const episode = toEpisode(unit);
 			const entry = data?.get(unit.number);
 
 			if (!entry) {
@@ -159,12 +106,14 @@ export class AniKotoStreamProvider implements StreamProvider {
 		/** MegaPlay checks that its player is embedded by AniKoto. */
 		const embedReferer = `${siteUrl}/`;
 
-		return resolveMegaPlayEmbed(
+		const embed = new Embed(
 			this.http,
 			`https://megaplay.buzz/stream/s-2/${rawEpisodeId(this.id, episodeId)}/${language}`,
 			embedReferer,
 			language,
 		);
+
+		return embed.stream();
 	}
 
 	/**
@@ -176,5 +125,57 @@ export class AniKotoStreamProvider implements StreamProvider {
 		const { pages, stored } = await syncAniKotoCatalog(this.http, options);
 
 		return `Synced ${stored} AniKoto series from ${pages} catalogue pages`;
+	}
+
+	/**
+	 * Reads AniKoto's episode list, as its watch page loads it. Each episode's
+	 * link carries `data-sub` and `data-dub` flags, which the watch page's
+	 * language switch follows, and a `filler` class on filler episodes.
+	 *
+	 * @returns Each listed episode's languages and filler flag, by number.
+	 * @throws {Error} when the list cannot be read or lists no episodes.
+	 */
+	private async episodes(mediaId: string): Promise<Map<number, ListedEpisode>> {
+		/** AniKoto's episode list, as its watch page loads it: HTML in a JSON envelope. */
+		const ResponseSchema = z.object({
+			result: z.string(),
+		});
+
+		const response = await this.http.get(
+			`${siteUrl}/ajax/episode/list/${encodeURIComponent(mediaId)}`,
+			{
+				headers: {
+					"X-Requested-With": "XMLHttpRequest",
+				},
+			},
+		);
+
+		const { result } = ResponseSchema.parse(await response.json());
+
+		const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/gu) ?? [];
+
+		if (links.length === 0) {
+			throw new Error("AniKoto's episode list has no episodes");
+		}
+
+		const episodes = new Map<number, ListedEpisode>();
+
+		for (const link of links) {
+			const number = Number(/\bdata-num="(?<number>[^"]*)"/u.exec(link)?.[1]);
+
+			if (!Number.isFinite(number)) {
+				continue;
+			}
+
+			const classes = /\bclass="(?<classes>[^"]*)"/u.exec(link)?.[1]?.split(/\s+/u) ?? [];
+			episodes.set(number, {
+				isFiller: classes.includes("filler"),
+				languages: languageOrder.filter((language) =>
+					new RegExp(`\\bdata-${language}="1"`, "u").test(link),
+				),
+			});
+		}
+
+		return episodes;
 	}
 }

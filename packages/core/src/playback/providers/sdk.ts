@@ -25,34 +25,6 @@ export interface ProviderTraits {
 }
 
 /**
- * Describes an anime in the shape `anime-sdk`'s mapping client matches on:
- * titles and synonyms for fuzzy search, year and episode count as
- * discriminators, and AniList/MAL IDs for exact lookups.
- */
-const toSdkMetadata = (anime: Anime): IMediaMetadata => {
-	const startYear = anime.startDate ? Number(anime.startDate.slice(0, 4)) : undefined;
-
-	return {
-		catalogType: "ANIME",
-		episodeCount: anime.episodes ?? undefined,
-		format: anime.format ?? undefined,
-		id: `anilist:${anime.id}`,
-		mappings: {
-			anilist: anime.id,
-			mal: anime.malId ?? undefined,
-		},
-		providerId: "anilist",
-		synonyms: anime.synonyms,
-		title: {
-			english: anime.title.english ?? undefined,
-			native: anime.title.native ?? undefined,
-			romaji: anime.title.romaji ?? undefined,
-		},
-		year: anime.seasonYear ?? startYear,
-	};
-};
-
-/**
  * Whether a series found by searching titles is the anime.
  *
  * The title must be about as alike as `anime-sdk` asks and number the same
@@ -63,7 +35,7 @@ const toSdkMetadata = (anime: Anime): IMediaMetadata => {
  * shorter list, or none, is kept; the title is right and the provider is only
  * missing episodes.
  */
-export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, providerEpisodes: number) => {
+export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, listed: number) => {
 	/** How many episodes more than the anime's count a provider's list may have. */
 	const episodeCountTolerance = 3;
 
@@ -95,11 +67,11 @@ export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, providerEp
 		return true;
 	}
 
-	return providerEpisodes <= anime.episodes + episodeCountTolerance;
+	return listed <= anime.episodes + episodeCountTolerance;
 };
 
 /** An `anime-sdk` episode as a {@link ProviderEpisode}. */
-export const toProviderEpisode = (unit: IContentUnit): ProviderEpisode => ({
+export const toEpisode = (unit: IContentUnit): ProviderEpisode => ({
 	id: unit.id,
 	isFiller: unit.isFiller ?? null,
 	languages: unit.availableLanguages ?? null,
@@ -139,7 +111,35 @@ export class SdkStreamProvider<
 	 * season would play the wrong episodes.
 	 */
 	async findMedia(anime: Anime): Promise<ProviderMatch | null> {
-		const resolution = await this.mapping.resolveProviderMediaId(toSdkMetadata(anime), this.sdk);
+		// The anime in the shape `anime-sdk`'s mapping client matches on: titles
+		// and synonyms for fuzzy search, year and episode count as discriminators,
+		// and AniList/MAL IDs for exact lookups.
+		let startYear: number | undefined;
+
+		if (anime.startDate) {
+			startYear = Number(anime.startDate.slice(0, 4));
+		}
+
+		const metadata: IMediaMetadata = {
+			catalogType: "ANIME",
+			episodeCount: anime.episodes ?? undefined,
+			format: anime.format ?? undefined,
+			id: `anilist:${anime.id}`,
+			mappings: {
+				anilist: anime.id,
+				mal: anime.malId ?? undefined,
+			},
+			providerId: "anilist",
+			synonyms: anime.synonyms,
+			title: {
+				english: anime.title.english ?? undefined,
+				native: anime.title.native ?? undefined,
+				romaji: anime.title.romaji ?? undefined,
+			},
+			year: anime.seasonYear ?? startYear,
+		};
+
+		const resolution = await this.mapping.resolveProviderMediaId(metadata, this.sdk);
 
 		if (!resolution) {
 			return null;
@@ -164,7 +164,7 @@ export class SdkStreamProvider<
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
 		const units = await this.sdk.fetchContentUnits(`${this.id}:${mediaId}`);
 
-		return units.map(toProviderEpisode);
+		return units.map(toEpisode);
 	}
 
 	/**
@@ -192,18 +192,26 @@ export class SdkStreamProvider<
 
 		return {
 			skipSegments: [],
-			videos: streams.map((stream) => ({
-				format: stream.isHLS ? "hls" : "mp4",
-				headers: stream.headers ?? {},
-				quality: stream.quality,
-				subtitles: (stream.subtitles ?? []).map((track) => ({
-					format: track.format ?? null,
-					label: track.label,
-					language: track.language,
-					url: track.url,
-				})),
-				url: stream.sourceUrl,
-			})),
+			videos: streams.map((stream) => {
+				let format: "hls" | "mp4" = "mp4";
+
+				if (stream.isHLS) {
+					format = "hls";
+				}
+
+				return {
+					format,
+					headers: stream.headers ?? {},
+					quality: stream.quality,
+					subtitles: (stream.subtitles ?? []).map((track) => ({
+						format: track.format ?? null,
+						label: track.label,
+						language: track.language,
+						url: track.url,
+					})),
+					url: stream.sourceUrl,
+				};
+			}),
 		};
 	}
 }
@@ -212,8 +220,8 @@ export class SdkStreamProvider<
  * The provider's raw ID within an episode ID, which `anime-sdk` prefixes
  * with the provider ID.
  */
-export const rawEpisodeId = (providerId: string, episodeId: string) => {
-	const prefix = `${providerId}:`;
+export const rawEpisodeId = (id: string, episodeId: string) => {
+	const prefix = `${id}:`;
 
 	if (episodeId.startsWith(prefix)) {
 		return episodeId.slice(prefix.length);
