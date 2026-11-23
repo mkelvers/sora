@@ -211,7 +211,10 @@ export const refreshDetailsTask = "refresh-episode-details";
  * wait for hours. A layout reads the same change logs as they are stored,
  * so it writes the same details.
  */
-export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
+export const refreshEpisodeDetails = async (
+	_payload: Parameters<Task>[0],
+	{ logger }: Pick<Parameters<Task>[1], "logger">,
+) => {
 	/**
 	 * How far apart the runs of {@link refreshEpisodeDetails} are, as the
 	 * scheduler's crontab has it. TMDB's CDN answers a change log's request with
@@ -226,12 +229,14 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 		season_number: number;
 		episode_number: number;
 		missing_for_ms: number;
+		release_date: string;
 	}>(sql`
     select
       ${series.id} as series_id,
       substring(${series.key} from '[0-9]+$')::int as show_id,
       ${titleEpisode.tmdbSeasonNumber} as season_number,
       ${titleEpisode.tmdbEpisodeNumber} as episode_number,
+      to_char(${releaseTime} at time zone 'UTC', 'YYYY-MM-DD') as release_date,
       (extract(epoch from now() - ${releaseTime}) * 1000)::float8 as missing_for_ms
     from ${titleEpisode}
     inner join ${series} on ${series.id} = ${titleEpisode.seriesId}
@@ -276,7 +281,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 			);
 
 			if (show.error) {
-				helpers.logger.warn(`TMDB failed for show ${showId}: ${show.error.message}`);
+				logger.warn(`TMDB failed for show ${showId}: ${show.error.message}`);
 
 				return 0;
 			}
@@ -303,6 +308,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 							withEdits(listed, {
 								// A minute short, so a run is never a moment too early for it.
 								maxAgeMs: recheckMs - minute,
+								releaseDate: episode.release_date,
 							}),
 						];
 					}),
@@ -311,7 +317,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 			);
 
 			if (edited.error) {
-				helpers.logger.warn(`TMDB failed for show ${showId}: ${edited.error.message}`);
+				logger.warn(`TMDB failed for show ${showId}: ${edited.error.message}`);
 
 				return 0;
 			}
@@ -327,9 +333,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 	}
 
 	if (updated > 0) {
-		helpers.logger.info(
-			`Filled in ${updated} of ${awaited.length} episodes awaiting details from TMDB`,
-		);
+		logger.info(`Filled in ${updated} of ${awaited.length} episodes awaiting details from TMDB`);
 	}
 };
 

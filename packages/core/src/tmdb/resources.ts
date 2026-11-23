@@ -279,8 +279,8 @@ export const searchMovies = async (query: string): Promise<TmdbMovieResult[]> =>
 /**
  * Fills in the title, overview, runtime, and still an episode lacks from the
  * English edits in its change log, when it aired within {@link editsWindowMs}.
- * TMDB's air date is in the airing country's calendar, which can be a day
- * ahead of UTC.
+ * Uses the known release date when supplied. TMDB's fallback date is in the
+ * airing country's calendar, which can be a day ahead of UTC.
  *
  * TMDB keeps a change log for ten minutes, where it keeps the episode itself
  * for hours. The log is asked for from the day before the air date on, for
@@ -297,6 +297,8 @@ export const withEdits = async (
 	options: {
 		/** How old a stored copy of the change log may be. */
 		maxAgeMs: number;
+		/** Known release date in UTC, as YYYY-MM-DD, when the caller has one. */
+		releaseDate?: string;
 	},
 ): Promise<TmdbEpisode> => {
 	/** The title TMDB gives an episode nobody has named. */
@@ -304,6 +306,7 @@ export const withEdits = async (
 
 	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
 
+	const releaseDate = options.releaseDate ?? episode.air_date;
 	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
 	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
 	const isComplete = !isUnnamed && episode.overview !== null && episode.still_path !== null;
@@ -311,16 +314,13 @@ export const withEdits = async (
 	// Whether it aired lately, within the time its change log is read for, and
 	// lacks a title, overview, or still the change log may hold.
 	const isLacking =
-		!isComplete &&
-		episode.air_date !== null &&
-		episode.air_date >= since &&
-		episode.air_date <= until;
+		!isComplete && releaseDate !== null && releaseDate >= since && releaseDate <= until;
 
 	if (!isLacking) {
 		return episode;
 	}
 
-	const from = Date.parse(`${episode.air_date}T00:00:00Z`) - day;
+	const from = Date.parse(`${releaseDate}T00:00:00Z`) - day;
 
 	const { data, error } = await attempt(
 		tmdb(
