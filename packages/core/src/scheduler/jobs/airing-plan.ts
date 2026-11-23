@@ -1,6 +1,7 @@
-import { day, hour, minute, defined } from "@sora/shared";
+import { hour, minute, defined } from "@sora/shared";
 
 import type { AnimeStatus } from "../../catalog/models/anime";
+import { AiringSchedule } from "./airing-schedule";
 
 /** What one airing check learned about an anime. */
 export interface AiringState {
@@ -41,7 +42,7 @@ export type AiringPlan =
  * not carry yet. It usually has subs within hours, sometimes a day later;
  * the last delay repeats.
  */
-const releaseRetryDelaysMs = [
+const retryDelaysMs = [
 	15 * minute,
 	30 * minute,
 	hour,
@@ -56,61 +57,6 @@ const releaseRetryDelaysMs = [
  * after it aired. The next broadcast starts a new round for the next episode.
  */
 export const maximumReleaseAttempts = 11;
-
-/** How often to check on premiere day when AniList has a date but no time. */
-const premiereDayCheckIntervalMs = 20 * minute;
-
-/** The span of a `YYYY-MM-DD` date in Japan, or `null` for a less precise date. */
-const japanDay = (date: string | null) => {
-	/** Japan Standard Time, which AniList's dates are in, is UTC+9. */
-	const japanOffsetMs = 9 * hour;
-
-	const match = date ? /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u.exec(date) : null;
-
-	if (!match) {
-		return null;
-	}
-
-	const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - japanOffsetMs;
-
-	return {
-		end: new Date(start + day),
-		start: new Date(start),
-	};
-};
-
-/** The next check that does not depend on a missing release. */
-const nextScheduledCheck = (state: AiringState, now: Date): Date => {
-	/** How often to ask AniList about an anime on hiatus. */
-	const hiatusCheckIntervalMs = 7 * day;
-
-	/** How often to ask AniList about an airing anime with no announced episode. */
-	const unscheduledCheckIntervalMs = day;
-
-	if (state.nextAiringAt) {
-		// A broadcast time in the past means AniList has not caught up yet.
-		if (state.nextAiringAt > now) {
-			return state.nextAiringAt;
-		}
-
-		return new Date(now.getTime() + premiereDayCheckIntervalMs);
-	}
-
-	const premiereDay = state.status === "NOT_YET_RELEASED" ? japanDay(state.startDate) : null;
-
-	if (premiereDay && now < premiereDay.end) {
-		if (now < premiereDay.start) {
-			return premiereDay.start;
-		}
-
-		return new Date(now.getTime() + premiereDayCheckIntervalMs);
-	}
-
-	return new Date(
-		now.getTime() +
-			(state.status === "HIATUS" ? hiatusCheckIntervalMs : unscheduledCheckIntervalMs),
-	);
-};
 
 /**
  * Decides when to check an anime again.
@@ -136,20 +82,26 @@ export const planNextCheck = (
 		state.latestAiredEpisode !== null &&
 		(state.latestReleasedEpisode ?? 0) < state.latestAiredEpisode;
 
-	const awaitedEpisode = behind ? state.latestAiredEpisode : null;
+	let awaitedEpisode: number | null = null;
+	let attempt = 0;
+	let retryAt: Date | null = null;
 
-	const attempt =
-		awaitedEpisode !== null && awaitedEpisode === progress.awaitedEpisode
-			? progress.attempt + 1
-			: 0;
+	if (behind) {
+		awaitedEpisode = state.latestAiredEpisode;
+	}
 
-	const retryAt =
-		awaitedEpisode !== null && attempt < maximumReleaseAttempts
-			? new Date(
-					now.getTime() +
-						defined(releaseRetryDelaysMs[Math.min(attempt, releaseRetryDelaysMs.length - 1)]),
-				)
-			: null;
+	const isSameEpisode = awaitedEpisode !== null && awaitedEpisode === progress.awaitedEpisode;
+
+	if (isSameEpisode) {
+		attempt = progress.attempt + 1;
+	}
+
+	const isRetrying = awaitedEpisode !== null && attempt < maximumReleaseAttempts;
+
+	if (isRetrying) {
+		const delayMs = defined(retryDelaysMs[Math.min(attempt, retryDelaysMs.length - 1)]);
+		retryAt = new Date(now.getTime() + delayMs);
+	}
 
 	if (state.status === "FINISHED" || state.status === "CANCELLED") {
 		if (retryAt) {
@@ -166,13 +118,17 @@ export const planNextCheck = (
 		};
 	}
 
-	const scheduledAt = nextScheduledCheck(state, now);
+	let runAt = new AiringSchedule(state, now).next;
+
+	if (retryAt && retryAt < runAt) {
+		runAt = retryAt;
+	}
 
 	return {
 		attempt,
 		awaitedEpisode,
 		done: false,
-		runAt: retryAt && retryAt < scheduledAt ? retryAt : scheduledAt,
+		runAt,
 	};
 };
 
