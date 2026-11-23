@@ -6,6 +6,7 @@ export class Label {
 	static readonly #regions = new Map<string, string>(
 		Object.entries({
 			brazil: "BR",
+			espana: "ES",
 			"latin america": "419",
 			mexico: "MX",
 			portugal: "PT",
@@ -48,7 +49,10 @@ export class Label {
 		}
 
 		const language = labelToBcp47(regional[1]);
-		const region = Label.#regions.get(regional[2].trim().toLowerCase());
+
+		const region = Label.#regions.get(
+			regional[2].trim().toLowerCase().normalize("NFD").replaceAll(/\p{M}/gu, ""),
+		);
 
 		if (region) {
 			return `${language}-${region}`;

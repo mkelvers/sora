@@ -7,7 +7,12 @@ import type { ProviderVideo } from "../providers/provider";
 
 /** A BCP 47 language tag, such as `pt-BR`. */
 export class LanguageTag {
-	static readonly #names = new Intl.DisplayNames(["en"], {
+	static readonly #dialectNames = new Intl.DisplayNames(["en"], {
+		type: "language",
+	});
+
+	static readonly #standardNames = new Intl.DisplayNames(["en"], {
+		languageDisplay: "standard",
 		type: "language",
 	});
 
@@ -23,7 +28,19 @@ export class LanguageTag {
 	 * `null` for a tag that names no language.
 	 */
 	get name() {
-		const { data, error } = attempt(() => LanguageTag.#names.of(this.#tag), RangeError);
+		return this.#nameIn(LanguageTag.#dialectNames);
+	}
+
+	/**
+	 * Like {@link LanguageTag.name}, but with the language first, as in
+	 * `Portuguese (Brazil)`.
+	 */
+	get standardName() {
+		return this.#nameIn(LanguageTag.#standardNames);
+	}
+
+	#nameIn(names: Intl.DisplayNames) {
+		const { data, error } = attempt(() => names.of(this.#tag), RangeError);
 
 		if (error) {
 			return null;

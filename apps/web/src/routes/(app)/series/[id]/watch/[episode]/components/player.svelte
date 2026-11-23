@@ -233,6 +233,21 @@
 		await attempt(playbackQuery.refresh());
 	};
 
+	const isAtTop = (cue: VTTCue) => {
+		if (cue.line === "auto") {
+			return false;
+		}
+
+		if (cue.snapToLines) {
+			return cue.line >= 0;
+		}
+
+		return cue.line < 50;
+	};
+
+	const topCues = $derived(player.cues.filter((cue) => isAtTop(cue)));
+	const bottomCues = $derived(player.cues.filter((cue) => !isAtTop(cue)));
+
 	const segment = $derived(
 		selected?.skip_segments.find((skip) => player.time >= skip.start && player.time < skip.end),
 	);
@@ -539,9 +554,19 @@
 	{/if}
 
 	<div
+		class="pointer-events-none z-1 mx-4 mt-(--cue-drop) flex flex-col items-center self-start text-[clamp(20px,2.8vw,44px)] transition-[margin] duration-200 [--cue-drop:5.5rem] in-[.idle:not(:has(:popover-open))]:mt-[5vh]"
+	>
+		{#each topCues as cue (cue)}
+			<Cue appearance={preferences.subtitle_style}>
+				{@render cueNodes(cue.getCueAsHTML().childNodes)}
+			</Cue>
+		{/each}
+	</div>
+
+	<div
 		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center self-end text-[clamp(20px,2.8vw,44px)] transition-[margin] duration-200 [--cue-lift:8rem] in-[.idle:not(:has(:popover-open))]:mb-[7vh] sm:[--cue-lift:6.25rem]"
 	>
-		{#each player.cues as cue (cue)}
+		{#each bottomCues as cue (cue)}
 			<Cue appearance={preferences.subtitle_style}>
 				{@render cueNodes(cue.getCueAsHTML().childNodes)}
 			</Cue>

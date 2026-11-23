@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { attempt, second, defined, sequence } from "@sora/shared";
@@ -558,6 +559,7 @@ class Resolution {
 
 		// Providers attach the same subtitle tracks to every quality variant.
 		const subtitles = new Map<string, PlaybackSubtitle>();
+		const variants = new Map<string, number>();
 
 		for (const video of videos) {
 			for (const track of video.subtitles) {
@@ -565,19 +567,26 @@ class Resolution {
 					continue;
 				}
 
+				// Provider labels travel across episodes. Identically named files use
+				// their order within that label, independent of the signed proxy URL.
+				const key = JSON.stringify([!!shifts, track.language, track.label]);
+				const occurrence = (variants.get(key) ?? 0) + 1;
+				variants.set(key, occurrence);
+
 				const kind = kinds.get(track.url);
-				const language = new LanguageTag(track.language).name ?? track.label;
+				const language = new LanguageTag(track.language).standardName ?? track.label;
 				let named: string | undefined;
 
 				if (kind) {
 					named = kindLabels[kind];
 				}
 
-				// A track's name in a subtitle menu: its language, and its kind unless dialogue, as `English (CC)`.
+				// A track's name in a subtitle menu: its language, and its kind unless
+				// dialogue, as `English (CC)` or `Portuguese (Brazil, CC)`.
 				let label = language;
 
 				if (named) {
-					label = `${language} (${named})`;
+					label = Menu.qualify(language, named);
 				}
 
 				subtitles.set(track.url, {
@@ -592,6 +601,7 @@ class Resolution {
 						refinement,
 						shifts,
 					}),
+					variant: `${createHash("sha256").update(key).digest("hex")}:${occurrence}`,
 				});
 			}
 		}

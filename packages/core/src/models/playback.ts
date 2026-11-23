@@ -54,6 +54,10 @@ export const SubtitleTrackSchema = z.object({
 		description:
 			"The subtitle file through Sora's proxy; hand it to the player as is. Expires with the playback.",
 	}),
+	variant: z.string().min(1).max(80).optional().meta({
+		description:
+			"Distinguishes tracks with the same language and kind without using an expiring URL.",
+	}),
 });
 
 export const MediaSchema = z

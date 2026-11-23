@@ -3,7 +3,7 @@ import { getRefinement } from "../subtitles/store";
 import { rewrite, withDefaultAudio } from "./playlist";
 import { readahead } from "./readahead";
 import { isDisguised, unwrapDisguised } from "./segment";
-import { cleanWebVtt, retimeWebVtt } from "./subtitle";
+import { cleanWebVtt, paceWebVtt, retimeWebVtt } from "./subtitle";
 import { StreamToken } from "./token";
 import type { StreamTarget } from "./token";
 import { fetchTarget, mirrorsFor, readTarget } from "./upstream";
@@ -97,8 +97,9 @@ export class Resource {
 	}
 
 	/**
-	 * A subtitle or key, read whole. WebVTT subtitles are cleaned of ASS escapes
-	 * and retimed when the token asks for it.
+	 * A subtitle or key, read whole. WebVTT subtitles are cleaned up (see
+	 * {@link cleanWebVtt}), retimed when the token asks for it, and paced so each
+	 * line stays up long enough to read.
 	 */
 	async small(signal: AbortSignal | undefined) {
 		/** The signature a WebVTT file starts with, after an optional byte order mark. */
@@ -126,7 +127,7 @@ export class Resource {
 				body = retimeWebVtt(cleaned, target.shifts, stored?.refinement?.anchors ?? []);
 			}
 
-			return new Response(body, {
+			return new Response(paceWebVtt(body), {
 				headers: {
 					"Cache-Control": "private, max-age=3600",
 					"Content-Type": "text/vtt; charset=utf-8",

@@ -61,6 +61,7 @@
 				[selected.audio]: {
 					kind: track.kind,
 					language: track.language,
+					variant: track.variant,
 				},
 			},
 		});
@@ -107,22 +108,10 @@
 						label: "Off",
 						value: "",
 					},
-					...selected.subtitles.map((track, index, tracks) => {
-						const same = tracks
-							.slice(0, index)
-							.filter((other) => other.label === track.label).length;
-
-						let { label } = track;
-
-						if (same) {
-							label = `${track.label} ${same + 1}`;
-						}
-
-						return {
-							label,
-							value: track.url,
-						};
-					}),
+					...selected.subtitles.map((track) => ({
+						label: track.label,
+						value: track.url,
+					})),
 				],
 				select: pickSubtitle,
 				value: subtitle ?? "",
@@ -270,7 +259,7 @@
 						submenu = undefined;
 					}}
 				>
-					<span class="truncate">{option.label}</span>
+					<span class="whitespace-normal">{option.label}</span>
 				</Button>
 			{/each}
 		</div>

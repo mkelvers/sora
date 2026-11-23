@@ -12,8 +12,9 @@ export interface PlaybackChoice<TMedia extends Pick<PlaybackMedia, "audio" | "su
  * the version in its preferred audio, else the next best (a dub falls back to
  * sub, then raw; a sub to raw, then dub; no preference is the first one), and that version's
  * subtitle track, as {@link PlaybackPreferences.subtitles} picks it: the
- * chosen language and kind, else the chosen language, else the version's
- * default. No track when the profile turned subtitles off for the audio, or
+ * chosen variant, language and kind when available, then the same language
+ * or another region of it, then the version's default.
+ * No track when the profile turned subtitles off for the audio, or
  * for raw, which has none.
  *
  * Needs nothing but the playback and the preferences, so a player can choose
@@ -50,10 +51,21 @@ export const chooseVersion = <TMedia extends Pick<PlaybackMedia, "audio" | "subt
 		const tracks = version.subtitles;
 
 		if (choice) {
-			// Prefer the exact track, then any track in the chosen language.
-			subtitle =
-				tracks.find((track) => track.language === choice.language && track.kind === choice.kind) ??
-				tracks.find((track) => track.language === choice.language);
+			const matching = tracks.filter((track) => track.language === choice.language);
+			const matchingKind = matching.filter((track) => track.kind === choice.kind);
+			const [language] = choice.language.split("-");
+
+			if (choice.variant) {
+				subtitle = matchingKind.find((track) => track.variant === choice.variant);
+			}
+
+			subtitle ??=
+				matchingKind[0] ??
+				matching[0] ??
+				tracks.find(
+					(track) => track.language.split("-")[0] === language && track.kind === choice.kind,
+				) ??
+				tracks.find((track) => track.language.split("-")[0] === language);
 		}
 
 		subtitle ??= tracks.find((track) => track.default);

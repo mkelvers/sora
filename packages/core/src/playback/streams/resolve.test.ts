@@ -806,6 +806,28 @@ describe("streams.resolve", () => {
 		]);
 	});
 
+	test("names distinct files with the same subtitle label as selectable alternates", async () => {
+		fake.use([
+			{
+				extraSubtitles: { sub: ["English 2", "English 3"] },
+				id: "anikoto",
+				languages: ["sub"],
+				locale: "en",
+			},
+		]);
+		fake.offered = [sub()];
+
+		const playback = await streams.resolve(request, options, dependencies);
+		const tracks = playback.media[0]?.subtitles ?? [];
+		expect(tracks.map((track) => track.label)).toEqual([
+			"English",
+			"English (Alternate)",
+			"English (Alternate 2)",
+			"Portuguese",
+		]);
+		expect(new Set(tracks.map((track) => track.variant)).size).toBe(tracks.length);
+	});
+
 	test("prefers a later provider's subtitle tracks to burned-in subtitles", async () => {
 		fake.use([
 			{

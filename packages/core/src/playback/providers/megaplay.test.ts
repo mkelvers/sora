@@ -14,6 +14,8 @@ describe("Label.language", () => {
 	test("adds the region of MegaPlay's regional labels", () => {
 		expect(new Label("Portuguese (- Portuguese(Brazil))").language).toBe("pt-BR");
 		expect(new Label("Spanish (- Spanish(Latin America))").language).toBe("es-419");
+		expect(new Label("Spanish (- Espanol(Espana))").language).toBe("es-ES");
+		expect(new Label("Spanish (- Español(España))").language).toBe("es-ES");
 	});
 
 	test("keeps the plain language when the region is unknown", () => {

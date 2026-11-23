@@ -6,6 +6,11 @@ export class CueText {
 	/** Spaces at the start or end of a line, hard spaces included. */
 	static readonly #edgeSpace = /^[ \t ]+|[ \t ]+$/gmu;
 
+	/** Any markup tag, such as `<i>` or `</b>`. */
+	static readonly #markup = /<[^>]*>/gu;
+
+	static readonly #boldTag = /<\/?b>/gu;
+
 	readonly #text: string;
 
 	constructor(text: string) {
@@ -26,5 +31,50 @@ export class CueText {
 			.replaceAll("\\h", "\u00A0");
 
 		return unescaped.replaceAll(CueText.#edgeSpace, "").trim();
+	}
+
+	/** The text without markup, which is what a viewer reads. */
+	get plain() {
+		return this.#text.replaceAll(CueText.#markup, "");
+	}
+
+	/** The words of the text, lowercased, without markup or punctuation. */
+	get words() {
+		return this.plain.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+	}
+
+	/**
+	 * Whether the text is bold throughout. Tracks converted from Crunchyroll's
+	 * subtitles mark the translation of text shown on screen, such as signs,
+	 * titles, and skill names, this way, and dialogue never. Conversions leave
+	 * bold unclosed or nested at times, which still counts.
+	 */
+	get sign() {
+		const text = this.#text;
+
+		if (!text.startsWith("<b>")) {
+			return false;
+		}
+
+		let depth = 0;
+		let after = 0;
+
+		for (const tag of text.matchAll(CueText.#boldTag)) {
+			const textOutsideBold = depth === 0 && new CueText(text.slice(after, tag.index)).plain.trim();
+
+			if (textOutsideBold) {
+				return false;
+			}
+
+			if (tag[0] === "<b>") {
+				depth += 1;
+			} else {
+				depth = Math.max(0, depth - 1);
+			}
+
+			after = tag.index + tag[0].length;
+		}
+
+		return depth > 0 || !new CueText(text.slice(after)).plain.trim();
 	}
 }
