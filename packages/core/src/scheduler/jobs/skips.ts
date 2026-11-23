@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { catalog } from "../../catalog/queries/anime";
 import { UnknownEpisodeError, PlaybackUnavailableError, UnknownSeriesError } from "../../errors";
-import { locateSongs, listenToSong } from "../../playback/skips/detect";
+import { findSongs, listenToSong } from "../../playback/skips/detect";
 import type { ListenedSong } from "../../playback/skips/detect";
 import {
 	episodeDetectionKey,
@@ -133,7 +133,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 			return;
 		}
 
-		const { data: detection, error } = await attempt(locateSongs(video, heard));
+		const { data: detection, error } = await attempt(findSongs(video, heard));
 
 		if (error) {
 			helpers.logger.info(

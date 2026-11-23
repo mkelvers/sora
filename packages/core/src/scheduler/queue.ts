@@ -308,7 +308,7 @@ export const requestRefinement = async (payload: RefineSubtitlesPayload) => {
   `);
 };
 
-/** The graphile-worker task that finds where an episode's theme songs play; see `locateSongs`. */
+/** The graphile-worker task that finds where an episode's theme songs play; see `findSongs`. */
 export const detectSegmentsTask = "detect-skip-segments";
 
 /** The episode {@link detectSegmentsTask} looks at. */

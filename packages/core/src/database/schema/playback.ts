@@ -262,7 +262,7 @@ export const subtitleRefinement = pgTable("subtitle_refinement", {
 /**
  * Where an episode's theme songs play in one video, found by looking for the
  * anime's openings and endings in the video's own audio; see
- * `locateSongs`. Playback puts these in place of the provider's skip
+ * `findSongs`. Playback puts these in place of the provider's skip
  * segments.
  *
  * Kept as small as it can be: no audio or fingerprints are stored, only the
