@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { beforeNavigate, goto } from "$app/navigation";
+	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import Select from "$lib/components/ui/select.svelte";
 	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { episodes } from "$lib/utils";
 	import type { FranchisePart } from "@sora/sdk";
+	import { attempt } from "@sora/shared";
 	import {
 		CaretDownIcon,
 		CaretLeftIcon,
@@ -19,6 +21,7 @@
 	import Hero from "./components/hero.svelte";
 	import Related from "./components/related.svelte";
 	import { getEpisodes, getSimilar, getDetails, getTitleProgress, markAll } from "./series.remote";
+	import { failedPlayback } from "./series.svelte";
 
 	let { params }: PageProps = $props();
 
@@ -129,6 +132,34 @@
 			watched: !progress.finished,
 		});
 	};
+
+	const failure = $derived.by(() => {
+		if (failedPlayback.current?.seriesId !== params.id) {
+			return null;
+		}
+
+		return failedPlayback.current;
+	});
+
+	const retryAction = $derived.by(() => {
+		const retry = failure?.retry;
+
+		if (!retry) {
+			return;
+		}
+
+		return {
+			label: "Try again",
+			onclick: () => {
+				attempt(retry.refresh());
+				goto(retry.href);
+			},
+		};
+	});
+
+	beforeNavigate(() => {
+		failedPlayback.current = null;
+	});
 </script>
 
 <svelte:head>
@@ -138,6 +169,13 @@
 {#snippet markAction()}
 	Mark {subject} as {progress.finished ? "Unwatched" : "Watched"}
 {/snippet}
+
+<StatusBanner
+	message={failure?.message ?? ""}
+	tone="error"
+	action={retryAction}
+	ondismiss={() => (failedPlayback.current = null)}
+/>
 
 <div class="bg-canvas text-foreground">
 	<Hero {series} {progress} />

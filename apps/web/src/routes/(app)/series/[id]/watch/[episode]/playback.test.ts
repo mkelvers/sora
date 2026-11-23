@@ -72,7 +72,7 @@ class Fixture {
 	}
 
 	/** Queues a playback that fails with a problem. */
-	fail(status: number, code: string, headers?: HeadersInit) {
+	fail(status: number, code: string) {
 		this.#playback.push(() =>
 			Response.json(
 				{
@@ -80,7 +80,6 @@ class Fixture {
 					detail: "Internal provider details",
 				},
 				{
-					headers,
 					status,
 				},
 			),
@@ -176,7 +175,6 @@ test("keeps catalog episode links when the playback connection drops", async () 
 	expect(await resolveEpisode(sora, address)).toEqual({
 		next: 7,
 		previous: 2,
-		retryAt: null,
 		status: "temporary",
 	});
 });
@@ -190,22 +188,14 @@ test.each([
 		code: "UPSTREAM_UNAVAILABLE",
 		status: 503,
 	},
-])("keeps Retry-After when playback answers $status", async ({ code, status }) => {
-	const { sora } = new Fixture().fail(status, code, { "Retry-After": "30" });
-	const before = Date.now();
-	const playback = await resolveEpisode(sora, address);
+])("treats playback answering $status as temporary", async ({ code, status }) => {
+	const { sora } = new Fixture().fail(status, code);
 
-	expect(playback).toEqual({
+	expect(await resolveEpisode(sora, address)).toEqual({
 		next: 7,
 		previous: 2,
-		retryAt: expect.any(Number),
 		status: "temporary",
 	});
-
-	if ("retryAt" in playback) {
-		expect(playback.retryAt).toBeGreaterThanOrEqual(before + 30_000);
-		expect(playback.retryAt).toBeLessThanOrEqual(Date.now() + 30_000);
-	}
 });
 
 test("keeps provider failure retryable when the catalog also fails", async () => {
@@ -216,7 +206,6 @@ test("keeps provider failure retryable when the catalog also fails", async () =>
 	expect(await resolveEpisode(sora, address)).toEqual({
 		next: null,
 		previous: null,
-		retryAt: null,
 		status: "temporary",
 	});
 });

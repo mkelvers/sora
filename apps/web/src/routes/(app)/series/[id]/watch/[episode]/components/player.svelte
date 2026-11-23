@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { afterNavigate, goto } from "$app/navigation";
 	import Cue from "$lib/components/cue.svelte";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import { nextEpisodeAddress } from "$lib/series-navigation";
+	import { failedPlayback } from "$routes/(app)/series/[id]/series.svelte";
 	import {
 		getEpisode,
 		getPlayback,
@@ -21,7 +22,7 @@
 		Progress,
 		Series,
 	} from "@sora/sdk";
-	import { attempt, second } from "@sora/shared";
+	import { attempt } from "@sora/shared";
 	import { CaretLeftIcon, CircleNotchIcon } from "phosphor-svelte";
 	import { onDestroy, untrack } from "svelte";
 
@@ -153,85 +154,89 @@
 	const selected = $derived(chosen.media);
 	const subtitle = $derived(chosen.subtitle?.url);
 
-	const playbackMessage = $derived.by(() => {
-		if (selected) {
+	const subject = $derived.by(() => {
+		if (series.format === "MOVIE") {
+			return series.title;
+		}
+
+		return `Episode ${episode.number}`;
+	});
+
+	const playbackFailure = $derived.by(() => {
+		if (selected || playbackQuery?.loading) {
 			return;
 		}
 
 		if (playbackQuery?.error || playback?.status === "failed") {
-			return "Playback couldn’t be loaded.";
-		}
-
-		if (playback?.status === "unavailable") {
-			return "This episode is unavailable to watch.";
+			return {
+				message: `${subject} couldn’t be loaded.`,
+				retry: true,
+			};
 		}
 
 		if (playback?.status === "temporary") {
-			return "Playback is temporarily unavailable.";
-		}
-	});
-
-	const canRetry = $derived(!!playbackQuery?.error || playback?.status !== "unavailable");
-
-	const retryAt = $derived.by(() => {
-		if (!playbackQuery?.error && playback?.status === "temporary") {
-			return playback.retryAt;
+			return {
+				message: `${subject} is temporarily unavailable.`,
+				retry: true,
+			};
 		}
 
-		return null;
+		if (playback?.status === "unavailable") {
+			return {
+				message: `${subject} isn’t available to watch.`,
+				retry: false,
+			};
+		}
 	});
-
-	const retrying = $derived(!!playbackMessage && playbackQuery?.loading === true);
 
 	const loading = $derived.by(() => {
 		if (selected) {
 			return player.buffering;
 		}
 
-		return (playbackQuery?.loading ?? true) && !retrying;
+		return playbackQuery?.loading ?? true;
 	});
 
-	let now = $state(Date.now());
-	const retryDelayId = $props.id();
+	let cameFromSeries = false;
+	let sentBack = false;
 
-	const retryWait = $derived.by(() => {
-		if (retryAt === null) {
-			return 0;
-		}
-
-		return Math.max(0, Math.ceil((retryAt - now) / second));
+	afterNavigate(({ from }) => {
+		cameFromSeries = from?.url.pathname === back;
 	});
 
 	$effect(() => {
-		const deadline = retryAt;
-		now = Date.now();
-
-		if (deadline === null || deadline <= Date.now()) {
+		if (!playbackFailure || sentBack) {
 			return;
 		}
 
-		const interval = setInterval(() => {
-			const time = Date.now();
-			now = time;
+		sentBack = true;
 
-			if (time >= deadline) {
-				clearInterval(interval);
-			}
-		}, second);
+		const query = playbackQuery;
+		let retry;
 
-		return () => clearInterval(interval);
+		if (playbackFailure.retry && query) {
+			retry = {
+				href: `/series/${series.id}/watch/${episode.number}`,
+				refresh: () => query.refresh(),
+			};
+		}
+
+		failedPlayback.current = {
+			message: playbackFailure.message,
+			retry,
+			seriesId: series.id,
+		};
+
+		if (cameFromSeries) {
+			history.back();
+
+			return;
+		}
+
+		goto(back, {
+			replace: true,
+		});
 	});
-
-	const retryPlayback = async () => {
-		const busy =
-			!playbackQuery || playbackQuery.loading || (retryAt !== null && Date.now() < retryAt);
-
-		if (busy) {
-			return;
-		}
-
-		await attempt(playbackQuery.refresh());
-	};
 
 	const isAtTop = (cue: VTTCue) => {
 		if (cue.line === "auto") {
@@ -493,47 +498,11 @@
 		/>
 	{/if}
 
-	<div class="pointer-events-none z-1 mx-4 place-self-center text-center">
-		<p role="status" class={playbackMessage ? "text-lg font-semibold" : "sr-only"}>
-			{#if retrying}
-				Retrying playback…
-			{:else if playbackMessage}
-				{playbackMessage}
-			{:else if loading}
-				Loading playback…
-			{/if}
-		</p>
-		{#if playbackMessage}
-			{#if retryWait > 0}
-				<p id={retryDelayId} class="mt-2 text-sm text-foreground/80">
-					Try again in {retryWait}
-					{retryWait === 1 ? "second" : "seconds"}.
-				</p>
-			{/if}
-			{#if canRetry}
-				<Button
-					variant="primary"
-					class="pointer-events-auto mt-4"
-					aria-disabled={retrying || retryWait > 0}
-					aria-describedby={retryWait > 0 ? retryDelayId : undefined}
-					onclick={retryPlayback}
-				>
-					Retry playback
-				</Button>
-			{/if}
-			<nav aria-label="Episode navigation" class="mt-3 flex flex-wrap justify-center gap-x-4">
-				{#if previous}
-					<Button href={previous} variant="plain" class="pointer-events-auto">
-						Previous episode
-					</Button>
-				{/if}
-				<Button href={back} variant="plain" class="pointer-events-auto">Back to series</Button>
-				{#if next}
-					<Button href={next} variant="plain" class="pointer-events-auto">Next episode</Button>
-				{/if}
-			</nav>
+	<p role="status" class="sr-only">
+		{#if loading}
+			Loading playback…
 		{/if}
-	</div>
+	</p>
 
 	{#if segment}
 		<div
@@ -541,7 +510,7 @@
 		>
 			<Button
 				variant="primary"
-				class="pointer-events-auto bg-white text-black shadow-lg shadow-black/50 transition-[background-color] duration-150 hover:bg-white/80 hover:brightness-100 motion-reduce:transition-none"
+				class="pointer-events-auto border-white bg-white text-black shadow-lg shadow-black/50 transition-[background-color] duration-150 hover:bg-white/80 hover:brightness-100 motion-reduce:transition-none"
 				onclick={() => (player.time = segment.end)}
 			>
 				{#if segment.kind === "opening"}

@@ -103,7 +103,7 @@
 		<Button type="submit" variant="primary" class="max-sm:flex-1" loading={pending}>
 			Save Profile
 		</Button>
-		<Button href="/profiles{page.url.search}" variant="secondary" class="max-sm:flex-1">
+		<Button href="/profiles{page.url.search}" variant="primary" class="max-sm:flex-1">
 			Cancel
 		</Button>
 		{#if data.deletable}

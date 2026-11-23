@@ -9,12 +9,12 @@
 				{
 					class: "h-11 px-5 text-sm",
 					size: "md",
-					variant: ["primary", "secondary"],
+					variant: "primary",
 				},
 				{
 					class: "h-9 px-3 text-xs",
 					size: "sm",
-					variant: ["primary", "secondary"],
+					variant: "primary",
 				},
 				{
 					class: "h-9 px-0 text-sm",
@@ -45,13 +45,13 @@
 					class: "w-11",
 					size: "md",
 					square: true,
-					variant: ["primary", "secondary", "ghost", "icon"],
+					variant: ["primary", "ghost", "icon"],
 				},
 				{
 					class: "w-9",
 					size: "sm",
 					square: true,
-					variant: ["primary", "secondary", "ghost", "icon"],
+					variant: ["primary", "ghost", "icon"],
 				},
 				{
 					class: "size-11",
@@ -116,8 +116,6 @@
 					plain:
 						"font-medium text-foreground hover:text-accent-secondary aria-expanded:text-accent-secondary",
 					primary:
-						"bg-accent font-bold tracking-wide text-on-accent uppercase hover:brightness-110",
-					secondary:
 						"border-2 border-accent font-bold tracking-wide text-accent uppercase hover:brightness-120 disabled:border-border-strong/70 disabled:text-subtle disabled:opacity-100 aria-disabled:border-border-strong/70 aria-disabled:text-subtle aria-disabled:opacity-100",
 					text: "h-11 gap-2 font-bold text-foreground hover:text-accent-secondary aria-expanded:text-accent-secondary",
 					toolbar:

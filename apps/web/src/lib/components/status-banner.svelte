@@ -40,7 +40,7 @@
 {#if message}
 	<div
 		class={cn(
-			"fixed inset-x-0 top-0 z-100 grid min-h-10 place-items-center px-14 py-2 text-sm text-on-status",
+			"fixed inset-x-0 top-0 z-100 grid min-h-14 place-items-center px-16 py-3 text-base font-medium text-on-status",
 			tone === "error" ? "bg-danger" : "bg-success",
 		)}
 		out:fly={{
@@ -65,11 +65,11 @@
 		</p>
 		<Button
 			variant="icon"
-			class="absolute inset-y-0 right-0 h-auto w-12 text-current hover:bg-black/10 hover:text-current focus-visible:-outline-offset-2 focus-visible:outline-on-status"
+			class="absolute inset-y-0 right-0 h-auto w-14 text-current hover:bg-black/10 hover:text-current focus-visible:-outline-offset-2 focus-visible:outline-on-status"
 			aria-label="Dismiss"
 			onclick={ondismiss}
 		>
-			<XIcon size={18} aria-hidden="true" />
+			<XIcon size={22} weight="bold" aria-hidden="true" />
 		</Button>
 	</div>
 {/if}
