@@ -44,8 +44,8 @@ import { BrowsePage } from "./browse-page";
 import { Cards } from "./cards";
 import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
-	anilistEpisodeKey,
-	carriedByAniKoto,
+	anilistKey,
+	aniKotoCarries,
 	expectedRelease,
 	isAwaited,
 	loadCarried,
@@ -527,7 +527,7 @@ class Title {
 		const stillOf = new Map(stills.map((still) => [still.number, still.stillUrl]));
 
 		return episodes.map((episode) => {
-			const listing = listings.get(anilistEpisodeKey(row.anilistId, episode.number));
+			const listing = listings.get(anilistKey(row.anilistId, episode.number));
 
 			return {
 				air_date: episode.airDate,
@@ -665,7 +665,7 @@ export const assertSeriesExists = async (id: string) => {
 /**
  * The episodes before and after one, for moving through a title in order.
  *
- * Only the episodes the title lists count (see {@link isEpisodeAvailable}), so
+ * Only the episodes the title lists count (see {@link isAvailable}), so
  * `next` is never an episode AniKoto does not carry yet. Each is `null` at
  * either end: playing never runs on into another title, such as the next
  * season.
@@ -714,7 +714,7 @@ export const listedEpisodesOf = async (titles: readonly SeriesRow[]) => {
  * watched in and whether each is filler.
  *
  * AniKoto decides which episodes exist: an episode is listed once AniKoto
- * carries it, as {@link isEpisodeAvailable} lays out.
+ * carries it, as {@link isAvailable} lays out.
  *
  * Both come from providers' stored episode lists, so a listing reads only
  * the database. An anime no provider has been looked up for yet is queued
@@ -840,7 +840,7 @@ export const browseSeries = async (
 		let found: (typeof animeSearch.$inferSelect)[] = [];
 
 		if (search === undefined) {
-			found = await browseIndex(filters, page * perPage + 1, carriedByAniKoto);
+			found = await browseIndex(filters, page * perPage + 1, aniKotoCarries);
 		}
 
 		if (search !== undefined) {
@@ -954,7 +954,7 @@ export type ReleasesQuery = z.input<typeof ReleasesQuerySchema>;
  * The titles with an episode out in the last 30 days, each with its latest
  * episode that can be watched, the latest first.
  *
- * An episode counts once its title lists it (see {@link isEpisodeAvailable}),
+ * An episode counts once its title lists it (see {@link isAvailable}),
  * so an episode that has aired but that AniKoto does not carry yet is left
  * out until it does. `format` and `audio` apply to the title's AniList
  * entry. Reads only the database.

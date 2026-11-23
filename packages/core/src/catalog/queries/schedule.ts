@@ -3,7 +3,7 @@ import { hour, chunked, sequence } from "@sora/shared";
 import { anilist } from "../../anilist/client";
 import { EpisodeAiringsDocument } from "../../anilist/graphql.generated";
 import { zEpisodeAiringsQuery } from "../../anilist/validation.generated";
-import { anilistEpisodeKey } from "../../series/episodes";
+import { anilistKey } from "../../series/episodes";
 
 /** One AniList episode broadcast. */
 export interface AiringBroadcast {
@@ -24,7 +24,7 @@ export interface AiringBroadcast {
  * Entries AniList has no schedule for, as for most older anime, have no
  * episodes in the result.
  *
- * @returns Broadcast times keyed by {@link anilistEpisodeKey}.
+ * @returns Broadcast times keyed by {@link anilistKey}.
  * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 export const fetchEpisodeAirings = async (
@@ -51,10 +51,7 @@ export const fetchEpisodeAirings = async (
 
 		for (const entry of Page?.airingSchedules ?? []) {
 			if (entry) {
-				airings.set(
-					anilistEpisodeKey(entry.mediaId, entry.episode),
-					new Date(entry.airingAt * 1000),
-				);
+				airings.set(anilistKey(entry.mediaId, entry.episode), new Date(entry.airingAt * 1000));
 			}
 		}
 

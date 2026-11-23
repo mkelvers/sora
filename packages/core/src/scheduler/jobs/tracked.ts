@@ -27,7 +27,7 @@ export class Tracked {
 	 * Reads what AniKoto has of the anime from its stored mapping and episode
 	 * list, without asking AniKoto.
 	 *
-	 * Seasons list only the episodes AniKoto carries (see `isEpisodeAvailable`),
+	 * Seasons list only the episodes AniKoto carries (see `isAvailable`),
 	 * so its list alone says whether an aired episode is out. Other providers'
 	 * lists do not count: MegaPlay's are made up from AniList's episode count,
 	 * and list a whole season before it premieres.

@@ -12,7 +12,7 @@ import { titleEpisode } from "../../database/schema/series";
 import type { WatchlistStatus } from "../../models/library";
 import type { ImportConnection, LibraryExport, LibraryImportReport } from "../../models/transfer";
 import { scheduleSeriesStore } from "../../scheduler/queue";
-import { episodeReleasedAt } from "../../series/episodes";
+import { releaseTime } from "../../series/episodes";
 import { storedSeriesIds } from "../../series/store";
 import { Batches } from "./batches";
 import { fromMal } from "./sources";
@@ -190,7 +190,7 @@ export class Importer {
 							),
 							or(
 								and(isNull(titleEpisode.airedAt), isNull(titleEpisode.airDate)),
-								lte(episodeReleasedAt, now),
+								lte(releaseTime, now),
 							),
 						),
 					);

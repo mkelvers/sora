@@ -5,7 +5,7 @@ import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { InFlight } from "../../in-flight";
 import type { ContentLanguage } from "../../models/series";
 import { scheduleEpisodeLookups } from "../../scheduler/queue";
-import { anilistEpisodeKey } from "../../series/episodes";
+import { anilistKey } from "../../series/episodes";
 import type { LocatedEpisode } from "../../series/episodes";
 import type { StreamProvider } from "../providers/provider";
 import { servedLocale, streamProviders } from "../providers/registry";
@@ -313,7 +313,7 @@ export interface EpisodeListing {
  * none of the looked-up providers offers while others are not looked up yet:
  * it is unknown rather than unwatchable.
  *
- * @returns Listings keyed by {@link anilistEpisodeKey}, with `null` fields
+ * @returns Listings keyed by {@link anilistKey}, with `null` fields
  *   for an episode that is not known yet.
  */
 export const findEpisodeListings = async (
@@ -337,7 +337,7 @@ export const findEpisodeListings = async (
 		const listings = listed?.listings.filter(({ unit }) => unit.number === episode) ?? [];
 		const versions = offered(listings);
 		const isKnown = !!listed && !(versions.length === 0 && listed.pending);
-		const key = anilistEpisodeKey(anilistId, episode);
+		const key = anilistKey(anilistId, episode);
 
 		if (!isKnown) {
 			found.set(key, {

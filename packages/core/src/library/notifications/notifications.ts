@@ -13,7 +13,7 @@ import { episodeDub } from "../../database/schema/playback";
 import { series, titleEpisode } from "../../database/schema/series";
 import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
-import { episodeReleasedAt, releasedBetween } from "../../series/episodes";
+import { releaseTime, releasedBetween } from "../../series/episodes";
 import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
 import { preferences } from "../preferences/preferences";
 import { Continuity } from "./continuity";
@@ -208,7 +208,7 @@ export const notifications = {
 	 * {@link groupReleases}).
 	 *
 	 * Nothing is recorded as episodes come out: an episode counts from when it
-	 * aired (see {@link episodeReleasedAt}) and once its series lists it, so one
+	 * aired (see {@link releaseTime}) and once its series lists it, so one
 	 * AniKoto does not carry yet waits. A dub counts from when AniKoto was first
 	 * seen to carry it (see `episodeDub`). Saving or playing a series follows
 	 * its connected seasons without adding them to the watchlist:
@@ -338,7 +338,7 @@ export const notifications = {
 			db
 				.select({
 					...episodeColumns,
-					releasedAt: sql<Date>`${episodeReleasedAt}`.mapWith(titleEpisode.airedAt),
+					releasedAt: sql<Date>`${releaseTime}`.mapWith(titleEpisode.airedAt),
 				})
 				.from(titleEpisode)
 				.innerJoin(series, eq(series.id, titleEpisode.seriesId))

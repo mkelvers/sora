@@ -15,7 +15,7 @@ import { series, titleEpisode, tmdbMapping } from "../../database/schema/series"
 import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
-import { episodeReleasedAt } from "../../series/episodes";
+import { releaseTime } from "../../series/episodes";
 import { expireMapping } from "../../series/mapping";
 import { storedSeriesIds, storeSeries } from "../../series/store";
 import { editsWindowMs, getShow, withEdits } from "../../tmdb/resources";
@@ -168,7 +168,7 @@ export const discoverEntries: Task = async (_payload, helpers) => {
 	}
 };
 
-/** Whether AniKoto carries a stored episode, which a series lists it for (see `isEpisodeAvailable`). */
+/** Whether AniKoto carries a stored episode, which a series lists it for (see `isAvailable`). */
 const onAniKoto = sql`exists (
     select 1
     from ${providerEpisodes}, jsonb_array_elements(${providerEpisodes.units}) as unit
@@ -178,7 +178,7 @@ const onAniKoto = sql`exists (
   )`;
 
 /** Whether a stored episode aired within the time TMDB's change log of it is read for. */
-const airedLately = sql`${episodeReleasedAt} between now() - make_interval(secs => ${editsWindowMs / 1000}) and now()`;
+const airedLately = sql`${releaseTime} between now() - make_interval(secs => ${editsWindowMs / 1000}) and now()`;
 
 /** Whether a stored episode has no title, or only TMDB's "Episode N". */
 const isUnnamed = sql`(${titleEpisode.title} is null or ${titleEpisode.title} ~* '^episode [0-9]+$')`;
@@ -232,7 +232,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
       substring(${series.key} from '[0-9]+$')::int as show_id,
       ${titleEpisode.tmdbSeasonNumber} as season_number,
       ${titleEpisode.tmdbEpisodeNumber} as episode_number,
-      (extract(epoch from now() - ${episodeReleasedAt}) * 1000)::float8 as missing_for_ms
+      (extract(epoch from now() - ${releaseTime}) * 1000)::float8 as missing_for_ms
     from ${titleEpisode}
     inner join ${series} on ${series.id} = ${titleEpisode.seriesId}
     left join lateral (
@@ -419,9 +419,9 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
       ${series.key} as key,
       ${series.anilistId} as anilist_id,
       bool_or(${unlisted}) as is_unlisted,
-      (extract(epoch from now() - max(${episodeReleasedAt}) filter (where ${unlisted})) * 1000)::float8 as unlisted_for_ms,
+      (extract(epoch from now() - max(${releaseTime}) filter (where ${unlisted})) * 1000)::float8 as unlisted_for_ms,
       bool_or(${lacksDetails}) as lacks_details,
-      (extract(epoch from now() - max(${episodeReleasedAt}) filter (where ${lacksDetails})) * 1000)::float8 as lacking_for_ms,
+      (extract(epoch from now() - max(${releaseTime}) filter (where ${lacksDetails})) * 1000)::float8 as lacking_for_ms,
       (extract(epoch from now() - ${series.laidOutAt}) * 1000)::float8 as laid_out_for_ms
     from ${titleEpisode}
     inner join ${series} on ${series.id} = ${titleEpisode.seriesId}

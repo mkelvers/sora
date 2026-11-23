@@ -9,7 +9,7 @@ import { config } from "../../config";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series } from "../../database/schema/series";
-import { carriedByAniKoto } from "../../series/episodes";
+import { aniKotoCarries } from "../../series/episodes";
 import { parseInput } from "../payload";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
@@ -110,7 +110,7 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 						and(eq(animeSearch.season, season.season), eq(animeSearch.seasonYear, season.year)),
 					),
 				),
-				carriedByAniKoto,
+				aniKotoCarries,
 				notExists(db.select().from(series).where(eq(series.anilistId, animeSearch.anilistId))),
 				sql`not exists (select 1 from graphile_worker.jobs where jobs.key = 'series:' || ${animeSearch.anilistId})`,
 			),

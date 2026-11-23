@@ -13,7 +13,7 @@ import {
 	startTrackingAiring,
 } from "../scheduler/queue";
 import { measureBackdrop } from "./edges";
-import { anilistEpisodeKey, carriedByAniKoto } from "./episodes";
+import { anilistKey, aniKotoCarries } from "./episodes";
 import { layOut } from "./series";
 
 /** The Sora IDs of the stored series of the given AniList entries, by AniList ID. */
@@ -133,7 +133,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 
 			if (built.useAniListAirings) {
 				airedAt =
-					airings.get(anilistEpisodeKey(anilistId, episode.number)) ??
+					airings.get(anilistKey(anilistId, episode.number)) ??
 					airedBefore.get(episode.number) ??
 					null;
 			}
@@ -215,7 +215,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 				inArray(animeSearch.anilistId, [...new Set(relatedIds)]),
 				not(animeSearch.isAdult),
 				sql`${animeSearch.format} is distinct from 'MUSIC'`,
-				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), carriedByAniKoto),
+				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), aniKotoCarries),
 			),
 		);
 

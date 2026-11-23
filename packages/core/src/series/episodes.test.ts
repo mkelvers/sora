@@ -1,12 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	anilistEpisodeKey,
-	isEpisodeAvailable,
-	expectedRelease,
-	isAwaited,
-	isReleased,
-} from "./episodes";
+import { anilistKey, isAvailable, expectedRelease, isAwaited, isReleased } from "./episodes";
 
 const now = new Date("2026-09-27T16:00:00Z");
 
@@ -32,7 +26,7 @@ class AniKotoLookup {
 	readonly lookedUp = new Set([178_789]);
 
 	constructor(...episodes: number[]) {
-		this.carried = new Set(episodes.map((number) => anilistEpisodeKey(178_789, number)));
+		this.carried = new Set(episodes.map((number) => anilistKey(178_789, number)));
 	}
 }
 
@@ -71,12 +65,12 @@ describe("isReleased", () => {
 	});
 });
 
-describe("isEpisodeAvailable", () => {
+describe("isAvailable", () => {
 	test("is what AniKoto carries, whatever the dates say", () => {
-		expect(isEpisodeAvailable(title, episode, new AniKotoLookup(13, 14), now)).toBe(true);
-		expect(isEpisodeAvailable(title, episode, new AniKotoLookup(13), now)).toBe(false);
+		expect(isAvailable(title, episode, new AniKotoLookup(13, 14), now)).toBe(true);
+		expect(isAvailable(title, episode, new AniKotoLookup(13), now)).toBe(false);
 		expect(
-			isEpisodeAvailable(
+			isAvailable(
 				title,
 				{
 					...episode,
@@ -90,7 +84,7 @@ describe("isEpisodeAvailable", () => {
 
 	test("is an episode AniKoto carries that TMDB does not list yet", () => {
 		expect(
-			isEpisodeAvailable(
+			isAvailable(
 				title,
 				{
 					...episode,
@@ -103,10 +97,8 @@ describe("isEpisodeAvailable", () => {
 	});
 
 	test("goes by the release dates until AniKoto has been looked up", () => {
-		expect(isEpisodeAvailable(title, episode, notLookedUp, now)).toBe(true);
-		expect(isEpisodeAvailable(title, episode, notLookedUp, new Date("2026-09-27T14:00:00Z"))).toBe(
-			false,
-		);
+		expect(isAvailable(title, episode, notLookedUp, now)).toBe(true);
+		expect(isAvailable(title, episode, notLookedUp, new Date("2026-09-27T14:00:00Z"))).toBe(false);
 	});
 });
 

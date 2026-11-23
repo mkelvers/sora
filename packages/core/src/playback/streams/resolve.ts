@@ -10,7 +10,7 @@ import type { ProviderAttempt } from "../../errors";
 import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import { requestRefinement, requestSkipDetection } from "../../scheduler/queue";
-import { locateEpisode } from "../../series/episodes";
+import { locate } from "../../series/episodes";
 import { getProviderUnits } from "../episodes/episodes";
 import type { ProviderUnit } from "../episodes/episodes";
 import { watchable } from "../episodes/versions";
@@ -65,7 +65,7 @@ export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
 /** What resolving playback reads, asks, and signs with; tests pass their own. */
 export interface PlaybackDependencies {
 	providers: readonly StreamProvider[];
-	locateEpisode: typeof locateEpisode;
+	locateEpisode: typeof locate;
 	getAnime: typeof getAnime;
 	watchable: typeof watchable;
 	getProviderUnits: typeof getProviderUnits;
@@ -88,7 +88,7 @@ const live: PlaybackDependencies = {
 	getProviderUnits,
 	getRefinement,
 	getSkipDetections,
-	locateEpisode,
+	locateEpisode: locate,
 	providers: streamProviders,
 	readPlaylist,
 	recordSubtitleLanguages,

@@ -13,7 +13,7 @@ import type {
 	ProgressInput,
 	SeriesProgress,
 } from "../../models/library";
-import { locateEpisode } from "../../series/episodes";
+import { locate } from "../../series/episodes";
 import { assertSeriesExists, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
 import { clearSeries } from "../state";
 import { Played } from "./played";
@@ -222,7 +222,7 @@ export const progress = {
 	async markUnwatched(userId: string, address: EpisodeAddress) {
 		const viewer = new Viewer(userId);
 
-		await locateEpisode(address.seriesId, address.episode);
+		await locate(address.seriesId, address.episode);
 		await db
 			.delete(episodeProgress)
 			.where(
@@ -255,7 +255,7 @@ export const progress = {
 		const listed = await getSeriesEpisodes(seriesId);
 
 		if (episode !== undefined) {
-			await locateEpisode(seriesId, episode);
+			await locate(seriesId, episode);
 		}
 
 		const marked = listed.filter(
@@ -408,7 +408,7 @@ export const progress = {
 			});
 		}
 
-		await locateEpisode(address.seriesId, address.episode);
+		await locate(address.seriesId, address.episode);
 
 		// Opening an episode and leaving before it plays is not watching it.
 		if (parsed.data.position_seconds === 0 && !parsed.data.finished) {

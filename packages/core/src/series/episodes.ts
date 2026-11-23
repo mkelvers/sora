@@ -29,7 +29,7 @@ export interface LocatedEpisode {
  * @throws {UnknownSeriesError} when the ID does not identify a series.
  * @throws {UnknownEpisodeError} when the series has no such episode.
  */
-export const locateEpisode = async (id: string, number: number): Promise<LocatedEpisode> => {
+export const locate = async (id: string, number: number): Promise<LocatedEpisode> => {
 	const [row] = await db
 		.select({
 			anilistId: series.anilistId,
@@ -62,10 +62,10 @@ export const locateEpisode = async (id: string, number: number): Promise<Located
  * Whether AniKoto, which decides what can be watched, carries an index
  * entry: its catalogue names the entry, or the entry was matched to it.
  */
-export const carriedByAniKoto = sql`(exists (select 1 from ${anikotoSeries} where ${anikotoSeries.anilistId} = ${animeSearch.anilistId}) or exists (select 1 from ${providerMapping} where ${providerMapping.provider} = ${aniKoto.id} and ${providerMapping.providerMediaId} is not null and ${providerMapping.anilistId} = ${animeSearch.anilistId}))`;
+export const aniKotoCarries = sql`(exists (select 1 from ${anikotoSeries} where ${anikotoSeries.anilistId} = ${animeSearch.anilistId}) or exists (select 1 from ${providerMapping} where ${providerMapping.provider} = ${aniKoto.id} and ${providerMapping.providerMediaId} is not null and ${providerMapping.anilistId} = ${animeSearch.anilistId}))`;
 
 /** The key an AniList episode is filed under, such as in {@link AniKotoEpisodes}. */
-export const anilistEpisodeKey = (anilistId: number, episode: number) => `${anilistId}:${episode}`;
+export const anilistKey = (anilistId: number, episode: number) => `${anilistId}:${episode}`;
 
 /** What {@link isReleased} needs to know about a series. */
 export interface ReleaseSchedule {
@@ -73,7 +73,7 @@ export interface ReleaseSchedule {
 	nextEpisodeAiringAt: Date | null;
 }
 
-/** What {@link isEpisodeAvailable} needs to know about an episode. */
+/** What {@link isAvailable} needs to know about an episode. */
 export interface EpisodeListingRow {
 	number: number;
 	/** `YYYY-MM-DD`. */
@@ -87,13 +87,13 @@ export interface EpisodeListingRow {
  * air date when AniList has no airing time. See {@link releasedAtOf} for an
  * episode already loaded.
  */
-export const episodeReleasedAt = sql<Date>`coalesce(${titleEpisode.airedAt}, (${titleEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
+export const releaseTime = sql<Date>`coalesce(${titleEpisode.airedAt}, (${titleEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
 
 /**
  * Whether an episode came out from `since` to `until`, in a query.
  *
  * Narrows by `aired_at` and `air_date` first, which their indexes answer, and
- * then applies {@link episodeReleasedAt} exactly: asking for the latter alone
+ * then applies {@link releaseTime} exactly: asking for the latter alone
  * computes it for every episode stored.
  */
 export const releasedBetween = (since: Date, until: Date) =>
@@ -106,12 +106,12 @@ export const releasedBetween = (since: Date, until: Date) =>
 				lte(titleEpisode.airDate, until.toISOString().slice(0, 10)),
 			),
 		),
-		gte(episodeReleasedAt, since),
-		lte(episodeReleasedAt, until),
+		gte(releaseTime, since),
+		lte(releaseTime, until),
 	);
 
 /**
- * When an episode came out, as {@link episodeReleasedAt} says, or `null`
+ * When an episode came out, as {@link releaseTime} says, or `null`
  * when it has neither an airing time nor an air date.
  */
 export const releasedAtOf = (episode: Pick<EpisodeListingRow, "airDate" | "airedAt">) => {
@@ -149,7 +149,7 @@ export const isReleased = (
 
 /** The episodes AniKoto's stored lists carry; see {@link loadCarried}. */
 export interface AniKotoEpisodes {
-	/** Keyed by {@link anilistEpisodeKey}. */
+	/** Keyed by {@link anilistKey}. */
 	carried: ReadonlySet<string>;
 	/** The AniList entries AniKoto has been looked up for, whether it carries them or not. */
 	lookedUp: ReadonlySet<number>;
@@ -206,7 +206,7 @@ export const loadCarried = async (anilistIds: readonly number[]): Promise<AniKot
 				z
 					.array(z.number())
 					.parse(entry.numbers)
-					.map((number) => anilistEpisodeKey(entry.anilistId, number)),
+					.map((number) => anilistKey(entry.anilistId, number)),
 			),
 		),
 		lookedUp: new Set([...listed, ...unmatched].map((entry) => entry.anilistId)),
@@ -240,7 +240,7 @@ export const playableCount = async (anilistId: number): Promise<number | null> =
  * Until AniKoto has been looked up for the series' entry, the episode counts
  * as available once {@link isReleased} says it has been released.
  */
-export const isEpisodeAvailable = (
+export const isAvailable = (
 	title: ReleaseSchedule & {
 		anilistId: number;
 	},
@@ -249,7 +249,7 @@ export const isEpisodeAvailable = (
 	now = new Date(),
 ) => {
 	if (onAniKoto.lookedUp.has(title.anilistId)) {
-		return onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number));
+		return onAniKoto.carried.has(anilistKey(title.anilistId, episode.number));
 	}
 
 	return isReleased(title, episode, now);
@@ -257,7 +257,7 @@ export const isEpisodeAvailable = (
 
 /**
  * Whether an episode has aired but is still to come out: AniList says it
- * aired, the series does not list it yet (see {@link isEpisodeAvailable}), and
+ * aired, the series does not list it yet (see {@link isAvailable}), and
  * it is the one AniKoto gets next, being the first or following an episode
  * AniKoto carries.
  *
@@ -278,10 +278,9 @@ export const isAwaited = (
 	}
 
 	const isNext =
-		episode.number === 1 ||
-		onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number - 1));
+		episode.number === 1 || onAniKoto.carried.has(anilistKey(title.anilistId, episode.number - 1));
 
-	return episode.airedAt <= now && isNext && !isEpisodeAvailable(title, episode, onAniKoto, now);
+	return episode.airedAt <= now && isNext && !isAvailable(title, episode, onAniKoto, now);
 };
 
 /**

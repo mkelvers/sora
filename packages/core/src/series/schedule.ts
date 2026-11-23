@@ -6,7 +6,7 @@ import { animeScheduleRelease, animeScheduleShow } from "../database/schema/play
 import { series } from "../database/schema/series";
 import { InvalidInputError } from "../errors";
 import type { Calendar, ScheduledEpisode } from "../models/series";
-import { anilistEpisodeKey } from "./episodes";
+import { anilistKey } from "./episodes";
 import { toSeriesCards } from "./queries";
 import { storedSeriesIds } from "./store";
 import { TitleSlot } from "./title-slot";
@@ -98,7 +98,7 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 			airType = "dub";
 		}
 
-		const key = `${anilistEpisodeKey(release.anilistId, release.episode)}:${airType}`;
+		const key = `${anilistKey(release.anilistId, release.episode)}:${airType}`;
 		const fromSubStream = release.airType === "sub";
 
 		if (!chosen.get(key)?.fromSubStream) {

@@ -15,7 +15,7 @@ import {
 } from "../../playback/skips/store";
 import { themeSongsFor } from "../../playback/skips/themes";
 import { resolveVideos } from "../../playback/streams/resolve";
-import { locateEpisode } from "../../series/episodes";
+import { locate } from "../../series/episodes";
 import { parseInput } from "../payload";
 
 const unsettled = {
@@ -57,7 +57,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 	}
 
 	const located = await attempt(
-		locateEpisode(request.seriesId, request.episode),
+		locate(request.seriesId, request.episode),
 		UnknownEpisodeError,
 		UnknownSeriesError,
 	);
