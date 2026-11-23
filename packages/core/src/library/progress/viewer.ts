@@ -5,7 +5,7 @@ import { episodeProgress, seriesState } from "../../database/schema/library";
 import type { NextEpisode } from "../../models/library";
 import { getAdjacentEpisodes } from "../../series/queries";
 import { clearSeries } from "../state";
-import { followPlayback } from "../watchlist/watchlist";
+import { watchlist } from "../watchlist/watchlist";
 import type { EpisodeAddress } from "./progress";
 
 /** One user, as their progress and rewatches see them. */
@@ -66,7 +66,7 @@ export class Viewer {
 	async after(address: EpisodeAddress, finished: boolean) {
 		const userId = this.#userId;
 
-		await followPlayback(userId, address.seriesId, {
+		await watchlist.followPlayback(userId, address.seriesId, {
 			episode: address.episode,
 			finished,
 		});

@@ -6,7 +6,7 @@ import {
 	listProfiles,
 	updateProfile,
 } from "@sora/core/auth";
-import { getFeatured, preferences } from "@sora/core/library";
+import { preferences, featured } from "@sora/core/library";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
@@ -66,7 +66,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.getFeatured, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const titles = await getFeatured(profile.id);
+		const titles = await featured.list(profile.id);
 
 		return c.json(
 			{

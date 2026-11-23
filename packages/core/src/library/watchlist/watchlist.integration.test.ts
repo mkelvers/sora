@@ -7,12 +7,7 @@ import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
 import { series, titleEpisode } from "../../database/schema/series";
 import { getSeries, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
-import {
-	getWatchlist,
-	getWatchlistStatuses,
-	setWatchlistStatus,
-	followPlayback,
-} from "./watchlist";
+import { watchlist } from "./watchlist";
 
 describe("saved short titles", () => {
 	const profile = `watchlist-test-${crypto.randomUUID()}`;
@@ -89,7 +84,7 @@ describe("saved short titles", () => {
 		expect(cards.size).toBe(0);
 		expect(otherCards.size).toBe(0);
 
-		const [entry] = await getWatchlist(profile);
+		const [entry] = await watchlist.list(profile);
 
 		if (!entry) {
 			throw new Error("Saved short title missing from watchlist");
@@ -105,9 +100,9 @@ describe("saved short titles", () => {
 		expect(details.seasons.some((season) => season.series_id === id)).toBe(true);
 		expect(await getSeriesEpisodes(id)).toEqual([]);
 
-		await setWatchlistStatus(profile, id, "completed");
-		expect(await getWatchlist(profile)).toEqual([entry]);
-		expect(await getWatchlistStatuses(profile)).toEqual([
+		await watchlist.set(profile, id, "completed");
+		expect(await watchlist.list(profile)).toEqual([entry]);
+		expect(await watchlist.statuses(profile)).toEqual([
 			{
 				series_id: id,
 				status: "completed",
@@ -120,12 +115,12 @@ describe("saved short titles", () => {
 			number: 24,
 			seriesId: id,
 		});
-		await setWatchlistStatus(profile, id, "watching");
-		await followPlayback(profile, id, {
+		await watchlist.set(profile, id, "watching");
+		await watchlist.followPlayback(profile, id, {
 			episode: 24,
 			finished: true,
 		});
-		const [completed] = await getWatchlist(profile);
+		const [completed] = await watchlist.list(profile);
 		expect(completed?.status).toBe("completed");
 	});
 
@@ -134,12 +129,12 @@ describe("saved short titles", () => {
 			number: 23,
 			seriesId: id,
 		});
-		await setWatchlistStatus(profile, id, "watching");
-		await followPlayback(profile, id, {
+		await watchlist.set(profile, id, "watching");
+		await watchlist.followPlayback(profile, id, {
 			episode: 24,
 			finished: true,
 		});
-		const [entry] = await getWatchlist(profile);
+		const [entry] = await watchlist.list(profile);
 		expect(entry?.status).toBe("watching");
 	});
 });

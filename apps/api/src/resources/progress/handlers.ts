@@ -4,13 +4,13 @@ import {
 	dismissContinueWatching,
 	getContinueWatching,
 	getProgress,
-	getRecommendations,
 	getSeriesProgress,
 	markUnwatched,
 	markWatched,
 	removeProgress,
 	saveProgress,
 	startRewatch,
+	recommendations,
 } from "@sora/core/library";
 
 import { onInvalidRequest } from "../../errors";
@@ -135,7 +135,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.listRecommendations, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const rows = await getRecommendations(profile.id);
+		const rows = await recommendations.list(profile.id);
 
 		return c.json(
 			{

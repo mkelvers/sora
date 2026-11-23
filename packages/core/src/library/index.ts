@@ -6,14 +6,9 @@
  * Every function takes an opaque `userId` from the caller's identity layer.
  * The core trusts it, so callers must authenticate before calling.
  */
-export { getFeatured } from "./featured/featured";
+export { featured } from "./featured/featured";
 
-export {
-	dismissNotification,
-	getNotifications,
-	markNotificationsRead,
-	type Notifications,
-} from "./notifications/notifications";
+export { type Notifications, notifications } from "./notifications/notifications";
 
 export { authorizationUrl, importOptions } from "./transfer/oauth";
 
@@ -40,15 +35,10 @@ export {
 	type EpisodeAddress,
 } from "./progress/progress";
 
-export { getRating, removeRating, setRating } from "./ratings/ratings";
+export { ratings } from "./ratings/ratings";
 
-export { getRecommendations } from "./recommendations/recommendations";
+export { recommendations } from "./recommendations/recommendations";
 
-export {
-	getWatchlist,
-	getWatchlistStatuses,
-	removeFromWatchlist,
-	setWatchlistStatus,
-} from "./watchlist/watchlist";
+export { watchlist } from "./watchlist/watchlist";
 
 export { getNowWatching } from "./progress/now-watching";

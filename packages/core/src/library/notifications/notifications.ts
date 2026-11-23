@@ -172,343 +172,350 @@ export const announcements = (
 		];
 	});
 
-/**
- * Lists what came out in the last 30 days for a profile's saved or played
- * series and their connected seasons,
- * newest first: one notification per series per moment (see
- * {@link groupReleases}).
- *
- * Nothing is recorded as episodes come out: an episode counts from when it
- * aired (see {@link episodeReleasedAt}) and once its series lists it, so one
- * AniKoto does not carry yet waits. A dub counts from when AniKoto was first
- * seen to carry it (see `episodeDub`). Saving or playing a series follows
- * its connected seasons without adding them to the watchlist:
- *
- * - A saved or played series notifies of episodes and dubs released after
- *   the earliest watchlist or recorded playback time in its connected seasons.
- * - Sequels and prequels notify of all releases, not only their premieres.
- * - A sequel or prequel that has not started and is not on the watchlist
- *   notifies that it was announced, counted from when it was first stored
- *   (see {@link announcements}). AniList adds an entry once a
- *   season is announced, and the daily discovery stores it. The notification
- *   goes once the season starts, when its premiere takes over.
- * - A dropped series neither starts following nor receives notifications,
- *   even if it has playback progress. Other connected seasons can still be followed.
- * - A notification goes once the profile plays one of its episodes or
- *   deletes it, and is `unread` until the profile marks it read.
- *
- * Reads only the database.
- */
-export const getNotifications = async (
-	userId: string,
-	options: {
-		/** Defaults to 30. */
-		limit?: number;
-	} = {},
-	now = new Date(),
-): Promise<Notifications> => {
-	const nothing = {
-		items: [],
-		unread: 0,
-	};
-
-	const since = new Date(now.getTime() - lifetimeMs);
-
-	const [states, watched] = await Promise.all([
-		db
-			.select({
-				addedAt: seriesState.addedAt,
-				anilistId: series.anilistId,
-				status: seriesState.status,
-			})
-			.from(seriesState)
-			.innerJoin(series, eq(series.id, seriesState.seriesId))
-			.where(
-				and(eq(seriesState.userId, userId), isNotNull(seriesState.status), catalogSeriesAllowed),
-			),
-		db
-			.select({
-				anilistId: series.anilistId,
-				watchedAt: sql<Date>`min(${episodeProgress.watchedAt})`.mapWith(episodeProgress.watchedAt),
-			})
-			.from(episodeProgress)
-			.innerJoin(series, eq(series.id, episodeProgress.seriesId))
-			.where(and(eq(episodeProgress.userId, userId), catalogSeriesAllowed))
-			.groupBy(series.anilistId),
-	]);
-
-	const excluded = new Set(
-		states.filter((state) => state.status === "dropped").map((state) => state.anilistId),
-	);
-
-	const followed = new Map(
-		states.flatMap((state) => {
-			if (state.status !== "dropped" && state.addedAt) {
-				return [[state.anilistId, state.addedAt] as const];
-			}
-
-			return [];
-		}),
-	);
-
-	for (const entry of watched) {
-		const savedAt = followed.get(entry.anilistId);
-
-		const firstWatch = !excluded.has(entry.anilistId) && (!savedAt || entry.watchedAt < savedAt);
-
-		if (firstWatch) {
-			followed.set(entry.anilistId, entry.watchedAt);
-		}
-	}
-
-	if (followed.size === 0) {
-		return nothing;
-	}
-
-	const following = await new Continuity(followed, excluded).series();
-
-	const rows = await db
-		.select()
-		.from(series)
-		.where(and(inArray(series.anilistId, [...following.keys()]), catalogSeriesAllowed));
-
-	const seriesIds = rows.map((row) => row.id);
-	const cutoffs = new Map(rows.map((row) => [row.id, defined(following.get(row.anilistId))]));
-	const saved = new Set(states.map((state) => state.anilistId));
-
-	const announced = rows.flatMap((row): AnnouncedSeries[] => {
-		const isAnnounced =
-			row.status === "NOT_YET_RELEASED" &&
-			!saved.has(row.anilistId) &&
-			row.createdAt > defined(cutoffs.get(row.id)) &&
-			row.createdAt > since &&
-			row.createdAt <= now;
-
-		if (!isAnnounced) {
-			return [];
-		}
-
-		return [
-			{
-				seriesId: row.id,
-				storedAt: row.createdAt,
-			},
-		];
-	});
-
-	const episodeColumns = {
-		number: titleEpisode.number,
-		seriesId: titleEpisode.seriesId,
-		stillUrl: effectiveStill,
-		title: titleEpisode.title,
-	};
-
-	const [aired, dubs, played, dismissals, reads] = await Promise.all([
-		db
-			.select({
-				...episodeColumns,
-				releasedAt: sql<Date>`${episodeReleasedAt}`.mapWith(titleEpisode.airedAt),
-			})
-			.from(titleEpisode)
-			.innerJoin(series, eq(series.id, titleEpisode.seriesId))
-			.where(and(inArray(titleEpisode.seriesId, seriesIds), releasedBetween(since, now))),
-		db
-			.select({
-				...episodeColumns,
-				releasedAt: sql<Date>`${episodeDub.releasedAt}`.mapWith(titleEpisode.airedAt),
-			})
-			.from(titleEpisode)
-			.innerJoin(series, eq(series.id, titleEpisode.seriesId))
-			.innerJoin(
-				episodeDub,
-				and(
-					eq(episodeDub.anilistId, series.anilistId),
-					eq(episodeDub.episode, titleEpisode.number),
-				),
-			)
-			.where(
-				and(
-					inArray(titleEpisode.seriesId, seriesIds),
-					isNotNull(episodeDub.releasedAt),
-					gt(episodeDub.releasedAt, since),
-					lte(episodeDub.releasedAt, now),
-				),
-			),
-		db
-			.select({
-				episode: episodeProgress.episode,
-				seriesId: episodeProgress.seriesId,
-			})
-			.from(episodeProgress)
-			.where(and(eq(episodeProgress.userId, userId), inArray(episodeProgress.seriesId, seriesIds))),
-		db
-			.select({
-				notificationId: notificationDismissal.notificationId,
-			})
-			.from(notificationDismissal)
-			.where(eq(notificationDismissal.userId, userId)),
-		db
-			.select({
-				notificationId: notificationRead.notificationId,
-			})
-			.from(notificationRead)
-			.where(eq(notificationRead.userId, userId)),
-	]);
-
-	const releases = [
-		...aired.map((row) => ({
-			...row,
-			dubbed: false,
-		})),
-		...dubs.map((row) => ({
-			...row,
-			dubbed: true,
-		})),
-	].filter((row) => row.releasedAt > defined(cutoffs.get(row.seriesId)));
-
-	if (releases.length === 0 && announced.length === 0) {
-		return nothing;
-	}
-
-	// Check availability only for titles with recent news. A large library can
-	// otherwise load tens of thousands of old episodes for an unread badge.
-	const releasedIds = new Set(releases.map((row) => row.seriesId));
-	const listed = await listedEpisodeDatesOf(rows.filter((row) => releasedIds.has(row.id)));
-	const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
-
-	const episodes = releases
-		.values()
-		.filter((row) => listed.get(row.seriesId)?.some((episode) => episode.number === row.number))
-		.map((row) => ({
-			...row,
-			watched: playedKeys.has(`${row.seriesId}:${row.number}`),
-		}))
-		.toArray();
-
-	const { hide_spoilers: hideSpoilers, notifications: wanted } = await preferences.profile(userId);
-
-	const kinds: Record<NotificationGroup["kind"], boolean> = {
-		announced: wanted.premieres,
-		dub: wanted.dubs,
-		episodes: wanted.episodes,
-		premiere: wanted.premieres,
-	};
-
-	const dismissed = new Set(dismissals.map((row) => row.notificationId));
-	const read = new Set(reads.map((row) => row.notificationId));
-
-	const all = [
-		...groupReleases(episodes, dismissed, read),
-		...announcements(announced, dismissed, read),
-	]
-		.toSorted(
-			(left, right) =>
-				right.released_at.localeCompare(left.released_at) || right.id.localeCompare(left.id),
-		)
-		.values()
-		.filter((group) => kinds[group.kind])
-		.map((group) => {
-			if (hideSpoilers) {
-				return {
-					...group,
-					episode_title: null,
-				};
-			}
-
-			return group;
-		})
-		.toArray();
-
-	const groups = all.slice(0, options.limit ?? 30);
-	const shownIds = new Set(groups.map((group) => group.seriesId));
-	const shownRows = rows.filter((row) => shownIds.has(row.id));
-	const startDates = new Map(shownRows.map((row) => [row.id, row.startDate]));
-	const cards = await toSeriesCards(shownRows);
-
-	return {
-		items: groups.flatMap(({ seriesId, ...group }): Notification[] => {
-			const card = cards.get(seriesId);
-
-			if (card) {
-				return [
-					{
-						...group,
-						message: new Message(group, {
-							movie: card.format === "MOVIE",
-							startDate: startDates.get(seriesId) ?? null,
-						}).text,
-						series: card,
-					},
-				];
-			}
-
-			return [];
-		}),
-		unread: all.filter((group) => group.unread).length,
-	};
-};
-
-/**
- * Marks some of a profile's notifications read. One that is not listed, or
- * already read, changes nothing.
- *
- * Pass the IDs the profile was shown rather than marking everything, so a
- * notification that came out meanwhile stays unread.
- *
- * @param ids - Each a `Notification.id`.
- */
-export const markNotificationsRead = async (userId: string, ids: readonly string[]) => {
-	if (ids.length === 0) {
-		return;
-	}
-
-	const now = new Date();
-	await db.transaction(async (tx) => {
-		await tx
-			.delete(notificationRead)
-			.where(
-				and(
-					eq(notificationRead.userId, userId),
-					lt(notificationRead.readAt, new Date(now.getTime() - lifetimeMs)),
-				),
-			);
-		await tx
-			.insert(notificationRead)
-			.values(
-				ids.map((id) => ({
+export const notifications = {
+	/**
+	 * Deletes one of a profile's notifications, so it is never listed again.
+	 * Deleting one that is not listed, or already deleted, changes nothing.
+	 *
+	 * @param id - A `Notification.id`.
+	 */
+	async dismiss(userId: string, id: string) {
+		const now = new Date();
+		await db.transaction(async (tx) => {
+			await tx
+				.delete(notificationDismissal)
+				.where(
+					and(
+						eq(notificationDismissal.userId, userId),
+						lt(notificationDismissal.dismissedAt, new Date(now.getTime() - lifetimeMs)),
+					),
+				);
+			await tx
+				.insert(notificationDismissal)
+				.values({
+					dismissedAt: now,
 					notificationId: id,
-					readAt: now,
 					userId,
-				})),
-			)
-			.onConflictDoNothing();
-	});
-};
+				})
+				.onConflictDoNothing();
+		});
+	},
 
-/**
- * Deletes one of a profile's notifications, so it is never listed again.
- * Deleting one that is not listed, or already deleted, changes nothing.
- *
- * @param id - A `Notification.id`.
- */
-export const dismissNotification = async (userId: string, id: string) => {
-	const now = new Date();
-	await db.transaction(async (tx) => {
-		await tx
-			.delete(notificationDismissal)
-			.where(
-				and(
-					eq(notificationDismissal.userId, userId),
-					lt(notificationDismissal.dismissedAt, new Date(now.getTime() - lifetimeMs)),
+	/**
+	 * Lists what came out in the last 30 days for a profile's saved or played
+	 * series and their connected seasons,
+	 * newest first: one notification per series per moment (see
+	 * {@link groupReleases}).
+	 *
+	 * Nothing is recorded as episodes come out: an episode counts from when it
+	 * aired (see {@link episodeReleasedAt}) and once its series lists it, so one
+	 * AniKoto does not carry yet waits. A dub counts from when AniKoto was first
+	 * seen to carry it (see `episodeDub`). Saving or playing a series follows
+	 * its connected seasons without adding them to the watchlist:
+	 *
+	 * - A saved or played series notifies of episodes and dubs released after
+	 *   the earliest watchlist or recorded playback time in its connected seasons.
+	 * - Sequels and prequels notify of all releases, not only their premieres.
+	 * - A sequel or prequel that has not started and is not on the watchlist
+	 *   notifies that it was announced, counted from when it was first stored
+	 *   (see {@link announcements}). AniList adds an entry once a
+	 *   season is announced, and the daily discovery stores it. The notification
+	 *   goes once the season starts, when its premiere takes over.
+	 * - A dropped series neither starts following nor receives notifications,
+	 *   even if it has playback progress. Other connected seasons can still be followed.
+	 * - A notification goes once the profile plays one of its episodes or
+	 *   deletes it, and is `unread` until the profile marks it read.
+	 *
+	 * Reads only the database.
+	 */
+	async list(
+		userId: string,
+		options: {
+			/** Defaults to 30. */
+			limit?: number;
+		} = {},
+		now = new Date(),
+	): Promise<Notifications> {
+		const nothing = {
+			items: [],
+			unread: 0,
+		};
+
+		const since = new Date(now.getTime() - lifetimeMs);
+
+		const [states, watched] = await Promise.all([
+			db
+				.select({
+					addedAt: seriesState.addedAt,
+					anilistId: series.anilistId,
+					status: seriesState.status,
+				})
+				.from(seriesState)
+				.innerJoin(series, eq(series.id, seriesState.seriesId))
+				.where(
+					and(eq(seriesState.userId, userId), isNotNull(seriesState.status), catalogSeriesAllowed),
 				),
-			);
-		await tx
-			.insert(notificationDismissal)
-			.values({
-				dismissedAt: now,
-				notificationId: id,
-				userId,
+			db
+				.select({
+					anilistId: series.anilistId,
+					watchedAt: sql<Date>`min(${episodeProgress.watchedAt})`.mapWith(
+						episodeProgress.watchedAt,
+					),
+				})
+				.from(episodeProgress)
+				.innerJoin(series, eq(series.id, episodeProgress.seriesId))
+				.where(and(eq(episodeProgress.userId, userId), catalogSeriesAllowed))
+				.groupBy(series.anilistId),
+		]);
+
+		const excluded = new Set(
+			states.filter((state) => state.status === "dropped").map((state) => state.anilistId),
+		);
+
+		const followed = new Map(
+			states.flatMap((state) => {
+				if (state.status !== "dropped" && state.addedAt) {
+					return [[state.anilistId, state.addedAt] as const];
+				}
+
+				return [];
+			}),
+		);
+
+		for (const entry of watched) {
+			const savedAt = followed.get(entry.anilistId);
+
+			const firstWatch = !excluded.has(entry.anilistId) && (!savedAt || entry.watchedAt < savedAt);
+
+			if (firstWatch) {
+				followed.set(entry.anilistId, entry.watchedAt);
+			}
+		}
+
+		if (followed.size === 0) {
+			return nothing;
+		}
+
+		const following = await new Continuity(followed, excluded).series();
+
+		const rows = await db
+			.select()
+			.from(series)
+			.where(and(inArray(series.anilistId, [...following.keys()]), catalogSeriesAllowed));
+
+		const seriesIds = rows.map((row) => row.id);
+		const cutoffs = new Map(rows.map((row) => [row.id, defined(following.get(row.anilistId))]));
+		const saved = new Set(states.map((state) => state.anilistId));
+
+		const announced = rows.flatMap((row): AnnouncedSeries[] => {
+			const isAnnounced =
+				row.status === "NOT_YET_RELEASED" &&
+				!saved.has(row.anilistId) &&
+				row.createdAt > defined(cutoffs.get(row.id)) &&
+				row.createdAt > since &&
+				row.createdAt <= now;
+
+			if (!isAnnounced) {
+				return [];
+			}
+
+			return [
+				{
+					seriesId: row.id,
+					storedAt: row.createdAt,
+				},
+			];
+		});
+
+		const episodeColumns = {
+			number: titleEpisode.number,
+			seriesId: titleEpisode.seriesId,
+			stillUrl: effectiveStill,
+			title: titleEpisode.title,
+		};
+
+		const [aired, dubs, played, dismissals, reads] = await Promise.all([
+			db
+				.select({
+					...episodeColumns,
+					releasedAt: sql<Date>`${episodeReleasedAt}`.mapWith(titleEpisode.airedAt),
+				})
+				.from(titleEpisode)
+				.innerJoin(series, eq(series.id, titleEpisode.seriesId))
+				.where(and(inArray(titleEpisode.seriesId, seriesIds), releasedBetween(since, now))),
+			db
+				.select({
+					...episodeColumns,
+					releasedAt: sql<Date>`${episodeDub.releasedAt}`.mapWith(titleEpisode.airedAt),
+				})
+				.from(titleEpisode)
+				.innerJoin(series, eq(series.id, titleEpisode.seriesId))
+				.innerJoin(
+					episodeDub,
+					and(
+						eq(episodeDub.anilistId, series.anilistId),
+						eq(episodeDub.episode, titleEpisode.number),
+					),
+				)
+				.where(
+					and(
+						inArray(titleEpisode.seriesId, seriesIds),
+						isNotNull(episodeDub.releasedAt),
+						gt(episodeDub.releasedAt, since),
+						lte(episodeDub.releasedAt, now),
+					),
+				),
+			db
+				.select({
+					episode: episodeProgress.episode,
+					seriesId: episodeProgress.seriesId,
+				})
+				.from(episodeProgress)
+				.where(
+					and(eq(episodeProgress.userId, userId), inArray(episodeProgress.seriesId, seriesIds)),
+				),
+			db
+				.select({
+					notificationId: notificationDismissal.notificationId,
+				})
+				.from(notificationDismissal)
+				.where(eq(notificationDismissal.userId, userId)),
+			db
+				.select({
+					notificationId: notificationRead.notificationId,
+				})
+				.from(notificationRead)
+				.where(eq(notificationRead.userId, userId)),
+		]);
+
+		const releases = [
+			...aired.map((row) => ({
+				...row,
+				dubbed: false,
+			})),
+			...dubs.map((row) => ({
+				...row,
+				dubbed: true,
+			})),
+		].filter((row) => row.releasedAt > defined(cutoffs.get(row.seriesId)));
+
+		if (releases.length === 0 && announced.length === 0) {
+			return nothing;
+		}
+
+		// Check availability only for titles with recent news. A large library can
+		// otherwise load tens of thousands of old episodes for an unread badge.
+		const releasedIds = new Set(releases.map((row) => row.seriesId));
+		const listed = await listedEpisodeDatesOf(rows.filter((row) => releasedIds.has(row.id)));
+		const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
+
+		const episodes = releases
+			.values()
+			.filter((row) => listed.get(row.seriesId)?.some((episode) => episode.number === row.number))
+			.map((row) => ({
+				...row,
+				watched: playedKeys.has(`${row.seriesId}:${row.number}`),
+			}))
+			.toArray();
+
+		const { hide_spoilers: hideSpoilers, notifications: wanted } =
+			await preferences.profile(userId);
+
+		const kinds: Record<NotificationGroup["kind"], boolean> = {
+			announced: wanted.premieres,
+			dub: wanted.dubs,
+			episodes: wanted.episodes,
+			premiere: wanted.premieres,
+		};
+
+		const dismissed = new Set(dismissals.map((row) => row.notificationId));
+		const read = new Set(reads.map((row) => row.notificationId));
+
+		const all = [
+			...groupReleases(episodes, dismissed, read),
+			...announcements(announced, dismissed, read),
+		]
+			.toSorted(
+				(left, right) =>
+					right.released_at.localeCompare(left.released_at) || right.id.localeCompare(left.id),
+			)
+			.values()
+			.filter((group) => kinds[group.kind])
+			.map((group) => {
+				if (hideSpoilers) {
+					return {
+						...group,
+						episode_title: null,
+					};
+				}
+
+				return group;
 			})
-			.onConflictDoNothing();
-	});
+			.toArray();
+
+		const groups = all.slice(0, options.limit ?? 30);
+		const shownIds = new Set(groups.map((group) => group.seriesId));
+		const shownRows = rows.filter((row) => shownIds.has(row.id));
+		const startDates = new Map(shownRows.map((row) => [row.id, row.startDate]));
+		const cards = await toSeriesCards(shownRows);
+
+		return {
+			items: groups.flatMap(({ seriesId, ...group }): Notification[] => {
+				const card = cards.get(seriesId);
+
+				if (card) {
+					return [
+						{
+							...group,
+							message: new Message(group, {
+								movie: card.format === "MOVIE",
+								startDate: startDates.get(seriesId) ?? null,
+							}).text,
+							series: card,
+						},
+					];
+				}
+
+				return [];
+			}),
+			unread: all.filter((group) => group.unread).length,
+		};
+	},
+
+	/**
+	 * Marks some of a profile's notifications read. One that is not listed, or
+	 * already read, changes nothing.
+	 *
+	 * Pass the IDs the profile was shown rather than marking everything, so a
+	 * notification that came out meanwhile stays unread.
+	 *
+	 * @param ids - Each a `Notification.id`.
+	 */
+	async markRead(userId: string, ids: readonly string[]) {
+		if (ids.length === 0) {
+			return;
+		}
+
+		const now = new Date();
+		await db.transaction(async (tx) => {
+			await tx
+				.delete(notificationRead)
+				.where(
+					and(
+						eq(notificationRead.userId, userId),
+						lt(notificationRead.readAt, new Date(now.getTime() - lifetimeMs)),
+					),
+				);
+			await tx
+				.insert(notificationRead)
+				.values(
+					ids.map((id) => ({
+						notificationId: id,
+						readAt: now,
+						userId,
+					})),
+				)
+				.onConflictDoNothing();
+		});
+	},
 };

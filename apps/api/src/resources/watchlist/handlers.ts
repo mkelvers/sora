@@ -1,14 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { getProfile } from "@sora/core/auth";
-import {
-	getRating,
-	getWatchlist,
-	getWatchlistStatuses,
-	removeFromWatchlist,
-	removeRating,
-	setRating,
-	setWatchlistStatus,
-} from "@sora/core/library";
+import { ratings, watchlist } from "@sora/core/library";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
@@ -20,7 +12,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 })
 	.openapi(contract.listWatchlist, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const entries = await getWatchlist(profile.id);
+		const entries = await watchlist.list(profile.id);
 
 		return c.json(
 			{
@@ -35,7 +27,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.listWatchlistStatuses, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const entries = await getWatchlistStatuses(profile.id);
+		const entries = await watchlist.statuses(profile.id);
 
 		return c.json(
 			{
@@ -55,7 +47,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 		return c.json(
 			{
 				meta: {},
-				results: await getRating(profile.id, series_id),
+				results: await ratings.get(profile.id, series_id),
 			},
 			200,
 		);
@@ -64,7 +56,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	.openapi(contract.setRating, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await setRating(profile.id, series_id, c.req.valid("json").rating);
+		await ratings.set(profile.id, series_id, c.req.valid("json").rating);
 
 		return c.body(null, 204);
 	})
@@ -72,7 +64,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	.openapi(contract.removeRating, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await removeRating(profile.id, series_id);
+		await ratings.remove(profile.id, series_id);
 
 		return c.body(null, 204);
 	})
@@ -80,7 +72,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	.openapi(contract.setWatchlistStatus, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await setWatchlistStatus(profile.id, series_id, c.req.valid("json").status);
+		await watchlist.set(profile.id, series_id, c.req.valid("json").status);
 
 		return c.body(null, 204);
 	})
@@ -88,7 +80,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	.openapi(contract.removeFromWatchlist, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await removeFromWatchlist(profile.id, series_id);
+		await watchlist.remove(profile.id, series_id);
 
 		return c.body(null, 204);
 	});
