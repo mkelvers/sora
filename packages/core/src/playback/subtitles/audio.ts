@@ -1,4 +1,4 @@
-import { attempt, second, defined, inSequence } from "@sora/shared";
+import { attempt, second, defined, sequence } from "@sora/shared";
 
 import { unwrapDisguised } from "../proxy/segment";
 import { readTarget, mirrorsFor } from "../proxy/upstream";
@@ -159,7 +159,7 @@ export const extract = async (
 			return promise;
 		};
 
-		await inSequence([...segments.keys()], async (index) => {
+		await sequence.all([...segments.keys()], async (index) => {
 			for (let ahead = index; ahead < Math.min(segments.length, index + concurrency); ahead += 1) {
 				// A failed fetch ahead is awaited, and so reported, when its turn comes.
 				attempt(fetchSegment(ahead));

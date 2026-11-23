@@ -1,4 +1,4 @@
-import { attempt, day, hour, minute, inSequence } from "@sora/shared";
+import { attempt, day, hour, minute, sequence } from "@sora/shared";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
@@ -150,7 +150,7 @@ export const discoverEntries: Task = async (_payload, helpers) => {
 			return !stored.has(entry.id) && isWanted;
 		});
 
-		await inSequence(wanted, (entry) => scheduleSeriesStore(entry.id, "backfill"));
+		await sequence.all(wanted, (entry) => scheduleSeriesStore(entry.id, "backfill"));
 
 		const queuedNow = queuedSoFar + wanted.length;
 
@@ -259,7 +259,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
       and ${onAniKoto}
   `);
 
-	const copied = await inSequence(
+	const copied = await sequence.all(
 		[...Map.groupBy(awaited, (episode) => episode.series_id)],
 		async ([seriesId, episodes]) => {
 			const showId = episodes[0]?.show_id;
@@ -395,7 +395,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     limit 50
   `);
 
-	await inSequence([...staleMappings], async (row) => {
+	await sequence.all([...staleMappings], async (row) => {
 		if (row.retry_match) {
 			await expireMapping(row.anilist_id);
 		}
@@ -465,7 +465,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 
 	const fetchedAt = new Map(fetchedRows.map(({ path, at }) => [path, at.getTime()] as const));
 
-	const outcomes = await inSequence(behind, async (row) => {
+	const outcomes = await sequence.all(behind, async (row) => {
 		const showId = showIds.get(row.series_id);
 
 		if (showId === undefined) {

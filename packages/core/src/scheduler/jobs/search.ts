@@ -1,4 +1,4 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import { and, desc, eq, gte, notExists, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
@@ -117,7 +117,7 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 		)
 		.orderBy(desc(animeSearch.popularity));
 
-	await inSequence(seasonal, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
+	await sequence.all(seasonal, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
 
 	if (seasonal.length > 0) {
 		helpers.logger.info(
@@ -156,7 +156,7 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 		.orderBy(desc(animeSearch.popularity))
 		.limit(room);
 
-	await inSequence(rows, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
+	await sequence.all(rows, (row) => scheduleSeriesStore(row.anilistId, "backfill"));
 
 	if (rows.length > 0) {
 		helpers.logger.info(`Queued ${rows.length} popular entries to store their series`);

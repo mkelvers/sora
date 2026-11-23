@@ -1,4 +1,4 @@
-import { firstInSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 
 import {
 	getCollectionParts,
@@ -136,7 +136,7 @@ export class Placer {
 
 		// Search results leave out runtimes, which tell a bonus short from the
 		// film it was released with, so the best are checked against the details.
-		const confirmed = await firstInSequence(
+		const confirmed = await sequence.first(
 			[...placements].toSorted(([, left], [, right]) => right.score - left.score),
 			async ([movieId]) => {
 				const movie = await getMovie(movieId);
@@ -150,7 +150,7 @@ export class Placer {
 
 	/** Places a sequel film after the film its prequel maps to, in that film's TMDB collection. */
 	async #collection() {
-		const placement = await firstInSequence(this.#predecessors, async ({ relation, mapping }) => {
+		const placement = await sequence.first(this.#predecessors, async ({ relation, mapping }) => {
 			if (relation !== "PREQUEL" || mapping.mediaType !== "movie") {
 				return null;
 			}

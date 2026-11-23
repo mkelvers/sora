@@ -1,4 +1,4 @@
-import { attempt, day, inSequence } from "@sora/shared";
+import { attempt, day, sequence } from "@sora/shared";
 import type { HttpClient } from "anime-sdk";
 import { and, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -152,7 +152,7 @@ class Shows {
 			}),
 		);
 
-		await inSequence(
+		await sequence.all(
 			unique.filter((candidate) => !resolved.has(candidate)),
 			async (route) => {
 				const response = await attempt(
@@ -228,7 +228,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
 	const anilistIds = new Set<number>();
 
-	await inSequence(syncedWeeks, async (offset) => {
+	await sequence.all(syncedWeeks, async (offset) => {
 		const monday = new Date(thisMonday.getTime() + offset * 7 * day);
 		const nextMonday = new Date(monday.getTime() + 7 * day);
 		const timetable = await fetchWeek(http, isoWeek(monday));

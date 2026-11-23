@@ -1,4 +1,4 @@
-import { defined, inSequence, chunked } from "@sora/shared";
+import { defined, chunked, sequence } from "@sora/shared";
 import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 
 import { getAnime } from "../catalog/queries/anime";
@@ -158,7 +158,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			};
 		});
 
-		await inSequence(chunked(episodes, episodeInsertBatch), async (batch) => {
+		await sequence.all(chunked(episodes, episodeInsertBatch), async (batch) => {
 			await tx.insert(seriesEpisode).values(batch);
 		});
 
@@ -221,7 +221,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 
 	const worthStoring = rows.map((row) => row.anilistId).filter((related) => !known.has(related));
 
-	await inSequence(worthStoring, (id) => scheduleSeriesStore(id, "backfill"));
+	await sequence.all(worthStoring, (id) => scheduleSeriesStore(id, "backfill"));
 
 	return storedId;
 };

@@ -1,4 +1,4 @@
-import { attempt, hour, minute, inSequence } from "@sora/shared";
+import { attempt, hour, minute, sequence } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
@@ -180,7 +180,7 @@ class Looks {
 
 		const checkedAt = new Map([...resolved, ...fetched].map((row) => [row.anilistId, row.at]));
 
-		await inSequence(stored, async ({ anilistId }) => {
+		await sequence.all(stored, async ({ anilistId }) => {
 			const checked = checkedAt.get(anilistId);
 			const changed = updatedAt.get(anilistId);
 

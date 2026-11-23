@@ -1,4 +1,4 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 
 import { syncTimetables } from "../../animeschedule/timetable";
@@ -22,7 +22,7 @@ export const syncWeeks: Task = async (_payload, helpers) => {
 	const anilistIds = await syncTimetables(providerHttp);
 	const stored = await storedSeriesIds(anilistIds);
 	const missing = anilistIds.filter((anilistId) => !stored.has(anilistId));
-	await inSequence(missing, (anilistId) => scheduleSeriesStore(anilistId, "backfill"));
+	await sequence.all(missing, (anilistId) => scheduleSeriesStore(anilistId, "backfill"));
 
 	helpers.logger.info(
 		`Stored AnimeSchedule's timetable for ${anilistIds.length} AniList entries; queued ${missing.length} not stored yet`,

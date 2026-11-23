@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -50,7 +50,7 @@ export const storeImages: Task = async (_payload, helpers) => {
 		.orderBy(desc(animeSearch.popularity))
 		.limit(titlesPerRun);
 
-	await inSequence(rows, async ({ id }) => {
+	await sequence.all(rows, async ({ id }) => {
 		const { data, error } = await attempt(listSeriesImages(id));
 
 		if (error) {
@@ -68,7 +68,7 @@ export const storeImages: Task = async (_payload, helpers) => {
 				image.height >= minBackdropSize.height,
 		);
 
-		await inSequence(clean, async (image) => {
+		await sequence.all(clean, async (image) => {
 			const looked = await attempt(isCollage(image.url));
 
 			if (looked.error) {

@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 
@@ -225,7 +225,7 @@ export const storeMissingBackdropEdges = async (): Promise<{
 		return [];
 	});
 
-	const results = await inSequence(urls, (url) => storeImageEdges(url));
+	const results = await sequence.all(urls, (url) => storeImageEdges(url));
 	const stored = results.filter(Boolean).length;
 
 	return {

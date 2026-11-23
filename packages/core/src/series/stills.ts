@@ -1,4 +1,4 @@
-import { attempt, defined, firstInSequence } from "@sora/shared";
+import { attempt, defined, sequence } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -66,7 +66,7 @@ export const chooseStill = async (
 
 	let measured = 0;
 
-	const accepted = await firstInSequence(pool, async (still) => {
+	const accepted = await sequence.first(pool, async (still) => {
 		const { data, error } = await attempt(new Still(still.file_path).load());
 
 		if (error) {

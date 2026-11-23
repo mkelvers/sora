@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -105,7 +105,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 		songs = await themeSongsFor(await getAnime(located.data.anilistId), located.data.number);
 	}
 
-	const listened = await inSequence(songs, async (song) => {
+	const listened = await sequence.all(songs, async (song) => {
 		const { data, error } = await attempt(listenToSong(song));
 
 		if (error) {
@@ -117,7 +117,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 
 	const heard = listened.filter((song): song is ListenedSong => song !== undefined);
 
-	await inSequence(due, async ({ key, video }) => {
+	await sequence.all(due, async ({ key, video }) => {
 		const previous = stored.get(key);
 
 		if (previous && previous.songs >= heard.length) {

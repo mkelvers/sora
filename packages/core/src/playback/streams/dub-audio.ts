@@ -1,4 +1,4 @@
-import { attempt, inSequence, second } from "@sora/shared";
+import { attempt, second, sequence } from "@sora/shared";
 
 import type { ProviderUnit } from "../episodes/episodes";
 import type { ProviderVideo, StreamProvider } from "../providers/provider";
@@ -137,7 +137,7 @@ export const withConfirmedDubs = async (
 	);
 
 	const unconfirmed = new Set<string>();
-	await inSequence(
+	await sequence.all(
 		units.filter((unit) => unit.languages?.includes("dub") && !dubbedBefore.has(unit.number)),
 		async (unit) => {
 			if (!(await confirm(unit))) {

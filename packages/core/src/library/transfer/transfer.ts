@@ -1,4 +1,4 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -188,7 +188,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 
 		const seriesIds = z.array(z.string()).parse(record.seriesIds);
 		const episodes = z.array(z.tuple([z.string(), z.number(), z.boolean()])).parse(record.episodes);
-		await inSequence(new Batches(episodes).all, async (batch) => {
+		await sequence.all(new Batches(episodes).all, async (batch) => {
 			const rows = JSON.stringify(
 				batch.map(([seriesId, episode, rewatch]) => ({
 					e: episode,
@@ -210,7 +210,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 			undone.episodes_removed += removed.length;
 		});
 
-		await inSequence(new Batches(seriesIds).all, async (batch) => {
+		await sequence.all(new Batches(seriesIds).all, async (batch) => {
 			const cleared = await tx
 				.update(seriesState)
 				.set({

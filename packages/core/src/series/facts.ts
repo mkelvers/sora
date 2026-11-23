@@ -1,4 +1,4 @@
-import { attempt, chunked, day, inParallel, inSequence } from "@sora/shared";
+import { attempt, chunked, day, inParallel, sequence } from "@sora/shared";
 import { and, eq, isNull, like, lt, or, sql } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -85,7 +85,7 @@ export const storeTitleFacts = async () => {
 	// IMDb ID: each award once a year as won, and once as nominated for when
 	// any of its nominations that year did not win. A title IMDb does not know
 	// has none.
-	const groups = await inSequence(chunked(ids, titlesPerRequest), (chunk) =>
+	const groups = await sequence.all(chunked(ids, titlesPerRequest), (chunk) =>
 		new Nominations(chunk).fetch(),
 	);
 

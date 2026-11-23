@@ -1,4 +1,4 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -77,7 +77,7 @@ export class StoredEpisodes {
 			];
 		});
 
-		await inSequence(updates, async ({ details, number }) => {
+		await sequence.all(updates, async ({ details, number }) => {
 			await db
 				.update(seriesEpisode)
 				.set(details)

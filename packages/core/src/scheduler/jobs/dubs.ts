@@ -1,4 +1,4 @@
-import { hour, minute, inSequence } from "@sora/shared";
+import { hour, minute, sequence } from "@sora/shared";
 import { and, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -106,7 +106,7 @@ export const syncSchedule: Task = async (_payload, helpers) => {
 		];
 	});
 
-	await inSequence(uncarried, ({ anilistId, release }) =>
+	await sequence.all(uncarried, ({ anilistId, release }) =>
 		schedulePoll(
 			{
 				anilistId,

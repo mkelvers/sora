@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { attempt, day, hour, inSequence } from "@sora/shared";
+import { attempt, day, hour, sequence } from "@sora/shared";
 import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";
@@ -421,7 +421,7 @@ export const getShow = async (
 			return null;
 		}
 
-		await inSequence(seasons, async (season) => {
+		await sequence.all(seasons, async (season) => {
 			const listed = page[`season/${season}`]?.episodes ?? [];
 
 			// The episodes the show counts for the season past those its appended

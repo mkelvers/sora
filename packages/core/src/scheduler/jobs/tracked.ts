@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { and, eq, gt, inArray, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -64,7 +64,7 @@ export class Tracked {
 	async refresh(logger: Parameters<Task>[1]["logger"]) {
 		const anime = this.#anime;
 
-		await inSequence(streamProviders, async (provider) => {
+		await sequence.all(streamProviders, async (provider) => {
 			const { error } = await attempt(
 				refreshProviderUnits(anime, provider, {
 					retryUnmatched: true,

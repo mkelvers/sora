@@ -1,4 +1,4 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import type { Json } from "@sora/shared";
 import { consoleLogFactory, Logger } from "graphile-worker";
 import type { Runner } from "graphile-worker";
@@ -47,7 +47,7 @@ export const fillEmptyCatalog = async (runner: Runner) => {
 		return;
 	}
 
-	await inSequence(firstJobs, async ([task, payload]) => {
+	await sequence.all(firstJobs, async ([task, payload]) => {
 		await runner.addJob(task, payload, {
 			jobKey: `first-start:${task}`,
 			jobKeyMode: "unsafe_dedupe",

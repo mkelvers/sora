@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { attempt, second, defined, firstInSequence } from "@sora/shared";
+import { attempt, second, defined, sequence } from "@sora/shared";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
@@ -785,7 +785,7 @@ class Resolution {
 		const lists = ({ unit }: (typeof candidates)[number]) =>
 			!unit.languages || unit.languages.includes(language);
 
-		const foundInOrder = await firstInSequence(candidates.filter(lists), ({ provider, unit }) =>
+		const foundInOrder = await sequence.first(candidates.filter(lists), ({ provider, unit }) =>
 			fromProvider(provider, unit),
 		);
 

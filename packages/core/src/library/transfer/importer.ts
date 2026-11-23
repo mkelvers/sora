@@ -1,4 +1,4 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 import { and, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -133,7 +133,7 @@ export class Importer {
 				return [];
 			});
 
-			await inSequence(new Batches(listed).all, async (batch) => {
+			await sequence.all(new Batches(listed).all, async (batch) => {
 				const written = await tx
 					.insert(seriesState)
 					.values(batch)
@@ -223,7 +223,7 @@ export class Importer {
 				];
 			});
 
-			await inSequence(new Batches([...recorded, ...watched]).all, async (batch) => {
+			await sequence.all(new Batches([...recorded, ...watched]).all, async (batch) => {
 				const written = await tx
 					.insert(episodeProgress)
 					.values(batch)

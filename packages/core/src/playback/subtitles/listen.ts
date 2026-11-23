@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { firstInSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
 
 import { isServedSubtitle } from "../providers/registry";
 import { readSubtitle } from "../proxy/proxy";
@@ -65,7 +65,7 @@ export const listenToDub = async (
 		.filter(({ track }) => (kinds.get(track.url) ?? "dialogue") === "dialogue");
 
 	/** The cues of the sub's English dialogue track, or none when it has no such track. */
-	const dialogue = await firstInSequence(tracks, async ({ track, video }) => {
+	const dialogue = await sequence.first(tracks, async ({ track, video }) => {
 		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
 
 		if (!content) {

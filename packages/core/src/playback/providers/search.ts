@@ -1,4 +1,4 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { bestSimilarity } from "anime-sdk";
 import type { HttpClient } from "anime-sdk";
 import { and, eq, gte, inArray, lte, or } from "drizzle-orm";
@@ -324,7 +324,7 @@ export class Search {
 		];
 
 		const found = new Set<number>();
-		await inSequence(queries, async (query) => {
+		await sequence.all(queries, async (query) => {
 			const response = await http.get(
 				`${siteUrl}/filter?keyword=${encodeURIComponent(query)}&sort=most-viewed`,
 			);
@@ -354,7 +354,7 @@ export class Search {
 
 		const candidates = [...found].filter((candidate) => !known.has(candidate));
 
-		const fetched = await inSequence(candidates.slice(0, lookupCandidateLimit), async (id) => {
+		const fetched = await sequence.all(candidates.slice(0, lookupCandidateLimit), async (id) => {
 			const response = await http.get(`${apiUrl}/series/${id}`);
 			const parsed = SeriesResponseSchema.safeParse(await response.json());
 

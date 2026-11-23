@@ -1,4 +1,4 @@
-import { hour, inSequence, chunked } from "@sora/shared";
+import { hour, chunked, sequence } from "@sora/shared";
 
 import { anilist } from "../../anilist/client";
 import { EpisodeAiringsDocument } from "../../anilist/graphql.generated";
@@ -63,7 +63,7 @@ export const fetchEpisodeAirings = async (
 		}
 	};
 
-	await inSequence(chunked(ids, airingsBatchSize), (batch) => readPage(batch, 1));
+	await sequence.all(chunked(ids, airingsBatchSize), (batch) => readPage(batch, 1));
 
 	return airings;
 };

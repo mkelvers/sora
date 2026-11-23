@@ -1,4 +1,4 @@
-import { attempt, inSequence, chunked } from "@sora/shared";
+import { attempt, chunked, sequence } from "@sora/shared";
 import type { Json } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -183,7 +183,7 @@ export const syncTmdbHints = async (): Promise<number[]> => {
 	const removed = [...stored.keys()].filter((anilistId) => !fetched.has(anilistId));
 
 	await db.transaction(async (tx) => {
-		await inSequence(chunked(changed, writeBatchSize), async (batch) => {
+		await sequence.all(chunked(changed, writeBatchSize), async (batch) => {
 			await tx
 				.insert(tmdbHint)
 				.values(
@@ -201,7 +201,7 @@ export const syncTmdbHints = async (): Promise<number[]> => {
 				});
 		});
 
-		await inSequence(chunked(removed, writeBatchSize), async (batch) => {
+		await sequence.all(chunked(removed, writeBatchSize), async (batch) => {
 			await tx.delete(tmdbHint).where(inArray(tmdbHint.anilistId, batch));
 		});
 	});
