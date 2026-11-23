@@ -2,9 +2,6 @@ import { z } from "zod";
 
 import { WatchlistStatusSchema } from "./library";
 
-/** The most titles or episodes one file may hold, so no request is unbounded. */
-const maxWatchlist = 20_000;
-
 export const LibraryExportSchema = z
 	.object({
 		exported_at: z.string().meta({
@@ -43,7 +40,8 @@ export const LibraryExportSchema = z
 					}),
 				}),
 			)
-			.max(maxWatchlist)
+			// The most titles one file may hold, so no request is unbounded.
+			.max(20_000)
 			.meta({
 				description: "Every title on the profile's watchlist, by AniList entry.",
 			}),

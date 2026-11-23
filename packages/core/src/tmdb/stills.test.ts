@@ -6,82 +6,84 @@ import sharp from "sharp";
 import type { TmdbImage } from "./resources";
 import { blackBars, hasBlackBars, rankStills } from "./stills";
 
-const still = (overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): TmdbImage => ({
+const base: Omit<TmdbImage, "file_path"> = {
 	height: 1080,
 	iso_639_1: null,
 	vote_average: 0,
 	vote_count: 0,
 	width: 1920,
-	...overrides,
-});
+};
 
 /** A busy 16:9 frame: noise over a gradient, so no edge of it is black. */
-const frame = () => {
-	const width = 1280;
-	const height = 720;
-	const pixels = Buffer.alloc(width * height * 3);
+class Busy {
+	readonly #width = 1280;
+	readonly #height = 720;
 
-	for (let index = 0; index < pixels.length; index += 1) {
-		pixels[index] = 60 + ((index * 7919) % 120);
+	image() {
+		const pixels = Buffer.alloc(this.#width * this.#height * 3);
+
+		for (let index = 0; index < pixels.length; index += 1) {
+			pixels[index] = 60 + ((index * 7919) % 120);
+		}
+
+		return Promise.resolve(
+			sharp(pixels, {
+				raw: {
+					channels: 3,
+					height: this.#height,
+					width: this.#width,
+				},
+			})
+				.png()
+				.toBuffer(),
+		);
 	}
 
-	return Promise.resolve(
-		sharp(pixels, {
-			raw: {
-				channels: 3,
-				height,
-				width,
-			},
-		})
-			.png()
-			.toBuffer(),
-	);
-};
+	/** The frame with black bars `top` pixels high above and below it, or `left` wide beside it. */
+	async withBars(bars: { top?: number; left?: number }) {
+		const image = await this.image();
+		const meta = await sharp(image).metadata();
+		const top = bars.top ?? 0;
+		const left = bars.left ?? 0;
 
-const withBars = async (
-	image: Buffer,
-	bars: {
-		top?: number;
-		left?: number;
-	},
-) => {
-	const meta = await sharp(image).metadata();
-	const top = bars.top ?? 0;
-	const left = bars.left ?? 0;
+		return sharp(image)
+			.extract({
+				height: defined(meta.height) - 2 * top,
+				left,
+				top,
+				width: defined(meta.width) - 2 * left,
+			})
+			.extend({
+				background: "#000",
+				bottom: top,
+				left,
+				right: left,
+				top,
+			})
+			.jpeg({
+				quality: 70,
+			})
+			.toBuffer();
+	}
+}
 
-	return sharp(image)
-		.extract({
-			height: defined(meta.height) - 2 * top,
-			left,
-			top,
-			width: defined(meta.width) - 2 * left,
-		})
-		.extend({
-			background: "#000",
-			bottom: top,
-			left,
-			right: left,
-			top,
-		})
-		.jpeg({
-			quality: 70,
-		})
-		.toBuffer();
-};
+const busy = new Busy();
 
 describe("rankStills", () => {
 	test("puts stills without a language before those with one, whatever the votes", () => {
 		const ranked = rankStills(
 			[
-				still({
+				{
+					...base,
 					file_path: "/logo.jpg",
 					iso_639_1: "ja",
 					vote_average: 9,
-				}),
-				still({
+				},
+				{
+					...base,
 					file_path: "/plain.jpg",
 					vote_average: 1,
-				}),
+				},
 			],
 			null,
 		);
@@ -92,22 +94,25 @@ describe("rankStills", () => {
 	test("puts widescreen before other shapes, and large before small", () => {
 		const ranked = rankStills(
 			[
-				still({
+				{
+					...base,
 					file_path: "/square.jpg",
 					height: 1080,
 					vote_average: 5,
 					width: 1440,
-				}),
-				still({
+				},
+				{
+					...base,
 					file_path: "/small.jpg",
 					height: 360,
 					vote_average: 5,
 					width: 640,
-				}),
-				still({
+				},
+				{
+					...base,
 					file_path: "/wide.jpg",
 					vote_average: 1,
-				}),
+				},
 			],
 			null,
 		);
@@ -121,7 +126,16 @@ describe("rankStills", () => {
 
 	test("breaks a tie of votes with TMDB's own pick", () => {
 		const ranked = rankStills(
-			[still({ file_path: "/a.jpg" }), still({ file_path: "/b.jpg" })],
+			[
+				{
+					...base,
+					file_path: "/a.jpg",
+				},
+				{
+					...base,
+					file_path: "/b.jpg",
+				},
+			],
 			"/b.jpg",
 		);
 
@@ -131,17 +145,17 @@ describe("rankStills", () => {
 
 describe("blackBars", () => {
 	test("finds the bars of a 2.35:1 picture in a 16:9 frame", async () => {
-		const bars = await blackBars(await withBars(await frame(), { top: 88 }));
+		const bars = await blackBars(await busy.withBars({ top: 88 }));
 		expect(bars).toBeGreaterThan(0.1);
 		expect(bars).toBeLessThan(0.14);
 	});
 
 	test("finds pillarbox bars", async () => {
-		expect(await hasBlackBars(await withBars(await frame(), { left: 240 }))).toBe(true);
+		expect(await hasBlackBars(await busy.withBars({ left: 240 }))).toBe(true);
 	});
 
 	test("finds none in a frame without bars", async () => {
-		expect(await hasBlackBars(await frame())).toBe(false);
+		expect(await hasBlackBars(await busy.image())).toBe(false);
 	});
 
 	test("does not take a dark scene that fades to black for bars", async () => {

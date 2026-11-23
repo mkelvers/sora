@@ -79,21 +79,11 @@ export interface TmdbDependencies {
 	store: ResponseStore;
 }
 
-const retryAfter = (response: Response) => {
-	const wait = parseRetryAfter(response.headers.get("Retry-After"));
-
-	if (wait === null || wait === 0) {
-		return null;
-	}
-
-	return wait;
-};
-
 /**
  * Creates a TMDB client with its own request spacing and coalescing. The
  * process shares one, {@link tmdb}, since TMDB's limit is per IP.
  */
-export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
+export const connect = ({ fetch, store }: TmdbDependencies) => {
 	/** A 429 is retried this many times before giving up. */
 	const rateLimitRetries = 2;
 
@@ -141,8 +131,14 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			});
 		}
 
+		let askedWaitMs = parseRetryAfter(response.data.headers.get("Retry-After"));
+
+		if (askedWaitMs === 0) {
+			askedWaitMs = null;
+		}
+
 		if (response.data.status === 429) {
-			const retryAfterMs = retryAfter(response.data) ?? 2000;
+			const retryAfterMs = askedWaitMs ?? 2000;
 			// Pause every request from this process, not just this one.
 			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
 
@@ -163,7 +159,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			throw new UpstreamUnavailableError(
 				`TMDB returned ${response.data.status} for ${url.pathname}`,
 				{
-					retryAfterMs: retryAfter(response.data),
+					retryAfterMs: askedWaitMs,
 				},
 			);
 		}
@@ -243,14 +239,16 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		}
 
 		const key = createHash("sha256").update(url.toString()).digest("hex");
-		const stored = options.store === false ? undefined : await store.find(key);
+		const stored = options.store !== false && (await store.find(key));
+		let kept: z.ZodSafeParseResult<z.infer<TSchema>> | null = null;
 
-		const kept = stored ? schema.safeParse(stored.data) : null;
+		if (stored) {
+			kept = schema.safeParse(stored.data);
+		}
 
-		const fresh =
-			stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now();
+		const fresh = stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now();
 
-		if (fresh) {
+		if (fresh && kept?.success) {
 			return kept.data;
 		}
 
@@ -288,28 +286,30 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 	};
 };
 
-/** The responses TMDB is asked for, kept in the database. */
-const databaseStore: ResponseStore = {
-	find: async (key) => {
-		const [stored] = await db.select().from(tmdbResponse).where(eq(tmdbResponse.key, key)).limit(1);
-
-		return stored;
-	},
-	save: async (key, values) => {
-		await db
-			.insert(tmdbResponse)
-			.values({
-				key,
-				...values,
-			})
-			.onConflictDoUpdate({
-				set: values,
-				target: tmdbResponse.key,
-			});
-	},
-};
-
-export const { tmdb } = createTmdbClient({
+export const { tmdb } = connect({
 	fetch,
-	store: databaseStore,
+	/** The responses TMDB is asked for, kept in the database. */
+	store: {
+		find: async (key) => {
+			const [stored] = await db
+				.select()
+				.from(tmdbResponse)
+				.where(eq(tmdbResponse.key, key))
+				.limit(1);
+
+			return stored;
+		},
+		save: async (key, values) => {
+			await db
+				.insert(tmdbResponse)
+				.values({
+					key,
+					...values,
+				})
+				.onConflictDoUpdate({
+					set: values,
+					target: tmdbResponse.key,
+				});
+		},
+	},
 });

@@ -21,7 +21,7 @@ import { continuesPastLinks } from "../../series/matching";
 import { storedSeriesIds, storeSeries } from "../../series/store";
 import { editsWindowMs, getShow, tmdbImageUrl, withEdits } from "../../tmdb/resources";
 import type { TmdbEpisode, TmdbShow } from "../../tmdb/resources";
-import { withChosenStills } from "../../tmdb/stills";
+import { withChoices } from "../../tmdb/stills";
 import { parsePayload } from "../payload";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
@@ -395,7 +395,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 				return 0;
 			}
 
-			return await copyEpisodeDetails(seriesId, await withChosenStills(showId, edited.data));
+			return await copyEpisodeDetails(seriesId, await withChoices(showId, edited.data));
 		},
 	);
 
