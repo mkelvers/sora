@@ -1,12 +1,13 @@
-import { day, hour, minute, defined } from "@sora/shared";
+import { hour, minute, defined } from "@sora/shared";
 
 import type { AnimeStatus } from "../../catalog/models/anime";
+import { AiringSchedule } from "./airing-schedule";
 
 /** What one airing check learned about an anime. */
 export interface AiringState {
 	status: AnimeStatus | null;
 	/** When AniList expects the next episode, if it has announced one. */
-	nextAiringAt: Date | null;
+	nextAt: Date | null;
 	/**
 	 * The latest episode AniList says has aired, or `null` when none has, or
 	 * when AniKoto does not carry the anime, so there is none to wait for.
@@ -41,7 +42,7 @@ export type AiringPlan =
  * not carry yet. It usually has subs within hours, sometimes a day later;
  * the last delay repeats.
  */
-const releaseRetryDelaysMs = [
+const retryDelaysMs = [
 	15 * minute,
 	30 * minute,
 	hour,
@@ -56,54 +57,6 @@ const releaseRetryDelaysMs = [
  * after it aired. The next broadcast starts a new round for the next episode.
  */
 export const maximumReleaseAttempts = 11;
-
-/** How often to check on premiere day when AniList has a date but no time. */
-const premiereDayCheckIntervalMs = 20 * minute;
-
-/** How often to ask AniList about an airing anime with no announced episode. */
-const unscheduledCheckIntervalMs = day;
-
-/** How often to ask AniList about an anime on hiatus. */
-const hiatusCheckIntervalMs = 7 * day;
-
-/** Japan Standard Time, which AniList's dates are in, is UTC+9. */
-const japanOffsetMs = 9 * hour;
-
-/** The span of a `YYYY-MM-DD` date in Japan, or `null` for a less precise date. */
-const japanDay = (date: string | null) => {
-	const match = date ? /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u.exec(date) : null;
-	if (!match) {
-		return null;
-	}
-
-	const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - japanOffsetMs;
-	return {
-		end: new Date(start + day),
-		start: new Date(start),
-	};
-};
-
-/** The next check that does not depend on a missing release. */
-const nextScheduledCheck = (state: AiringState, now: Date): Date => {
-	if (state.nextAiringAt) {
-		// A broadcast time in the past means AniList has not caught up yet.
-		return state.nextAiringAt > now
-			? state.nextAiringAt
-			: new Date(now.getTime() + premiereDayCheckIntervalMs);
-	}
-
-	const premiereDay = state.status === "NOT_YET_RELEASED" ? japanDay(state.startDate) : null;
-	if (premiereDay && now < premiereDay.end) {
-		return now < premiereDay.start
-			? premiereDay.start
-			: new Date(now.getTime() + premiereDayCheckIntervalMs);
-	}
-
-	return new Date(
-		now.getTime() +
-			(state.status === "HIATUS" ? hiatusCheckIntervalMs : unscheduledCheckIntervalMs),
-	);
-};
 
 /**
  * Decides when to check an anime again.
@@ -128,38 +81,54 @@ export const planNextCheck = (
 	const behind =
 		state.latestAiredEpisode !== null &&
 		(state.latestReleasedEpisode ?? 0) < state.latestAiredEpisode;
-	const awaitedEpisode = behind ? state.latestAiredEpisode : null;
-	const attempt =
-		awaitedEpisode !== null && awaitedEpisode === progress.awaitedEpisode
-			? progress.attempt + 1
-			: 0;
-	const retryAt =
-		awaitedEpisode !== null && attempt < maximumReleaseAttempts
-			? new Date(
-					now.getTime() +
-						defined(releaseRetryDelaysMs[Math.min(attempt, releaseRetryDelaysMs.length - 1)]),
-				)
-			: null;
 
-	if (state.status === "FINISHED" || state.status === "CANCELLED") {
-		return retryAt
-			? {
-					attempt,
-					awaitedEpisode,
-					done: false,
-					runAt: retryAt,
-				}
-			: {
-					done: true,
-				};
+	let awaitedEpisode: number | null = null;
+	let attempt = 0;
+	let retryAt: Date | null = null;
+
+	if (behind) {
+		awaitedEpisode = state.latestAiredEpisode;
 	}
 
-	const scheduledAt = nextScheduledCheck(state, now);
+	const isSameEpisode = awaitedEpisode !== null && awaitedEpisode === progress.awaitedEpisode;
+
+	if (isSameEpisode) {
+		attempt = progress.attempt + 1;
+	}
+
+	const isRetrying = awaitedEpisode !== null && attempt < maximumReleaseAttempts;
+
+	if (isRetrying) {
+		const delayMs = defined(retryDelaysMs[Math.min(attempt, retryDelaysMs.length - 1)]);
+		retryAt = new Date(now.getTime() + delayMs);
+	}
+
+	if (state.status === "FINISHED" || state.status === "CANCELLED") {
+		if (retryAt) {
+			return {
+				attempt,
+				awaitedEpisode,
+				done: false,
+				runAt: retryAt,
+			};
+		}
+
+		return {
+			done: true,
+		};
+	}
+
+	let runAt = new AiringSchedule(state, now).next;
+
+	if (retryAt && retryAt < runAt) {
+		runAt = retryAt;
+	}
+
 	return {
 		attempt,
 		awaitedEpisode,
 		done: false,
-		runAt: retryAt && retryAt < scheduledAt ? retryAt : scheduledAt,
+		runAt,
 	};
 };
 
@@ -178,8 +147,10 @@ export const planNextCheck = (
 export const extendThroughReleased = (latest: number, released: readonly number[]) => {
 	const episodes = new Set(released);
 	let through = latest;
+
 	while (episodes.has(through + 1)) {
 		through += 1;
 	}
+
 	return through;
 };

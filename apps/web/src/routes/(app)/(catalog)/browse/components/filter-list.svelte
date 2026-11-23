@@ -16,8 +16,6 @@
 		onchange: (next: BrowseFilters) => void;
 	} = $props();
 
-	const popularTags = 30;
-
 	let allTags = $state(false);
 
 	const groups = $derived(
@@ -28,28 +26,32 @@
 		}),
 	);
 
-	const popular = $derived(
-		new Set(
-			tags
-				.filter((tag) => tag.group === "demographic" || tag.group === "theme")
-				.toSorted((left, right) => right.titles - left.titles)
-				.slice(0, popularTags)
-				.map((tag) => tag.name),
-		),
-	);
+	const sections = $derived.by((): Group[] => {
+		let { choices } = groups.tags;
 
-	const sections = $derived<Group[]>([
-		groups.genres,
-		...groups.options,
-		groups.country,
-		groups.source,
-		{
-			...groups.tags,
-			choices: allTags
-				? groups.tags.choices
-				: groups.tags.choices.filter((choice) => popular.has(choice.label) || choice.checked),
-		},
-	]);
+		if (!allTags) {
+			const popular = new Set(
+				tags
+					.filter((tag) => tag.group === "demographic" || tag.group === "theme")
+					.toSorted((left, right) => right.titles - left.titles)
+					.slice(0, 30)
+					.map((tag) => tag.name),
+			);
+
+			choices = choices.filter((choice) => popular.has(choice.label) || choice.checked);
+		}
+
+		return [
+			groups.genres,
+			...groups.options,
+			groups.country,
+			groups.source,
+			{
+				...groups.tags,
+				choices,
+			},
+		];
+	});
 </script>
 
 {#snippet row(label: string, pressed: boolean, onclick: () => void)}

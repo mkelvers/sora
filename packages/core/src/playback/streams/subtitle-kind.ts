@@ -1,4 +1,5 @@
 import { defined } from "@sora/shared";
+
 /**
  * What a subtitle track carries.
  *
@@ -9,20 +10,6 @@ import { defined } from "@sora/shared";
  */
 export type SubtitleKind = "dialogue" | "signs" | "captions";
 
-/** A track shorter than this cannot be told apart by how often it speaks. */
-const minimumMinutes = 3;
-
-/** Signs are a handful of cues per episode, dialogue several per minute. */
-const signsMaximumCues = 60;
-const signsMaximumRate = 1.5;
-const dialogueMinimumRate = 4;
-
-/** Cues that only describe sound make a track captions; a few stray ones do not. */
-const captionsMinimumShare = 0.08;
-const dialogueMaximumShare = 0.02;
-
-const soundCue = /^(?:\s*(?:[[(（【][^\])）】]*[\])）】]|[♪♫♬🎵]+)\s*)+$/u;
-
 export interface SubtitleStats {
 	cues: number;
 	minutes: number;
@@ -32,6 +19,11 @@ export interface SubtitleStats {
 
 /** Reads the cues of a WebVTT file, or `null` when there are too few to judge. */
 export const subtitleStats = (content: string): SubtitleStats | null => {
+	const soundCue = /^(?:\s*(?:[[(（【][^\])）】]*[\])）】]|[♪♫♬🎵]+)\s*)+$/u;
+
+	/** A track shorter than this cannot be told apart by how often it speaks. */
+	const minimumMinutes = 3;
+
 	let cues = 0;
 	let sound = 0;
 	let end = 0;
@@ -39,6 +31,7 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 	for (const block of content.split(/\r?\n\r?\n/u)) {
 		const lines = block.split(/\r?\n/u);
 		const timing = lines.findIndex((line) => line.includes("-->"));
+
 		if (timing === -1) {
 			continue;
 		}
@@ -47,6 +40,7 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 			/-->\s*(?:(?<hours>\d+):)?(?<minutes>\d{1,2}):(?<seconds>\d{2})\.(?<milliseconds>\d{3})/u.exec(
 				defined(lines[timing]),
 			);
+
 		if (stamp) {
 			const [, hours = "0", minutes, seconds, milliseconds] = stamp;
 			end = Math.max(
@@ -60,11 +54,13 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 			.join(" ")
 			.replaceAll(/<[^>]*>|\{\\[^}]*\}/gu, "")
 			.trim();
+
 		if (!text) {
 			continue;
 		}
 
 		cues += 1;
+
 		if (soundCue.test(text)) {
 			sound += 1;
 		}
@@ -91,27 +87,43 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
  * together, is `null` rather than a guess.
  */
 export const classifySubtitle = (content: string): SubtitleKind | null => {
+	const dialogueMaximumShare = 0.02;
+
+	/** Cues that only describe sound make a track captions; a few stray ones do not. */
+	const captionsMinimumShare = 0.08;
+
+	const dialogueMinimumRate = 4;
+
+	const signsMaximumRate = 1.5;
+
+	/** Signs are a handful of cues per episode, dialogue several per minute. */
+	const signsMaximumCues = 60;
+
 	const stats = subtitleStats(content);
+
 	if (!stats) {
 		return null;
 	}
 
 	const rate = stats.cues / stats.minutes;
+
 	if (stats.soundShare >= captionsMinimumShare) {
 		return "captions";
 	}
-	if (stats.soundShare === 0 && stats.cues <= signsMaximumCues && rate <= signsMaximumRate) {
+
+	const silent =
+		stats.soundShare === 0 && stats.cues <= signsMaximumCues && rate <= signsMaximumRate;
+
+	if (silent) {
 		return "signs";
 	}
+
 	if (stats.soundShare <= dialogueMaximumShare && rate >= dialogueMinimumRate) {
 		return "dialogue";
 	}
 
 	return null;
 };
-
-const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/iu;
-const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
 
 /**
  * What a track carries, from the name its provider gave it and its cues.
@@ -123,8 +135,18 @@ const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
  * @param content - The WebVTT file, or `null` when it could not be read.
  */
 export const subtitleKind = (label: string, content: string | null): SubtitleKind | null => {
-	const measured = content === null ? null : classifySubtitle(content);
+	const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/iu;
+
+	const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
+
+	let measured: SubtitleKind | null = null;
+
+	if (content !== null) {
+		measured = classifySubtitle(content);
+	}
+
 	let named: SubtitleKind | null = null;
+
 	if (captionsLabel.test(label)) {
 		named = "captions";
 	} else if (signsLabel.test(label)) {
@@ -135,5 +157,9 @@ export const subtitleKind = (label: string, content: string | null): SubtitleKin
 		return measured;
 	}
 
-	return measured === null || measured === named ? named : null;
+	if (measured === null || measured === named) {
+		return named;
+	}
+
+	return null;
 };

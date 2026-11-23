@@ -1,313 +1,21 @@
-import { attempt, hour, inSequence } from "@sora/shared";
-import { bestSimilarity } from "anime-sdk";
+import { hour } from "@sora/shared";
 import type { HttpClient } from "anime-sdk";
-import {
-	and,
-	eq,
-	gte,
-	inArray,
-	isNotNull,
-	lte,
-	max,
-	notExists,
-	notInArray,
-	or,
-	sql,
-} from "drizzle-orm";
+import { and, eq, isNotNull, max, notExists, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import type { Anime, AnimeFormat } from "../../catalog/models/anime";
-import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries, providerMapping } from "../../database/schema/playback";
-import type { AgeRating } from "../../database/schema/playback";
-import { AnimeNotFoundError } from "../../errors";
-
-const apiUrl = "https://anikotoapi.site";
-const siteUrl = "https://anikototv.to";
-
-/** Search results fetched per title when the mirror has no match. */
-const lookupCandidateLimit = 6;
-
-/** How many prequels back a part may continue its series' AniKoto episodes. */
-const continuationDepth = 3;
-
-/**
- * An incremental sync re-reads series changed this long before the newest
- * one stored, so a series AniKoto updated while a sync was paging through
- * its catalogue is not skipped. Paging takes seconds, and AniKoto changes
- * about 50 series a day, so this rarely costs a second page.
- */
-const syncOverlapMs = 2 * hour;
-
-/** An ID field AniKoto sends as a number, a numeric string, or an empty string. */
-const OptionalIdSchema = z
-	.union([z.number(), z.string()])
-	.nullish()
-	.transform((value) => {
-		const id = Number(value);
-		return Number.isSafeInteger(id) && id > 0 ? id : null;
-	});
-
-/** MyAnimeList's age ratings, which AniKoto copies; see `anikotoSeries.rating`. */
-const ageRatings: readonly AgeRating[] = ["G", "PG", "PG-13", "R", "R+", "Rx"];
-
-/** One series in AniKoto's catalogue listing. */
-const CatalogSeriesSchema = z.object({
-	alternative: z.string().nullish(),
-	ani_id: OptionalIdSchema,
-	episodes: OptionalIdSchema,
-	id: z.number().int().positive(),
-	mal_id: OptionalIdSchema,
-	native: z.string().nullish(),
-	/** One of {@link ageRatings}, or an empty string or `None` when it has none. */
-	rating: z
-		.string()
-		.nullish()
-		.transform((value) => ageRatings.find((rating) => rating === value?.trim()) ?? null),
-	terms_by_type: z
-		.object({
-			type: z.array(z.string()).optional(),
-		})
-		.nullish(),
-	title: z.string().min(1),
-	/** Other titles, joined with commas, which titles themselves may contain. */
-	titles: z.string().nullish(),
-	/** `YYYY-MM-DD hh:mm:ss`, in UTC. */
-	updated_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/u),
-	year: OptionalIdSchema,
-});
-
-/** AniKoto's series endpoint; the series itself is read by {@link parseCatalogSeries}. */
-const SeriesResponseSchema = z.object({
-	data: z.object({
-		anime: z.unknown(),
-	}),
-});
+import { Rows } from "./rows";
+import { apiUrl } from "./search";
+import { Series } from "./series";
 
 const CatalogPageSchema = z.object({
-	data: z.array(z.unknown()),
+	data: z.array(z.json()),
 	pagination: z.object({
 		page: z.number().int(),
 		total_pages: z.number().int().nonnegative(),
 	}),
 });
-
-/** AniKoto's series types, as AniList formats. */
-const formats: Record<string, AnimeFormat> = {
-	movie: "MOVIE",
-	music: "MUSIC",
-	ona: "ONA",
-	ova: "OVA",
-	special: "SPECIAL",
-	tv: "TV",
-	"tv short": "TV_SHORT",
-	"tv special": "SPECIAL",
-	tv_short: "TV_SHORT",
-};
-
-/** Formats one site may list as another: a TV short as TV, a web series as TV or OVA. */
-const episodicFormats = new Set<string>(["TV", "TV_SHORT", "ONA"]);
-const extraFormats = new Set<string>(["OVA", "SPECIAL", "ONA"]);
-
-const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSeries.$inferInsert => {
-	const type = series.terms_by_type?.type?.[0]?.trim().toLowerCase();
-
-	return {
-		anikotoId: series.id,
-		anilistId: series.ani_id,
-		episodes: series.episodes,
-		format: type ? (formats[type] ?? null) : null,
-		malId: series.mal_id,
-		rating: series.rating,
-		title: series.title,
-		titles: [
-			...new Set(
-				[
-					series.title,
-					series.alternative,
-					series.native,
-					series.titles,
-					// Titles are joined with commas; the whole string is kept too, for
-					// titles that contain one.
-					...(series.titles?.split(/[,;] /u) ?? []),
-				].flatMap((title) => (title?.trim() ? [title.trim()] : [])),
-			),
-		],
-		updatedAt: new Date(`${series.updated_at.replace(" ", "T")}Z`),
-		year: series.year,
-	};
-};
-
-/**
- * Reads one series of AniKoto's catalogue, as its listing and its series
- * endpoint send it, or `null` when it is malformed.
- */
-export const parseCatalogSeries = (item: unknown): typeof anikotoSeries.$inferInsert | null => {
-	const parsed = CatalogSeriesSchema.safeParse(item);
-	return parsed.success ? toRow(parsed.data) : null;
-};
-
-/** The ID AniKoto's mappings are stored under in `provider_mapping`. */
-const aniKotoProviderId = "anikoto";
-
-/**
- * Drops the stored mappings that AniKoto's catalogue now contradicts: an
- * AniList entry mapped to one series while another names it, and the mapped
- * one names a different entry. A mapped series that names none is kept,
- * since AniKoto may have split one title across several series. AniKoto files a split-cour or later stage under a series of
- * its own after the first mapping was made (Steel Ball Run 2nd - 3rd STAGE
- * stayed on its 1-episode first stage for a month), and a stored match is
- * otherwise trusted for 30 days. The next look finds the entry again.
- */
-const dropContradictedMappings = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
-	const named = rows.flatMap((row) =>
-		row.anilistId === null || row.anilistId === undefined
-			? []
-			: [sql`(${row.anilistId}::int, ${String(row.anikotoId)}::text)`],
-	);
-	if (named.length === 0) {
-		return;
-	}
-
-	await db.delete(providerMapping).where(
-		and(
-			eq(providerMapping.provider, aniKotoProviderId),
-			sql`exists (
-        select 1 from (values ${sql.join(named, sql`, `)}) as named(anilist_id, anikoto_id)
-        where named.anilist_id = ${providerMapping.anilistId}
-          and named.anikoto_id <> ${providerMapping.providerMediaId}
-      )`,
-			sql`exists (
-        select 1 from ${anikotoSeries}
-        where ${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}
-          and ${anikotoSeries.anilistId} is not null
-          and ${anikotoSeries.anilistId} <> ${providerMapping.anilistId}
-      )`,
-		),
-	);
-};
-
-/**
- * Drops the stored mappings to series AniKoto no longer lists, so the next
- * look finds the anime's entry again. AniKoto re-files a title under a new
- * series and removes the old one or the new one (Rascal Does Not Dream of a
- * Sister Venturing Out was re-matched to a series that no longer exists),
- * and a mapping to a series the mirror dropped is otherwise trusted for 30
- * days with no episodes behind it.
- */
-const dropMappingsToMissingSeries = async () => {
-	await db.delete(providerMapping).where(
-		and(
-			eq(providerMapping.provider, aniKotoProviderId),
-			isNotNull(providerMapping.providerMediaId),
-			notExists(
-				db
-					.select({
-						one: sql`1`,
-					})
-					.from(anikotoSeries)
-					.where(sql`${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}`),
-			),
-		),
-	);
-};
-
-const upsert = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
-	if (rows.length === 0) {
-		return 0;
-	}
-
-	await db
-		.insert(anikotoSeries)
-		.values(rows)
-		.onConflictDoUpdate({
-			set: {
-				anilistId: sql`excluded.anilist_id`,
-				episodes: sql`excluded.episodes`,
-				format: sql`excluded.format`,
-				malId: sql`excluded.mal_id`,
-				rating: sql`excluded.rating`,
-				title: sql`excluded.title`,
-				titles: sql`excluded.titles`,
-				updatedAt: sql`excluded.updated_at`,
-				year: sql`excluded.year`,
-			},
-			target: anikotoSeries.anikotoId,
-		});
-	await dropContradictedMappings(rows);
-	return rows.length;
-};
-
-/**
- * Mirrors AniKoto's catalogue into `anikoto_series`.
- *
- * AniKoto lists its catalogue newest change first. An incremental sync stops
- * at the first page older than what is stored; a full sync reads every page
- * and then drops series AniKoto no longer lists. A series that fails to parse
- * is skipped rather than failing its page, and then nothing is dropped.
- *
- * @param options.full - Read the whole catalogue, as when it was never synced.
- * @returns How many pages were read and how many series were stored.
- * @throws {Error} when AniKoto's API fails; series stored before the failure are kept.
- */
-export const syncAniKotoCatalog = async (
-	http: HttpClient,
-	options: {
-		full: boolean;
-		signal?: AbortSignal;
-	},
-) => {
-	const [
-		{ newest } = {
-			newest: null,
-		},
-	] = await db
-		.select({
-			newest: max(anikotoSeries.updatedAt),
-		})
-		.from(anikotoSeries);
-	const full = options.full || newest === null;
-	const cutoff = newest === null ? null : new Date(newest.getTime() - syncOverlapMs);
-
-	const seen: number[] = [];
-	let isEverySeriesRead = true;
-	let pages = 0;
-	let stored = 0;
-	const readPage = async (page: number): Promise<{ pages: number; stored: number }> => {
-		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`, {
-			signal: options.signal,
-		});
-		const listing = CatalogPageSchema.parse(await response.json());
-		pages += 1;
-
-		const rows = listing.data.flatMap((item) => {
-			const row = parseCatalogSeries(item);
-			isEverySeriesRead &&= row !== null;
-			return row ? [row] : [];
-		});
-		seen.push(...rows.map((row) => row.anikotoId));
-		stored += await upsert(rows);
-
-		const isLastPage = page >= listing.pagination.total_pages || listing.data.length === 0;
-		const isCaughtUp = !full && cutoff !== null && rows.every((row) => row.updatedAt < cutoff);
-		if (isLastPage || isCaughtUp) {
-			// A series that failed to parse was not seen, but may still be listed.
-			if (full && isLastPage && isEverySeriesRead) {
-				await db.delete(anikotoSeries).where(notInArray(anikotoSeries.anikotoId, seen));
-				await dropMappingsToMissingSeries();
-			}
-
-			return {
-				pages,
-				stored,
-			};
-		}
-
-		return await readPage(page + 1);
-	};
-	return await readPage(1);
-};
 
 /** A series AniKoto changed, as its catalogue listing gives it. */
 export interface AniKotoChange {
@@ -317,353 +25,173 @@ export interface AniKotoChange {
 	updatedAt: Date;
 }
 
-/** Catalogue pages {@link readRecentAniKotoChanges} reads at most, 20 series each. */
-const recentPageLimit = 5;
-
-/**
- * Reads the series AniKoto changed since `since`, newest first, from the
- * start of its catalogue listing: page after page until one reaches back
- * past `since`, up to {@link recentPageLimit}. AniKoto changes about 50
- * series a day, so one page usually covers hours, but it adds new series
- * in bursts of dozens. Adding an episode or a dub changes its series,
- * though the series' timestamp may trail the episode's by a few minutes.
- *
- * The series are stored in the mirror too, so a series that just premiered
- * can be matched without waiting for the hourly sync.
- *
- * @throws {Error} when AniKoto's API fails.
- */
-export const readRecentAniKotoChanges = async (
-	http: HttpClient,
-	since: Date,
-): Promise<AniKotoChange[]> => {
-	const changes: AniKotoChange[] = [];
-	const readPage = async (page: number): Promise<void> => {
-		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`);
-		const body = await response.json();
-		const rows = CatalogPageSchema.parse(body).data.flatMap(
-			(item) => parseCatalogSeries(item) ?? [],
-		);
-		await upsert(rows);
-		changes.push(
-			...rows.map((row) => ({
-				anikotoId: row.anikotoId,
-				anilistId: row.anilistId ?? null,
-				updatedAt: row.updatedAt,
-			})),
-		);
-
-		const oldest = rows.at(-1);
-		if (oldest && oldest.updatedAt >= since && page < recentPageLimit) {
-			await readPage(page + 1);
-		}
-	};
-	await readPage(1);
-
-	return changes;
-};
-
-/**
- * How an anime was matched to its AniKoto series: by its own ID or title, or
- * as a `continuation` of its prequel's series, which AniKoto numbers on
- * through both.
- */
-type AniKotoMatchMethod = "id" | "title" | "continuation";
-
-/** An anime's AniKoto series. */
-export interface AniKotoMatch {
-	anikotoId: string;
-	title: string;
-	method: AniKotoMatchMethod;
+export const aniKotoCatalog = {
 	/**
-	 * AniKoto episodes that belong to earlier parts: the anime's first episode
-	 * is AniKoto's episode `episodeOffset + 1`. `0` unless `method` is
-	 * `continuation`.
+	 * Reads the series AniKoto changed since `since`, newest first, from the
+	 * start of its catalogue listing: page after page until one reaches back
+	 * past `since`, up to five pages. AniKoto changes about 50
+	 * series a day, so one page usually covers hours, but it adds new series
+	 * in bursts of dozens. Adding an episode or a dub changes its series,
+	 * though the series' timestamp may trail the episode's by a few minutes.
+	 *
+	 * The series are stored in the mirror too, so a series that just premiered
+	 * can be matched without waiting for the hourly sync.
+	 *
+	 * @throws {Error} when AniKoto's API fails.
 	 */
-	episodeOffset: number;
-}
+	async recentChanges(http: HttpClient, since: Date): Promise<AniKotoChange[]> {
+		/** Catalogue pages {@link aniKotoCatalog.recentChanges} reads at most, 20 series each. */
+		const recentPageLimit = 5;
 
-/**
- * Scores how well two formats agree: `3` when equal, `1` when one site files
- * the other's kind of entry that way, `0` when either is unknown, and `null`
- * when a film faces anything but a film.
- */
-const formatAgreement = (format: AnimeFormat | null, candidate: string | null): number | null => {
-	if (format === null || candidate === null) {
-		return 0;
-	}
-	if (format === candidate) {
-		return 3;
-	}
-	if (format === "MOVIE" || candidate === "MOVIE") {
-		return null;
-	}
+		const changes: AniKotoChange[] = [];
 
-	return (episodicFormats.has(format) && episodicFormats.has(candidate)) ||
-		(extraFormats.has(format) && extraFormats.has(candidate))
-		? 1
-		: -2;
-};
+		const readPage = async (page: number): Promise<void> => {
+			const response = await http.get(`${apiUrl}/recent-anime?page=${page}`);
+			const body = await response.json();
 
-const animeTitles = (anime: Anime) =>
-	[anime.title.english, anime.title.romaji, anime.title.native, ...anime.synonyms].flatMap(
-		(title) => (title ? [title] : []),
-	);
+			const rows = CatalogPageSchema.parse(body).data.flatMap((item) => new Series(item).row ?? []);
 
-type StoredSeries = typeof anikotoSeries.$inferSelect;
+			await new Rows(rows).store();
+			changes.push(
+				...rows.map((row) => ({
+					anikotoId: row.anikotoId,
+					anilistId: row.anilistId ?? null,
+					updatedAt: row.updatedAt,
+				})),
+			);
 
-/**
- * How well a candidate that shares an ID with the anime agrees with it, or
- * `null` when it is plainly another kind of entry.
- */
-const idMatchScore = (anime: Anime, candidate: StoredSeries): number | null => {
-	const formatScore = formatAgreement(anime.format, candidate.format);
-	if (formatScore === null) {
-		return null;
-	}
+			const oldest = rows.at(-1);
 
-	const year = anime.seasonYear ?? (anime.startDate ? Number(anime.startDate.slice(0, 4)) : null);
-	const titles = animeTitles(anime);
-	let yearScore = 0;
-	if (year !== null && candidate.year !== null) {
-		yearScore = Math.abs(candidate.year - year) <= 1 ? 1 : -2;
-	}
+			const more = oldest && oldest.updatedAt >= since && page < recentPageLimit;
 
-	return (
-		(candidate.anilistId === anime.id ? 4 : 0) +
-		(anime.malId !== null && candidate.malId === anime.malId ? 4 : 0) +
-		formatScore +
-		(anime.episodes !== null && candidate.episodes === anime.episodes ? 2 : 0) +
-		yearScore +
-		3 * Math.max(0, ...candidate.titles.map((title) => bestSimilarity(title, titles))) -
-		// AniKoto lists some series twice, once uncensored; the broadcast cut
-		// is the one AniList describes.
-		(/\buncensored\b/iu.test(candidate.title) ? 2 : 0)
-	);
-};
-
-/**
- * The candidate sharing an ID with the anime that agrees with it best, or
- * `null` when every one is another kind of entry.
- */
-export const bestIdMatch = <TCandidate extends StoredSeries>(
-	anime: Anime,
-	candidates: readonly TCandidate[],
-): TCandidate | null => {
-	let best: {
-		candidate: TCandidate;
-		score: number;
-	} | null = null;
-	for (const candidate of candidates) {
-		const score = idMatchScore(anime, candidate);
-		if (score !== null && (best === null || score > best.score)) {
-			best = {
-				candidate,
-				score,
-			};
-		}
-	}
-
-	return best?.candidate ?? null;
-};
-
-/**
- * A title reduced to lowercase letters and digits, keeping every word:
- * unlike `anime-sdk`'s `normalizeTitle`, "Season 2" stays, so a sequel never
- * equals its first season.
- */
-export const strictTitle = (title: string) =>
-	title
-		.normalize("NFKD")
-		.replaceAll(/\p{M}/gu, "")
-		.toLowerCase()
-		.replaceAll(/[^\p{L}\p{N}]+/gu, " ")
-		.trim();
-
-/** Series with exactly one of the anime's titles, the same format, and a year no more than one apart. */
-const exactTitleMatches = async (anime: Anime): Promise<StoredSeries[]> => {
-	const year = anime.seasonYear ?? (anime.startDate ? Number(anime.startDate.slice(0, 4)) : null);
-	if (anime.format === null || year === null) {
-		return [];
-	}
-
-	const titles = new Set(
-		animeTitles(anime)
-			.map(strictTitle)
-			.filter((title) => title.length > 0),
-	);
-	const nearby = await db
-		.select()
-		.from(anikotoSeries)
-		.where(
-			and(
-				eq(anikotoSeries.format, anime.format),
-				gte(anikotoSeries.year, year - 1),
-				lte(anikotoSeries.year, year + 1),
-			),
-		);
-
-	return nearby.filter((candidate) =>
-		candidate.titles.some((title) => titles.has(strictTitle(title))),
-	);
-};
-
-/** Matches an anime against the mirrored catalogue only; see {@link findAniKotoSeries}. */
-const matchStoredSeries = async (anime: Anime): Promise<AniKotoMatch | null> => {
-	const candidates = await db
-		.select()
-		.from(anikotoSeries)
-		.where(
-			anime.malId
-				? or(eq(anikotoSeries.anilistId, anime.id), eq(anikotoSeries.malId, anime.malId))
-				: eq(anikotoSeries.anilistId, anime.id),
-		);
-
-	const best = bestIdMatch(anime, candidates);
-	if (best) {
-		return {
-			anikotoId: String(best.anikotoId),
-			episodeOffset: 0,
-			method: "id",
-			title: best.title,
+			if (more) {
+				await readPage(page + 1);
+			}
 		};
-	}
 
-	const byTitle = await exactTitleMatches(anime);
-	return byTitle.length === 1 && byTitle[0]
-		? {
-				anikotoId: String(byTitle[0].anikotoId),
-				episodeOffset: 0,
-				method: "title",
-				title: byTitle[0].title,
-			}
-		: null;
-};
+		await readPage(1);
 
-/**
- * Searches AniKoto for an anime's English and romaji titles and adds the
- * series it finds, most viewed first, to the mirror.
- */
-const lookUpSeries = async (http: HttpClient, anime: Anime) => {
-	const queries = [
-		...new Set(
-			[anime.title.english, anime.title.romaji].flatMap((title) => (title ? [title] : [])),
-		),
-	];
-	const found = new Set<number>();
-	await inSequence(queries, async (query) => {
-		const response = await http.get(
-			`${siteUrl}/filter?keyword=${encodeURIComponent(query)}&sort=most-viewed`,
-		);
-		// AniKoto's default order ranks spin-offs above the main series.
-		const html = await response.text();
+		return changes;
+	},
 
-		for (const [, id] of html.matchAll(/data-tip="(?<id>\d+)"/gu)) {
-			found.add(Number(id));
-		}
-	});
-
-	const stored =
-		found.size === 0
-			? []
-			: await db
-					.select({
-						anikotoId: anikotoSeries.anikotoId,
-					})
-					.from(anikotoSeries)
-					.where(inArray(anikotoSeries.anikotoId, [...found]));
-	const known = new Set(stored.map((row) => row.anikotoId));
-
-	const candidates = [...found].filter((candidate) => !known.has(candidate));
-	const fetched = await inSequence(candidates.slice(0, lookupCandidateLimit), async (id) => {
-		const response = await http.get(`${apiUrl}/series/${id}`);
-		const parsed = SeriesResponseSchema.safeParse(await response.json());
-		return parsed.success ? parseCatalogSeries(parsed.data.data.anime) : null;
-	});
-
-	await upsert(fetched.flatMap((row) => (row ? [row] : [])));
-};
-
-/**
- * The AniKoto series a later part continues, when AniKoto files it under its
- * prequel instead of listing it on its own: Attack on Titan Season 3 Part 2
- * is episodes 13–22 of AniKoto's Season 3. The part must have aired and
- * follow a prequel of known length, and AniKoto's series must hold every
- * episode of both.
- */
-const continuedSeries = async (anime: Anime, depth: number): Promise<AniKotoMatch | null> => {
-	const prequel = anime.relations.find((relation) => relation.type === "PREQUEL")?.anime;
-	if (
-		depth === 0 ||
-		anime.status === "NOT_YET_RELEASED" ||
-		!prequel?.episodes ||
-		// Adult anime are not served, so a part never continues one.
-		prequel.isAdult ||
-		formatAgreement(anime.format, prequel.format) === null
+	/**
+	 * Mirrors AniKoto's catalogue into `anikoto_series`.
+	 *
+	 * AniKoto lists its catalogue newest change first. An incremental sync stops
+	 * at the first page older than what is stored; a full sync reads every page
+	 * and then drops series AniKoto no longer lists. A series that fails to parse
+	 * is skipped rather than failing its page, and then nothing is dropped.
+	 *
+	 * @param options.full - Read the whole catalogue, as when it was never synced.
+	 * @returns How many pages were read and how many series were stored.
+	 * @throws {Error} when AniKoto's API fails; series stored before the failure are kept.
+	 */
+	async sync(
+		http: HttpClient,
+		options: {
+			full: boolean;
+			signal?: AbortSignal;
+		},
 	) {
-		return null;
-	}
+		/**
+		 * An incremental sync re-reads series changed this long before the newest
+		 * one stored, so a series AniKoto updated while a sync was paging through
+		 * its catalogue is not skipped. Paging takes seconds, and AniKoto changes
+		 * about 50 series a day, so this rarely costs a second page.
+		 */
+		const syncOverlapMs = 2 * hour;
 
-	// A prequel AniList has since removed or marked adult.
-	const { data, error } = await attempt(getAnime(prequel.id), AnimeNotFoundError);
-	if (error) {
-		return null;
-	}
-	const series = (await matchStoredSeries(data)) ?? (await continuedSeries(data, depth - 1));
-	if (!series) {
-		return null;
-	}
+		const [
+			{ newest } = {
+				newest: null,
+			},
+		] = await db
+			.select({
+				newest: max(anikotoSeries.updatedAt),
+			})
+			.from(anikotoSeries);
 
-	const [stored] = await db
-		.select({
-			episodes: anikotoSeries.episodes,
-		})
-		.from(anikotoSeries)
-		.where(eq(anikotoSeries.anikotoId, Number(series.anikotoId)));
-	const episodeOffset = series.episodeOffset + prequel.episodes;
-	// The whole part must be there: a sequel AniKoto has not added yet must
-	// not start at a recap AniKoto appended to the prequel.
-	return stored?.episodes && stored.episodes >= episodeOffset + (anime.episodes ?? 1)
-		? {
-				...series,
-				episodeOffset,
-				method: "continuation",
+		const full = options.full || newest === null;
+		let cutoff: Date | null = null;
+
+		if (newest !== null) {
+			cutoff = new Date(newest.getTime() - syncOverlapMs);
+		}
+
+		const seen: number[] = [];
+		let allRead = true;
+		let pages = 0;
+		let stored = 0;
+
+		const readPage = async (
+			page: number,
+		): Promise<{
+			pages: number;
+			stored: number;
+		}> => {
+			const response = await http.get(`${apiUrl}/recent-anime?page=${page}`, {
+				signal: options.signal,
+			});
+
+			const listing = CatalogPageSchema.parse(await response.json());
+			pages += 1;
+
+			const rows = listing.data.flatMap((item) => {
+				const { row } = new Series(item);
+				allRead &&= row !== null;
+
+				if (row) {
+					return [row];
+				}
+
+				return [];
+			});
+
+			seen.push(...rows.map((row) => row.anikotoId));
+			stored += await new Rows(rows).store();
+
+			const isLastPage = page >= listing.pagination.total_pages || listing.data.length === 0;
+			const isCaughtUp = !full && cutoff !== null && rows.every((row) => row.updatedAt < cutoff);
+
+			if (isLastPage || isCaughtUp) {
+				// A series that failed to parse was not seen, but may still be listed.
+				const complete = full && isLastPage && allRead;
+
+				if (complete) {
+					await db.delete(anikotoSeries).where(notInArray(anikotoSeries.anikotoId, seen));
+					// Mappings to series AniKoto no longer lists are dropped, so the next
+					// look finds the anime's entry again. AniKoto re-files a title under a
+					// new series and removes the old one or the new one (Rascal Does Not
+					// Dream of a Sister Venturing Out was re-matched to a series that no
+					// longer exists), and a mapping to a series the mirror dropped is
+					// otherwise trusted for 30 days with no episodes behind it.
+					await db.delete(providerMapping).where(
+						and(
+							eq(providerMapping.provider, Rows.provider),
+							isNotNull(providerMapping.providerMediaId),
+							notExists(
+								db
+									.select({
+										one: sql`1`,
+									})
+									.from(anikotoSeries)
+									.where(
+										sql`${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}`,
+									),
+							),
+						),
+					);
+				}
+
+				return {
+					pages,
+					stored,
+				};
 			}
-		: null;
-};
 
-/**
- * Finds the AniKoto series of an anime in the mirrored catalogue.
- *
- * AniKoto series that record the anime's AniList or MyAnimeList ID are the
- * candidates. Those IDs are occasionally wrong or shared, as when a
- * compilation film carries its show's IDs, so each candidate is scored on
- * how well its format, episode count, year, and titles agree, and the best
- * one wins. A candidate of another kind, such as a film for a TV show, is
- * rejected outright.
- *
- * Without an ID match, only a series whose title is exactly one of the
- * anime's, with the same format and year, is accepted, and only when it is
- * the one such series. Closer-sounding titles are never guessed at: a sequel
- * AniKoto does not carry yet would be matched to an earlier season.
- *
- * When the mirror has no match, as for a series AniKoto added since the last
- * sync, AniKoto's search is asked for the anime's titles and the series it
- * finds are added to the mirror and matched the same way.
- *
- * @returns The AniKoto series ID and how it was matched, or `null` when
- *   AniKoto has no series for the anime.
- * @throws {Error} when the mirror has no match and AniKoto's search fails.
- */
-export const findAniKotoSeries = async (
-	http: HttpClient,
-	anime: Anime,
-): Promise<AniKotoMatch | null> => {
-	const stored = await matchStoredSeries(anime);
-	if (stored) {
-		return stored;
-	}
+			return await readPage(page + 1);
+		};
 
-	await lookUpSeries(http, anime);
-	return (await matchStoredSeries(anime)) ?? continuedSeries(anime, continuationDepth);
+		return await readPage(1);
+	},
 };

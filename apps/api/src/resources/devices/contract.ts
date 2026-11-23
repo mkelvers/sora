@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { SignedInDeviceSchema } from "@sora/core/models/device";
+import { DeviceSchema } from "@sora/core/models/account";
 
-import { CountMetaSchema, envelopeOf } from "../../openapi/envelope";
+import { CountMetaSchema, envelope } from "../../openapi/envelope";
 import { json, problem, signedIn } from "../../openapi/schemas";
 
 /** The devices signed in to the account. */
-export const deviceRoute = {
+export const contract = {
 	listDevices: createRoute({
 		description:
 			"The devices the account is signed in on, the one used most recently first. A device is a sign-in: signing in again on the same browser adds another. `last_active_at` is kept up to a day behind.",
@@ -13,7 +13,7 @@ export const deviceRoute = {
 		operationId: "listDevices",
 		path: "/devices",
 		responses: {
-			200: json(envelopeOf(z.array(SignedInDeviceSchema), CountMetaSchema), "The devices."),
+			200: json(envelope(z.array(DeviceSchema), CountMetaSchema), "The devices."),
 			401: problem("Not signed in."),
 		},
 		security: signedIn,

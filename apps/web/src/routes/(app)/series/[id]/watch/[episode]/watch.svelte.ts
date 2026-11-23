@@ -4,10 +4,10 @@ import { Preferences } from "$lib/preferences";
 import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import type Hls from "hls.js";
-import type { Level } from "hls.js";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
+import { z } from "zod";
 
 type Source = PlaybackMedia["sources"][number];
 
@@ -24,45 +24,16 @@ interface Quality {
 const preferences = new Preferences("player");
 
 const forwardBufferSeconds = 120;
-const backBufferSeconds = 30;
-const megabyte = 1000 * 1000;
-const bufferMegabytesPerGigabyte = 25;
-const maximumBufferMegabytes = 200;
-const firstByteTimeoutMs = 30_000;
-const startBandwidthBitsPerSecond = 10_000_000;
-
-const loadHls = () => attempt(import("hls.js"));
 
 if (browser) {
-	loadHls();
+	attempt(import("hls.js"));
 }
 
-const subscribeFullscreen = createSubscriber((update) => {
-	on(document, "fullscreenchange", update);
-});
-
-const qualitiesOf = (levels: Level[]) => {
-	const best = new Map<number, number>();
-	for (const [index, level] of levels.entries()) {
-		if (level.height > 0) {
-			best.set(level.height, index);
-		}
-	}
-
-	return [...best]
-		.map(([height, level]): Quality => ({
-			height,
-			level,
-		}))
-		.toSorted((left, right) => right.height - left.height);
-};
-
-const playDirect = (video: HTMLVideoElement, url: string, start: number) => {
-	video.src = url;
-	video.currentTime = start;
-};
-
 export class Player {
+	static readonly #fullscreen = createSubscriber((update) => {
+		on(document, "fullscreenchange", update);
+	});
+
 	root?: HTMLElement;
 	paused = $state(false);
 	time = $state(0);
@@ -79,6 +50,7 @@ export class Player {
 
 	chosen = $derived.by(() => {
 		const { quality } = this;
+
 		if (quality === null) {
 			return;
 		}
@@ -86,11 +58,21 @@ export class Player {
 		return this.qualities.find((candidate) => candidate.height <= quality) ?? this.qualities.at(-1);
 	});
 
-	played = $derived(this.duration > 0 ? this.time / this.duration : 0);
+	played = $derived.by(() => {
+		if (this.duration > 0) {
+			return this.time / this.duration;
+		}
+
+		return 0;
+	});
 	loaded = $derived.by(() => {
 		const range = this.buffered.find((span) => span.start <= this.time && this.time <= span.end);
 
-		return range && this.duration > 0 ? range.end / this.duration : 0;
+		if (range && this.duration > 0) {
+			return range.end / this.duration;
+		}
+
+		return 0;
 	});
 	buffering = $derived(
 		this.readyState < 3 &&
@@ -122,11 +104,9 @@ export class Player {
 		this.time = start;
 		this.#resume = start;
 
-		const volume = preferences.get("volume");
-		const speed = preferences.get("speed");
-		this.volume = typeof volume === "number" && volume >= 0 && volume <= 1 ? volume : 1;
-		this.muted = preferences.get("muted") === true;
-		this.speed = typeof speed === "number" && speed > 0 ? speed : 1;
+		this.volume = preferences.get("volume", z.number().min(0).max(1)) ?? 1;
+		this.muted = preferences.get("muted", z.boolean()) ?? false;
+		this.speed = preferences.get("speed", z.number().positive()) ?? 1;
 		this.quality = quality;
 	}
 
@@ -142,13 +122,15 @@ export class Player {
 		}
 
 		this.quality = height;
+
 		if (this.#instance) {
 			this.#instance.nextLevel = this.chosen?.level ?? -1;
 		}
 	};
 
 	get fullscreen() {
-		subscribeFullscreen();
+		Player.#fullscreen();
+
 		return this.root !== undefined && document.fullscreenElement === this.root;
 	}
 
@@ -195,40 +177,66 @@ export class Player {
 	};
 
 	onkeydown = (event: KeyboardEvent) => {
-		const target = event.target instanceof Element ? event.target : null;
-		if (!target || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+		const { target } = event;
+
+		const ignored =
+			!(target instanceof Element) ||
+			event.defaultPrevented ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.altKey;
+
+		if (ignored) {
 			return;
 		}
 
 		const inPlayer = target === document.body || this.root?.contains(target);
-		const inFieldOrMenu = target.closest(
+
+		const captured = target.closest(
 			'textarea, [contenteditable], input:not([type="range"]), :popover-open',
 		);
+
 		const controlOwnsKey =
 			target.matches(":focus-visible") &&
 			(target.matches('input[type="range"]') || (event.key === " " && target.closest("button, a")));
-		if (!inPlayer || inFieldOrMenu || controlOwnsKey) {
+
+		const foreign = !inPlayer || captured || controlOwnsKey;
+
+		if (foreign) {
 			return;
 		}
 
 		const toggle = () => (this.paused = !this.paused);
 		const { next, previous } = this.#episodes();
-		const action =
-			{
+
+		const actions = new Map<string, () => void>(
+			Object.entries({
 				" ": toggle,
 				ArrowDown: () => this.nudgeVolume(-0.1),
 				ArrowLeft: () => (this.time -= 10),
 				ArrowRight: () => (this.time += 10),
 				ArrowUp: () => this.nudgeVolume(0.1),
-				N: next ? () => goto(next) : undefined,
-				P: previous ? () => goto(previous) : undefined,
 				f: this.toggleFullscreen,
 				j: () => (this.time -= 10),
 				k: toggle,
 				l: () => (this.time += 10),
 				m: () => (this.muted = !this.muted),
-			}[event.key] ??
-			(/^[0-9]$/u.test(event.key) ? () => this.seekTo(Number(event.key) / 10) : undefined);
+			}),
+		);
+
+		if (next) {
+			actions.set("N", () => goto(next));
+		}
+
+		if (previous) {
+			actions.set("P", () => goto(previous));
+		}
+
+		let action = actions.get(event.key);
+
+		if (!action && /^[0-9]$/u.test(event.key)) {
+			action = () => this.seekTo(Number(event.key) / 10);
+		}
 
 		if (action) {
 			event.preventDefault();
@@ -241,8 +249,10 @@ export class Player {
 		if (this.paused === video.paused) {
 			return;
 		}
+
 		if (this.paused) {
 			video.pause();
+
 			return;
 		}
 
@@ -251,6 +261,7 @@ export class Player {
 
 	async #play(video: HTMLVideoElement) {
 		const { error } = await attempt(video.play(), DOMException);
+
 		if (error && error.name !== "AbortError") {
 			this.paused = true;
 		}
@@ -260,6 +271,7 @@ export class Player {
 		(source: Source | undefined): Attachment<HTMLVideoElement> =>
 		(video) => {
 			void this.#reloads;
+
 			if (!source) {
 				return;
 			}
@@ -268,10 +280,12 @@ export class Player {
 			this.#resume = undefined;
 
 			let stop: (() => void) | undefined;
+
 			if (source.format === "hls") {
 				stop = this.#hls(video, source.url, start);
 			} else {
-				playDirect(video, source.url, start);
+				video.src = source.url;
+				video.currentTime = start;
 			}
 
 			return () => {
@@ -283,24 +297,35 @@ export class Player {
 		};
 
 	#hls(video: HTMLVideoElement, url: string, start: number) {
+		const megabyte = 1000 * 1000;
+
 		let hls: Hls | undefined;
 		let detached = false;
 
 		void (async () => {
-			const loaded = await loadHls();
+			const loaded = await attempt(import("hls.js"));
+
 			if (detached) {
 				return;
 			}
+
 			if (loaded.error || !loaded.data.default.isSupported()) {
-				playDirect(video, url, start);
+				video.src = url;
+				video.currentTime = start;
+
 				return;
 			}
 
 			const Hls = loaded.data.default;
-			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
+			let memory = 4;
+
+			if ("deviceMemory" in navigator) {
+				memory = Number(navigator.deviceMemory);
+			}
+
 			hls = new Hls({
-				abrEwmaDefaultEstimate: startBandwidthBitsPerSecond,
-				backBufferLength: backBufferSeconds,
+				abrEwmaDefaultEstimate: 10_000_000,
+				backBufferLength: 30,
 				fragLoadPolicy: {
 					default: {
 						errorRetry: {
@@ -309,7 +334,7 @@ export class Player {
 							retryDelayMs: 500,
 						},
 						maxLoadTimeMs: 120_000,
-						maxTimeToFirstByteMs: firstByteTimeoutMs,
+						maxTimeToFirstByteMs: 30_000,
 						timeoutRetry: {
 							maxNumRetry: 4,
 							maxRetryDelayMs: 0,
@@ -318,16 +343,28 @@ export class Player {
 					},
 				},
 				maxBufferLength: forwardBufferSeconds,
-				maxBufferSize:
-					Math.min(memory * bufferMegabytesPerGigabyte, maximumBufferMegabytes) * megabyte,
+				maxBufferSize: Math.min(memory * 25, 200) * megabyte,
 				maxMaxBufferLength: forwardBufferSeconds,
 				startPosition: start,
 			});
 			this.#instance = hls;
 
 			hls.on(Hls.Events.MANIFEST_PARSED, () => {
-				const levels = hls?.levels ?? [];
-				this.qualities = qualitiesOf(levels);
+				const best = new Map<number, number>();
+
+				for (const [index, level] of (hls?.levels ?? []).entries()) {
+					if (level.height > 0) {
+						best.set(level.height, index);
+					}
+				}
+
+				this.qualities = [...best]
+					.map(([height, level]): Quality => ({
+						height,
+						level,
+					}))
+					.toSorted((left, right) => right.height - left.height);
+
 				if (hls && this.chosen) {
 					hls.nextLevel = this.chosen.level;
 				}
@@ -338,6 +375,7 @@ export class Player {
 				if (!data.fatal) {
 					return;
 				}
+
 				if (data.type === Hls.ErrorTypes.MEDIA_ERROR && performance.now() - recovered > 5000) {
 					recovered = performance.now();
 					hls?.recoverMediaError();
@@ -362,15 +400,21 @@ export class Player {
 		(shown: boolean): Attachment<HTMLTrackElement> =>
 		(element) => {
 			const { track } = element;
+
 			if (!shown) {
 				track.mode = "disabled";
+
 				return;
 			}
 
 			track.mode = "hidden";
+
 			const update = () => {
-				this.cues = [...(track.activeCues ?? [])] as VTTCue[];
+				this.cues = [...(track.activeCues ?? [])].filter(
+					(cue): cue is VTTCue => cue instanceof VTTCue,
+				);
 			};
+
 			track.addEventListener("cuechange", update);
 
 			return () => {

@@ -3,22 +3,13 @@ import { inArray, lt, sql } from "drizzle-orm";
 import { consoleLogFactory, Logger } from "graphile-worker";
 
 import { db } from "../database/client";
-import { schedulerPool } from "../database/schema/scheduler";
+import { pool } from "../database/schema/scheduler";
 
 const logger = new Logger(consoleLogFactory).scope({
 	label: "pools",
 });
 
-/** How often a scheduler says its pools are alive, and looks for dead ones. */
-const heartbeatMs = 30_000;
-
-/**
- * How long a pool may go without a heartbeat before its locked jobs are
- * released. Several heartbeats, so a busy event loop is not taken for death.
- */
-const deadAfterMs = 2 * minute;
-
-/** The pools a scheduler runs, kept alive; see {@link watchPools}. */
+/** The pools a scheduler runs, kept alive; see {@link pools.watch}. */
 export interface PoolWatch {
 	/**
 	 * Marks the pool that locked a job alive from now on. Each task calls it
@@ -29,111 +20,128 @@ export interface PoolWatch {
 	stop: () => Promise<void>;
 }
 
-/**
- * Releases the jobs and queues locked more than {@link deadAfterMs} before
- * `now` by pools no heartbeat has marked alive since then.
- */
-const releaseDeadPools = async (now: Date) => {
-	const cutoff = new Date(now.getTime() - deadAfterMs);
-	const dead = await db.execute<{
-		poolId: string;
-	}>(sql`
+export const pools = {
+	/**
+	 * Keeps the scheduler's graphile-worker pools marked alive in
+	 * `scheduler_pool`, and releases the jobs of pools that are not.
+	 *
+	 * A pool that stops without a graceful shutdown keeps the jobs it had
+	 * locked for graphile-worker's four hours. That happens whenever a process
+	 * dies, and in development each time `bun --watch` restarts the scheduler,
+	 * which leaves layouts a viewer waits on locked by a pool that is gone.
+	 *
+	 * Every {@link heartbeatMs}, each scheduler marks its own pools alive, then
+	 * releases the jobs locked more than the dead-pool cutoff ago by pools that
+	 * have not been marked alive that long, whichever scheduler they belonged
+	 * to. It does so once at start too, so a restart releases what the process
+	 * it replaces left locked.
+	 */
+	watch(): PoolWatch {
+		/** How often a scheduler says its pools are alive, and looks for dead ones. */
+		const heartbeatMs = 30_000;
+
+		const ours = new Set<string>();
+
+		let running = Promise.resolve();
+
+		const beat = async () => {
+			const now = new Date();
+
+			if (ours.size > 0) {
+				await db
+					.insert(pool)
+					.values(
+						[...ours].map((id) => ({
+							heartbeatAt: now,
+							poolId: id,
+						})),
+					)
+					.onConflictDoUpdate({
+						set: {
+							heartbeatAt: now,
+						},
+						target: pool.poolId,
+					});
+			}
+
+			/**
+			 * How long a pool may go without a heartbeat before its locked jobs are
+			 * released. Several heartbeats, so a busy event loop is not taken for death.
+			 */
+			const deadAfterMs = 2 * minute;
+
+			// Releases the jobs and queues locked more than `deadAfterMs` before now by
+			// pools no heartbeat has marked alive since then.
+			const cutoff = new Date(now.getTime() - deadAfterMs);
+
+			const dead = await db.execute<{
+				poolId: string;
+			}>(sql`
     select distinct jobs.locked_by as "poolId"
     from graphile_worker.jobs
     where jobs.locked_by is not null
       and jobs.locked_at < ${cutoff.toISOString()}::timestamptz
       and not exists (
-        select 1 from ${schedulerPool}
-        where ${schedulerPool.poolId} = jobs.locked_by
-          and ${schedulerPool.heartbeatAt} >= ${cutoff.toISOString()}::timestamptz
+        select 1 from ${pool}
+        where ${pool.poolId} = jobs.locked_by
+          and ${pool.heartbeatAt} >= ${cutoff.toISOString()}::timestamptz
       )
   `);
-	const poolIds = [...dead].map((row) => row.poolId);
-	if (poolIds.length === 0) {
-		return;
-	}
 
-	await db.execute(
-		sql`select graphile_worker.force_unlock_workers(array[${sql.join(
-			poolIds.map((poolId) => sql`${poolId}`),
-			sql`, `,
-		)}]::text[])`,
-	);
-	logger.info(`Released the jobs of ${poolIds.length} pools that stopped: ${poolIds.join(", ")}`);
-};
+			const deadIds = [...dead].map((row) => row.poolId);
 
-/**
- * Keeps the scheduler's graphile-worker pools marked alive in
- * `scheduler_pool`, and releases the jobs of pools that are not.
- *
- * A pool that stops without a graceful shutdown keeps the jobs it had
- * locked for graphile-worker's four hours. That happens whenever a process
- * dies, and in development each time `bun --watch` restarts the scheduler,
- * which leaves layouts a viewer waits on locked by a pool that is gone.
- *
- * Every {@link heartbeatMs}, each scheduler marks its own pools alive, then
- * releases the jobs locked more than {@link deadAfterMs} ago by pools that
- * have not been marked alive that long, whichever scheduler they belonged
- * to. It does so once at start too, so a restart releases what the process
- * it replaces left locked.
- */
-export const watchPools = (): PoolWatch => {
-	const poolIds = new Set<string>();
-
-	let running = Promise.resolve();
-
-	const beat = async () => {
-		const now = new Date();
-		if (poolIds.size > 0) {
-			await db
-				.insert(schedulerPool)
-				.values(
-					[...poolIds].map((poolId) => ({
-						heartbeatAt: now,
-						poolId,
-					})),
-				)
-				.onConflictDoUpdate({
-					set: {
-						heartbeatAt: now,
-					},
-					target: schedulerPool.poolId,
-				});
-		}
-
-		await releaseDeadPools(now);
-		await db
-			.delete(schedulerPool)
-			.where(lt(schedulerPool.heartbeatAt, new Date(now.getTime() - day)));
-	};
-	const beatAfter = async (previous: Promise<void>) => {
-		await previous;
-		const { error } = await attempt(beat());
-		if (error) {
-			const reason = error.cause instanceof Error ? error.cause.message : error.message;
-			logger.warn(`Could not mark scheduler pools alive: ${reason}`);
-		}
-	};
-	const tick = () => {
-		running = beatAfter(running);
-	};
-
-	const timer = setInterval(tick, heartbeatMs);
-	tick();
-
-	return {
-		know: (poolId) => {
-			if (poolId && !poolIds.has(poolId)) {
-				poolIds.add(poolId);
-				tick();
+			if (deadIds.length > 0) {
+				await db.execute(
+					sql`select graphile_worker.force_unlock_workers(array[${sql.join(
+						deadIds.map((id) => sql`${id}`),
+						sql`, `,
+					)}]::text[])`,
+				);
+				logger.info(
+					`Released the jobs of ${deadIds.length} pools that stopped: ${deadIds.join(", ")}`,
+				);
 			}
-		},
-		stop: async () => {
-			clearInterval(timer);
-			await running;
-			if (poolIds.size > 0) {
-				await db.delete(schedulerPool).where(inArray(schedulerPool.poolId, [...poolIds]));
+
+			await db.delete(pool).where(lt(pool.heartbeatAt, new Date(now.getTime() - day)));
+		};
+
+		const beatAfter = async (previous: Promise<void>) => {
+			await previous;
+			const { error } = await attempt(beat());
+
+			if (error) {
+				let reason = error.message;
+
+				if (error.cause instanceof Error) {
+					reason = error.cause.message;
+				}
+
+				logger.warn(`Could not mark scheduler pools alive: ${reason}`);
 			}
-		},
-	};
+		};
+
+		const tick = () => {
+			running = beatAfter(running);
+		};
+
+		const timer = setInterval(tick, heartbeatMs);
+		tick();
+
+		return {
+			know: (id) => {
+				if (id && !ours.has(id)) {
+					ours.add(id);
+					tick();
+				}
+			},
+			stop: async () => {
+				clearInterval(timer);
+				await running;
+
+				if (ours.size > 0) {
+					await db.delete(pool).where(inArray(pool.poolId, [...ours]));
+				}
+			},
+		};
+	},
 };

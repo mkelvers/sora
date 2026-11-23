@@ -68,8 +68,9 @@ export const getStudios = query(
 		}),
 );
 
-export const getCatalogPage = query(request, async (input) => {
+export const getPage = query(request, async (input) => {
 	const { sora } = remoteViewer();
+
 	const paging = {
 		page: input.page,
 		per_page: 36,
@@ -120,29 +121,40 @@ export const getCatalogPage = query(request, async (input) => {
 		};
 	}
 
+	if (input.kind === "simulcast") {
+		const { results, meta } = await sora.requestWithMeta(route.browseSeries, {
+			query: {
+				format: [...formats.TV],
+				season: input.season,
+				season_year: input.year,
+				sort: "popular",
+				...paging,
+			},
+		});
+
+		return {
+			hasNextPage: meta.has_next_page,
+			items: results.map((card): CatalogItem => ({
+				card,
+			})),
+			preparing: meta.preparing,
+		};
+	}
+
 	const { results, meta } = await sora.requestWithMeta(route.browseSeries, {
-		query:
-			input.kind === "simulcast"
-				? {
-						format: [...formats.TV],
-						season: input.season,
-						season_year: input.year,
-						sort: "popular",
-						...paging,
-					}
-				: {
-						audio: input.audio,
-						format: input.format && [...formats[input.format]],
-						sort: "popular",
-						...paging,
-					},
+		query: {
+			audio: input.audio,
+			format: input.format && [...formats[input.format]],
+			sort: "popular",
+			...paging,
+		},
 	});
 
 	return {
 		hasNextPage: meta.has_next_page,
 		items: results.map((card): CatalogItem => ({
 			card,
-			group: input.kind === "popular" ? "Popular" : undefined,
+			group: "Popular",
 		})),
 		preparing: meta.preparing,
 	};

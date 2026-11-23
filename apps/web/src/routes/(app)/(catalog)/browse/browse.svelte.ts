@@ -37,20 +37,22 @@ export const sourceValues = [
 
 type Source = (typeof sourceValues)[number];
 
-const sourceLabels: Record<Source, string> = {
-	LIGHT_NOVEL: "Light novel",
-	MANGA: "Manga",
-	NOVEL: "Novel",
-	ORIGINAL: "Original",
-	VIDEO_GAME: "Video game",
-	VISUAL_NOVEL: "Visual novel",
-	WEB_NOVEL: "Web novel",
-};
+export const sources = sourceValues.map((value) => {
+	const labels: Record<Source, string> = {
+		LIGHT_NOVEL: "Light novel",
+		MANGA: "Manga",
+		NOVEL: "Novel",
+		ORIGINAL: "Original",
+		VIDEO_GAME: "Video game",
+		VISUAL_NOVEL: "Visual novel",
+		WEB_NOVEL: "Web novel",
+	};
 
-export const sources = sourceValues.map((value) => ({
-	label: sourceLabels[value],
-	value,
-}));
+	return {
+		label: labels[value],
+		value,
+	};
+});
 
 export const countries = [
 	{
@@ -72,6 +74,7 @@ export const countries = [
 ] as const;
 
 type Sort = (typeof sorts)[number]["value"];
+
 type Country = (typeof countries)[number]["value"];
 
 export interface BrowseFilters extends CatalogFilters {
@@ -84,7 +87,7 @@ export interface BrowseFilters extends CatalogFilters {
 	hideMature: boolean;
 }
 
-const unfiltered = (): BrowseFilters => ({
+const unfiltered: BrowseFilters = {
 	audio: undefined,
 	country: undefined,
 	format: undefined,
@@ -94,34 +97,52 @@ const unfiltered = (): BrowseFilters => ({
 	sources: [],
 	studios: [],
 	tags: [],
-});
-
-export const browse = $state<BrowseFilters>(unfiltered());
-
-export const setBrowse = (preset: Partial<BrowseFilters>) => {
-	Object.assign(browse, unfiltered(), preset);
 };
 
-export const toggle = <T>(list: T[], value: T) =>
-	list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+export const browse = $state<BrowseFilters>(structuredClone(unfiltered));
 
-export const browseTitle = (filters: BrowseFilters) => {
+export const filterBy = (preset: Partial<BrowseFilters>) => {
+	Object.assign(browse, structuredClone(unfiltered), preset);
+};
+
+export const toggle = <T>(list: T[], value: T) => {
+	if (list.includes(value)) {
+		return list.filter((item) => item !== value);
+	}
+
+	return [...list, value];
+};
+
+export const pageTitle = (filters: BrowseFilters) => {
 	const named = [...filters.genres, ...filters.tags, ...filters.studios];
-	return named.length === 1 ? `${named[0]} Anime` : "Browse Anime";
+
+	if (named.length === 1) {
+		return `${named[0]} Anime`;
+	}
+
+	return "Browse Anime";
 };
 
-export const catalogRequest = (filters: BrowseFilters) => ({
-	audio: filters.audio,
-	countries: filters.country ? [filters.country] : [],
-	format: filters.format,
-	genres: filters.genres,
-	hideMature: filters.hideMature,
-	kind: "browse" as const,
-	sort: filters.sort,
-	sources: filters.sources,
-	studios: filters.studios,
-	tags: filters.tags,
-});
+export const catalogRequest = (filters: BrowseFilters) => {
+	const chosen: Country[] = [];
+
+	if (filters.country) {
+		chosen.push(filters.country);
+	}
+
+	return {
+		audio: filters.audio,
+		countries: chosen,
+		format: filters.format,
+		genres: filters.genres,
+		hideMature: filters.hideMature,
+		kind: "browse" as const,
+		sort: filters.sort,
+		sources: filters.sources,
+		studios: filters.studios,
+		tags: filters.tags,
+	};
+};
 
 export interface Choice {
 	label: string;
@@ -137,31 +158,6 @@ export interface Group {
 	choices: Choice[];
 }
 
-const many = (
-	id: "genres" | "tags" | "sources",
-	label: string,
-	options: { label: string; value: string }[],
-	selected: string[],
-): Group => ({
-	choices: options.map((option) => ({
-		all: false,
-		checked: selected.includes(option.value),
-		label: option.label,
-		next: {
-			[id]: toggle(selected, option.value),
-		},
-	})),
-	id,
-	label,
-	multiple: true,
-});
-
-const named = (names: string[]) =>
-	names.map((name) => ({
-		label: name,
-		value: name,
-	}));
-
 export const groupsOf = ({
 	filters,
 	genres,
@@ -171,6 +167,31 @@ export const groupsOf = ({
 	genres: string[];
 	tags: Tag[];
 }) => {
+	const many = (
+		id: "genres" | "tags" | "sources",
+		label: string,
+		options: {
+			label: string;
+			value: string;
+		}[],
+	): Group => {
+		const selected: string[] = filters[id];
+
+		return {
+			choices: options.map((option) => ({
+				all: false,
+				checked: selected.includes(option.value),
+				label: option.label,
+				next: {
+					[id]: toggle(selected, option.value),
+				},
+			})),
+			id,
+			label,
+			multiple: true,
+		};
+	};
+
 	const options: Group[] = filterGroups.map((group) => ({
 		choices: group.options.map((option) => ({
 			all: option.value === undefined,
@@ -199,14 +220,26 @@ export const groupsOf = ({
 			label: "Country",
 			multiple: false,
 		} satisfies Group,
-		genres: many("genres", "Genres", named(genres), filters.genres),
+		genres: many(
+			"genres",
+			"Genres",
+			genres.map((name) => ({
+				label: name,
+				value: name,
+			})),
+		),
 		options,
-		source: many("sources", "Source", sources, filters.sources),
+		source: many("sources", "Source", sources),
 		tags: many(
 			"tags",
 			"Tags",
-			named(tags.map((tag) => tag.name).toSorted((left, right) => left.localeCompare(right))),
-			filters.tags,
+			tags
+				.map((tag) => tag.name)
+				.toSorted((left, right) => left.localeCompare(right))
+				.map((name) => ({
+					label: name,
+					value: name,
+				})),
 		),
 	};
 };

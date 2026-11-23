@@ -32,77 +32,98 @@ export interface StoredSkipDetection {
 }
 
 /**
- * How long until a video is looked at again when something was left
- * unsettled: AnimeThemes had no songs for its episode, or a kind's song was
- * not found. Songs are added while a season airs, so a new opening may not
- * be there yet.
- */
-const unsettledRetryMs = 14 * day;
-
-const hash = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 32);
-
-/**
  * What identifies one video. Stream URLs expire and hosts rotate, but a
  * stream's path stays the same, and sub and dub are different videos.
  */
-export const skipDetectionKey = (playlistUrl: string) => hash(new URL(playlistUrl).pathname);
+export const videoKey = (playlistUrl: string) =>
+	createHash("sha256").update(new URL(playlistUrl).pathname).digest("hex").slice(0, 32);
 
 /**
  * What marks an episode's videos as looked at, so looking ahead to it can
  * pass it over without resolving its videos.
  */
 export const episodeDetectionKey = (seriesId: string, episode: number) =>
-	hash(`episode:${seriesId}:${episode}`);
+	createHash("sha256").update(`episode:${seriesId}:${episode}`).digest("hex").slice(0, 32);
 
 /**
  * Whether a video has not been looked at, or left something unsettled long
  * enough ago to look again; whether the songs have changed since is up to
  * the one looking.
  */
-export const isSkipDetectionDue = (stored: StoredSkipDetection | undefined) => {
+export const isDue = (stored: StoredSkipDetection | undefined) => {
+	/**
+	 * How long until a video is looked at again when something was left
+	 * unsettled: AnimeThemes had no songs for its episode, or a kind's song was
+	 * not found. Songs are added while a season airs, so a new opening may not
+	 * be there yet.
+	 */
+	const unsettledRetryMs = 14 * day;
+
 	if (!stored) {
 		return true;
 	}
+
 	const settled =
 		stored.songs > 0 && stored.detection.opening !== null && stored.detection.ending !== null;
+
 	return !settled && Date.now() - stored.checkedAt.getTime() >= unsettledRetryMs;
 };
 
-/** Stored as 4-byte floats, so read back to the tenth of a second they were stored at. */
-const tenths = (seconds: number) => Math.round(seconds * 10) / 10;
-
-const span = (start: number | null, end: number | null) =>
-	start === null || end === null
-		? null
-		: {
-				end: tenths(end),
-				start: tenths(start),
-			};
-
 /** What is stored for each of `keys` that has been looked at. */
-export const getSkipDetections = async (keys: string[]) => {
+export const loadDetections = async (keys: string[]) => {
 	const found = new Map<string, StoredSkipDetection>();
+
 	if (keys.length === 0) {
 		return found;
 	}
 
 	const rows = await db.select().from(skipDetection).where(inArray(skipDetection.key, keys));
+
+	// Spans are stored as 4-byte floats, so they are read back to the tenth of a
+	// second they were stored at.
 	for (const row of rows) {
+		let ending: SongSpan | null = null;
+		let opening: SongSpan | "none" | null = null;
+
+		if (row.endingStart !== null && row.endingEnd !== null) {
+			ending = {
+				end: Math.round(row.endingEnd * 10) / 10,
+				start: Math.round(row.endingStart * 10) / 10,
+			};
+		}
+
+		if (row.openingStart !== null && row.openingEnd !== null) {
+			opening = {
+				end: Math.round(row.openingEnd * 10) / 10,
+				start: Math.round(row.openingStart * 10) / 10,
+			};
+		}
+
+		if (row.noOpening) {
+			opening = "none";
+		}
+
 		found.set(row.key, {
 			checkedAt: row.checkedAt,
 			detection: {
-				ending: span(row.endingStart, row.endingEnd),
-				opening: row.noOpening ? "none" : span(row.openingStart, row.openingEnd),
+				ending,
+				opening,
 			},
 			songs: row.songs,
 		});
 	}
+
 	return found;
 };
 
 /** Stores what looking for a video's theme songs settled. */
-export const saveSkipDetection = async (key: string, detection: SkipDetection, songs: number) => {
-	const opening = detection.opening === "none" ? null : detection.opening;
+export const saveDetection = async (key: string, detection: SkipDetection, songs: number) => {
+	let opening: SongSpan | null = null;
+
+	if (detection.opening !== "none") {
+		({ opening } = detection);
+	}
+
 	const row = {
 		checkedAt: new Date(),
 		endingEnd: detection.ending?.end ?? null,
@@ -112,6 +133,7 @@ export const saveSkipDetection = async (key: string, detection: SkipDetection, s
 		openingStart: opening?.start ?? null,
 		songs,
 	};
+
 	await db
 		.insert(skipDetection)
 		.values({

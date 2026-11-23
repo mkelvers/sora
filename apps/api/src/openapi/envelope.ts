@@ -7,7 +7,7 @@ import type { PreparingTitle } from "@sora/core/models/series";
  * as paging, under `meta`, and what was asked for under `results`.
  * `results` is an object for one resource and an array for a list.
  */
-export const envelopeOf = <TResults extends z.ZodType, TMeta extends z.ZodType>(
+export const envelope = <TResults extends z.ZodType, TMeta extends z.ZodType>(
 	results: TResults,
 	meta: TMeta,
 ) =>
@@ -69,12 +69,25 @@ export const offsetLinks = (
 	const link = (offset: number) => {
 		const target = new URL(url);
 		target.searchParams.set("offset", String(offset));
+
 		return `${target.pathname}${target.search}`;
 	};
 
+	let next: string | null = null;
+
+	if (page.offset + page.limit < page.total) {
+		next = link(page.offset + page.limit);
+	}
+
+	let previous: string | null = null;
+
+	if (page.offset > 0) {
+		previous = link(Math.max(page.offset - page.limit, 0));
+	}
+
 	return {
-		next: page.offset + page.limit < page.total ? link(page.offset + page.limit) : null,
-		previous: page.offset > 0 ? link(Math.max(page.offset - page.limit, 0)) : null,
+		next,
+		previous,
 	};
 };
 
@@ -102,16 +115,29 @@ export const pageMeta = (
 	const pageUrl = (number: number) => {
 		const target = new URL(url);
 		target.searchParams.set("page", String(number));
+
 		return `${target.pathname}${target.search}`;
 	};
 
+	let next: string | null = null;
+
+	if (page.hasNextPage) {
+		next = pageUrl(page.page + 1);
+	}
+
+	let previous: string | null = null;
+
+	if (page.page > 1) {
+		previous = pageUrl(page.page - 1);
+	}
+
 	return {
 		has_next_page: page.hasNextPage,
-		next: page.hasNextPage ? pageUrl(page.page + 1) : null,
+		next,
 		page: page.page,
 		per_page: page.perPage,
 		preparing: page.isPreparing,
 		preparing_titles: page.preparing ?? [],
-		previous: page.page > 1 ? pageUrl(page.page - 1) : null,
+		previous,
 	};
 };

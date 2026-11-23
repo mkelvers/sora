@@ -1,10 +1,11 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 import { attempt } from "@sora/shared";
 import { z } from "zod";
 
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
+import { Secret } from "./secret";
 
 /**
  * What the proxy should expect behind a token.
@@ -37,123 +38,134 @@ export interface StreamTarget {
 	audio?: string;
 }
 
-const StreamTargetSchema = z.object({
-	a: z.string().min(1),
-	e: z.number().int().positive(),
-	h: z.record(z.string(), z.string()),
-	k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
-	l: z.string().min(1).optional(),
-	m: z.array(
-		z.url({
+/** Seals stream targets into the opaque tokens clients see, and opens them again, with one secret. */
+export class StreamToken {
+	static readonly #schema = z.object({
+		a: z.string().min(1),
+		e: z.number().int().positive(),
+		h: z.record(z.string(), z.string()),
+		k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
+		l: z.string().min(1).optional(),
+		m: z.array(
+			z.url({
+				protocol: /^https?$/u,
+			}),
+		),
+		r: z.string().min(1).optional(),
+		t: z.array(z.tuple([z.number(), z.number()])).optional(),
+		u: z.url({
 			protocol: /^https?$/u,
 		}),
-	),
-	r: z.string().min(1).optional(),
-	t: z.array(z.tuple([z.number(), z.number()])).optional(),
-	u: z.url({
-		protocol: /^https?$/u,
-	}),
-});
+	});
 
-const keyFrom = (secret: string) =>
-	createHash("sha256").update(`sora stream token\0${secret}`).digest();
+	static readonly #tagLength = 16;
 
-/**
- * Encodes a target as an opaque, URL-safe token, encrypted and authenticated
- * with a key made from `secret`.
- *
- * The token is what clients see in place of the upstream URL, so it hides
- * it, along with the headers and mirrors, and cannot be changed without
- * being rejected. That is also what prevents the proxy from being used to
- * fetch arbitrary URLs.
- */
-export const signStreamTarget = (target: StreamTarget, secret: string) => {
-	const initializationVector = randomBytes(12);
-	const cipher = createCipheriv("aes-256-gcm", keyFrom(secret), initializationVector);
-	const sealed = Buffer.concat([
-		cipher.update(
-			JSON.stringify({
-				a: target.accountId,
-				e: target.expiresAt,
-				h: target.headers,
-				k: target.kind,
-				l: target.audio,
-				m: target.mirrors,
-				r: target.refinement,
-				t: target.shifts?.map(({ from, offset }) => [from, offset]),
-				u: target.url,
-			}),
-			"utf-8",
-		),
-		cipher.final(),
-		cipher.getAuthTag(),
-	]);
+	readonly #secret: Secret;
 
-	return `${initializationVector.toString("base64url")}.${sealed.toString("base64url")}`;
-};
-
-const tagLength = 16;
-
-/**
- * Decrypts and authenticates a token produced by {@link signStreamTarget}.
- *
- * @throws {InvalidStreamTokenError} when the token is malformed, was
- *   not made with `secret`, or has expired.
- */
-export const verifyStreamToken = (
-	token: string,
-	secret: string,
-	now = new Date(),
-): StreamTarget => {
-	const [encodedVector, encodedSealed, ...rest] = token.split(".");
-	if (!encodedVector || !encodedSealed || rest.length > 0) {
-		throw new InvalidStreamTokenError("Malformed stream token");
+	constructor(secret: string) {
+		this.#secret = new Secret(secret);
 	}
 
-	const initializationVector = Buffer.from(encodedVector, "base64url");
-	const sealed = Buffer.from(encodedSealed, "base64url");
-	if (initializationVector.length !== 12 || sealed.length <= tagLength) {
-		throw new InvalidStreamTokenError("Malformed stream token");
+	/**
+	 * Encodes a target as an opaque, URL-safe token, encrypted and authenticated
+	 * with a key made from the secret.
+	 *
+	 * The token is what clients see in place of the upstream URL, so it hides
+	 * it, along with the headers and mirrors, and cannot be changed without
+	 * being rejected. That is also what prevents the proxy from being used to
+	 * fetch arbitrary URLs.
+	 */
+	sign(target: StreamTarget): string {
+		const initializationVector = randomBytes(12);
+		const cipher = createCipheriv("aes-256-gcm", this.#secret.key, initializationVector);
+
+		const sealed = Buffer.concat([
+			cipher.update(
+				JSON.stringify({
+					a: target.accountId,
+					e: target.expiresAt,
+					h: target.headers,
+					k: target.kind,
+					l: target.audio,
+					m: target.mirrors,
+					r: target.refinement,
+					t: target.shifts?.map(({ from, offset }) => [from, offset]),
+					u: target.url,
+				}),
+				"utf-8",
+			),
+			cipher.final(),
+			cipher.getAuthTag(),
+		]);
+
+		return `${initializationVector.toString("base64url")}.${sealed.toString("base64url")}`;
 	}
 
-	const { data: json, error: unsealError } = attempt(() => {
-		const decipher = createDecipheriv("aes-256-gcm", keyFrom(secret), initializationVector);
-		decipher.setAuthTag(sealed.subarray(sealed.length - tagLength));
-		return Buffer.concat([
-			decipher.update(sealed.subarray(0, sealed.length - tagLength)),
-			decipher.final(),
-		]).toString("utf-8");
-	}, Error);
-	if (unsealError) {
-		throw new InvalidStreamTokenError("Stream token is not valid");
-	}
+	/**
+	 * Decrypts and authenticates a token produced by {@link StreamToken.sign}.
+	 *
+	 * @throws {StreamTokenError} when the token is malformed, was
+	 *   not made with this secret, or has expired.
+	 */
+	verify(token: string, now = new Date()): StreamTarget {
+		const [encodedVector, encodedSealed, ...rest] = token.split(".");
 
-	const { data, error } = attempt(() => JSON.parse(json), SyntaxError);
-	if (error) {
-		throw new InvalidStreamTokenError("Stream token payload is not JSON");
-	}
+		const malformed = !encodedVector || !encodedSealed || rest.length > 0;
 
-	const parsed = StreamTargetSchema.safeParse(data);
-	if (!parsed.success) {
-		throw new InvalidStreamTokenError("Stream token payload is invalid");
-	}
+		if (malformed) {
+			throw new StreamTokenError("Malformed stream token");
+		}
 
-	if (parsed.data.e * 1000 <= now.getTime()) {
-		throw new InvalidStreamTokenError("Stream token has expired");
-	}
+		const initializationVector = Buffer.from(encodedVector, "base64url");
+		const sealed = Buffer.from(encodedSealed, "base64url");
 
-	return {
-		accountId: parsed.data.a,
-		audio: parsed.data.l,
-		expiresAt: parsed.data.e,
-		headers: parsed.data.h,
-		kind: parsed.data.k,
-		mirrors: parsed.data.m,
-		refinement: parsed.data.r,
-		shifts: parsed.data.t?.map(([from, offset]) => ({
-			from,
-			offset,
-		})),
-		url: parsed.data.u,
-	};
-};
+		if (initializationVector.length !== 12 || sealed.length <= StreamToken.#tagLength) {
+			throw new StreamTokenError("Malformed stream token");
+		}
+
+		const { data: json, error: unsealError } = attempt(() => {
+			const decipher = createDecipheriv("aes-256-gcm", this.#secret.key, initializationVector);
+			decipher.setAuthTag(sealed.subarray(sealed.length - StreamToken.#tagLength));
+
+			return Buffer.concat([
+				decipher.update(sealed.subarray(0, sealed.length - StreamToken.#tagLength)),
+				decipher.final(),
+			]).toString("utf-8");
+		}, Error);
+
+		if (unsealError) {
+			throw new StreamTokenError("Stream token is not valid");
+		}
+
+		const { data, error } = attempt(() => JSON.parse(json), SyntaxError);
+
+		if (error) {
+			throw new StreamTokenError("Stream token payload is not JSON");
+		}
+
+		const parsed = StreamToken.#schema.safeParse(data);
+
+		if (!parsed.success) {
+			throw new StreamTokenError("Stream token payload is invalid");
+		}
+
+		if (parsed.data.e * 1000 <= now.getTime()) {
+			throw new StreamTokenError("Stream token has expired");
+		}
+
+		return {
+			accountId: parsed.data.a,
+			audio: parsed.data.l,
+			expiresAt: parsed.data.e,
+			headers: parsed.data.h,
+			kind: parsed.data.k,
+			mirrors: parsed.data.m,
+			refinement: parsed.data.r,
+			shifts: parsed.data.t?.map(([from, offset]) => ({
+				from,
+				offset,
+			})),
+			url: parsed.data.u,
+		};
+	}
+}

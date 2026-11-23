@@ -2,73 +2,105 @@ import { describe, expect, test } from "bun:test";
 
 import type { Anime } from "../catalog/models/anime";
 import { anime } from "../catalog/models/anime.fixture";
-import { aboutSeries } from "./about";
+import { About } from "./about";
 import type { AboutSources } from "./about";
 
-const about = (fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<Anime> } = {}) =>
-	aboutSeries({
-		ageRating: null,
-		audio: [],
-		awardReach: new Map(),
-		awards: [],
-		certification: null,
-		descriptors: [],
-		keywords: [],
-		overview: null,
-		seasonStarts: [],
-		subtitles: [],
-		...fields,
-		anime: {
-			...anime(16_498),
-			...fields.anime,
-		},
-	});
+/** What an about section is made from: Attack on Titan's, with `fields` changed. */
+class Sources {
+	readonly #fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<Anime> };
 
-const award = (name: string, year: number | null, won: boolean) => ({
-	name,
-	won,
-	year,
-});
+	constructor(fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<Anime> } = {}) {
+		this.#fields = fields;
+	}
 
-describe("aboutSeries", () => {
+	get about() {
+		return new About({
+			ageRating: null,
+			audio: [],
+			awardReach: new Map(),
+			awards: [],
+			certification: null,
+			descriptors: [],
+			keywords: [],
+			overview: null,
+			seasonStarts: [],
+			subtitles: [],
+			...this.#fields,
+			anime: {
+				...anime(16_498),
+				...this.#fields.anime,
+			},
+		}).section;
+	}
+}
+
+describe("About", () => {
 	test("names the original language for a sub and English for a dub", () => {
-		expect(about({ audio: ["dub", "sub"] }).audio_languages).toEqual(["Japanese", "English"]);
+		expect(new Sources({ audio: ["dub", "sub"] }).about.audio_languages).toEqual([
+			"Japanese",
+			"English",
+		]);
 		expect(
-			about({
+			new Sources({
 				anime: {
 					countryOfOrigin: "CN",
 				},
 				audio: ["sub"],
-			}).audio_languages,
+			}).about.audio_languages,
 		).toEqual(["Chinese"]);
-		expect(about({ audio: ["dub"] }).audio_languages).toEqual(["English"]);
+		expect(new Sources({ audio: ["dub"] }).about.audio_languages).toEqual(["English"]);
 	});
 
 	test("lists subtitles English first, then by name, once each", () => {
 		expect(
-			about({
+			new Sources({
 				subtitles: ["es-419", "pt-BR", "en", "ar", "es", "xx-unknown-tag-1"],
-			}).subtitle_languages,
+			}).about.subtitle_languages,
 		).toEqual(["English", "Arabic", "Brazilian Portuguese", "Latin American Spanish", "Spanish"]);
 	});
 
 	test("words the awards a season was given oldest first, a year's nominations before its wins", () => {
 		const awards = [
-			award("Tokyo Anime Award", 2014, true),
-			award("Crunchyroll Anime Awards", 2017, true),
-			award("Japan Expo Awards", null, false),
-			award("Tokyo Anime Award", 2014, false),
-			award("Crunchyroll Anime Awards", 2018, true),
-			award("Anime Trending Awards", 2013, true),
+			{
+				name: "Tokyo Anime Award",
+				won: true,
+				year: 2014,
+			},
+			{
+				name: "Crunchyroll Anime Awards",
+				won: true,
+				year: 2017,
+			},
+			{
+				name: "Japan Expo Awards",
+				won: false,
+				year: null,
+			},
+			{
+				name: "Tokyo Anime Award",
+				won: false,
+				year: 2014,
+			},
+			{
+				name: "Crunchyroll Anime Awards",
+				won: true,
+				year: 2018,
+			},
+			{
+				name: "Anime Trending Awards",
+				won: true,
+				year: 2013,
+			},
 		];
+
 		const season = (startDate: string, seasonStarts: number[]) =>
-			about({
+			new Sources({
 				anime: {
 					startDate,
 				},
 				awards,
 				seasonStarts,
-			}).awards;
+			}).about.awards;
 
 		expect(season("2013-04-07", [2017])).toEqual([
 			"2013 Anime Trending Awards Winner",
@@ -83,7 +115,7 @@ describe("aboutSeries", () => {
 
 	test("rates by MyAnimeList, warning of what the rating and strong tags say", () => {
 		expect(
-			about({
+			new Sources({
 				ageRating: "R",
 				anime: {
 					genres: ["Action"],
@@ -106,7 +138,7 @@ describe("aboutSeries", () => {
 					],
 				},
 				certification: "TV-14",
-			}).content_rating,
+			}).about.content_rating,
 		).toEqual({
 			age: "17+",
 			descriptors: ["Gore", "Profanity", "Violence"],
@@ -114,23 +146,23 @@ describe("aboutSeries", () => {
 	});
 
 	test("falls back to TMDB's certification, and to nothing", () => {
-		expect(about({ certification: "TV-MA" }).content_rating).toEqual({
+		expect(new Sources({ certification: "TV-MA" }).about.content_rating).toEqual({
 			age: "17+",
 			descriptors: [],
 		});
-		expect(about({ certification: "NR" }).content_rating).toBeNull();
+		expect(new Sources({ certification: "NR" }).about.content_rating).toBeNull();
 	});
 
 	test("warns of what TMDB's keywords and ratings' descriptors say it shows", () => {
 		expect(
-			about({
+			new Sources({
 				anime: {
 					genres: ["Adventure", "Horror"],
 				},
 				certification: "TV-14",
 				descriptors: ["Violence / Horror", "Negative examples"],
 				keywords: ["Combat", "magic", "smoking", "political intrigue\u00A0"],
-			}).content_rating,
+			}).about.content_rating,
 		).toEqual({
 			age: "14+",
 			descriptors: ["Fear", "Smoking", "Violence"],
@@ -159,48 +191,80 @@ describe("aboutSeries", () => {
 			},
 		};
 
-		expect(about({ anime: yona }).credit).toBe(
+		expect(new Sources({ anime: yona }).about.credit).toBe(
 			"© Mizuho Kusanagi, Hakusensha/“Yona of the Dawn” Production Committee",
 		);
 		expect(
-			about({
+			new Sources({
 				anime: {
 					...yona,
 					producers: [],
 					staff: [],
 				},
-			}).credit,
+			}).about.credit,
 		).toBe("© Studio Pierrot/“Yona of the Dawn” Production Committee");
 		expect(
-			about({
+			new Sources({
 				anime: {
 					...yona,
 					countryOfOrigin: "CN",
 					producers: [],
 				},
-			}).credit,
+			}).about.credit,
 		).toBe("© Mizuho Kusanagi/Studio Pierrot");
 	});
 
 	test("keeps the most notable awards: renowned ones, wins, then those given to more titles", () => {
 		expect(
-			about({
+			new Sources({
 				awardReach: new Map([
 					["Anime Trending Awards", 810],
 					["Chicago Film Critics Association Awards", 6],
 					["Phoenix Film Critics Society Awards", 3],
 				]),
 				awards: [
-					award("Chicago Film Critics Association Awards", 2003, true),
-					award("Academy Awards", 2003, true),
-					award("Phoenix Film Critics Society Awards", 2003, true),
-					award("Anime Trending Awards", 2002, true),
-					award("Mainichi Film Concours", 2002, true),
-					award("Awards of the Japanese Academy", 2002, false),
-					award("BAFTA Awards", 2004, false),
-					award("Annie Awards", 2003, true),
+					{
+						name: "Chicago Film Critics Association Awards",
+						won: true,
+						year: 2003,
+					},
+					{
+						name: "Academy Awards",
+						won: true,
+						year: 2003,
+					},
+					{
+						name: "Phoenix Film Critics Society Awards",
+						won: true,
+						year: 2003,
+					},
+					{
+						name: "Anime Trending Awards",
+						won: true,
+						year: 2002,
+					},
+					{
+						name: "Mainichi Film Concours",
+						won: true,
+						year: 2002,
+					},
+					{
+						name: "Awards of the Japanese Academy",
+						won: false,
+						year: 2002,
+					},
+					{
+						name: "BAFTA Awards",
+						won: false,
+						year: 2004,
+					},
+					{
+						name: "Annie Awards",
+						won: true,
+						year: 2003,
+					},
 				],
-			}).awards,
+			}).about.awards,
 		).toEqual([
 			"2002 Anime Trending Awards Winner",
 			"2002 Awards of the Japanese Academy Nominee",
@@ -214,34 +278,51 @@ describe("aboutSeries", () => {
 	test("picks this year's most notable award, a win over a nomination", () => {
 		const year = new Date().getUTCFullYear();
 		expect(
-			about({
+			new Sources({
 				awardReach: new Map([["Anime Trending Awards", 810]]),
 				awards: [
-					award("Anime Trending Awards", year, true),
-					award("Crunchyroll Anime Awards", year, false),
-					award("Crunchyroll Anime Awards", year, true),
-					award("Tokyo Anime Award", year - 1, true),
+					{
+						name: "Anime Trending Awards",
+						won: true,
+						year,
+					},
+					{
+						name: "Crunchyroll Anime Awards",
+						won: false,
+						year,
+					},
+					{
+						name: "Crunchyroll Anime Awards",
+						won: true,
+						year,
+					},
+					{
+						name: "Tokyo Anime Award",
+						won: true,
+						year: year - 1,
+					},
 				],
-			}).current_award,
+			}).about.current_award,
 		).toBe(`${year} Crunchyroll Anime Awards Winner`);
-		expect(about().current_award).toBeNull();
+		expect(new Sources().about.current_award).toBeNull();
 	});
 
 	test("shows the synopsis that says more: AniList's about-length one, else the stored one", () => {
 		const blurb =
 			"Socially inept, Koyuki keeps a wall between herself and other people. Then she meets Minato, a boy who keeps closing the distance.";
+
 		expect(
-			about({
+			new Sources({
 				anime: {
 					blurb,
 				},
 				overview: "Koyuki keeps everyone at arm's length.",
-			}).synopsis,
+			}).about.synopsis,
 		).toBe(blurb);
 		expect(
-			about({
+			new Sources({
 				overview: "Koyuki keeps everyone at arm's length.",
-			}).synopsis,
+			}).about.synopsis,
 		).toBe("Koyuki keeps everyone at arm's length.");
 	});
 });

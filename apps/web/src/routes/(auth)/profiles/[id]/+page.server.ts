@@ -5,31 +5,14 @@ import { z } from "zod";
 
 import type { Actions, PageServerLoad } from "./$types";
 
-const Changes = z.object({
-	avatar: z
-		.string()
-		.transform((value) => {
-			const [style, ...seed] = value.split(":");
-			return {
-				seed: seed.join(":"),
-				style,
-			};
-		})
-		.pipe(
-			z.object({
-				seed: z.string().trim().min(1).max(64),
-				style: z.enum(["sprouts", "critters"]),
-			}),
-		),
-	name: z.string().trim().min(1).max(40),
-});
-
 export const load: PageServerLoad = ({ locals, params }) => {
 	if (!locals.viewer) {
 		error(401, "Not signed in");
 	}
+
 	const { profiles } = locals.viewer;
 	const profile = profiles.find((candidate) => candidate.id === params.id);
+
 	if (!profile) {
 		error(404, "No such profile");
 	}
@@ -39,10 +22,19 @@ export const load: PageServerLoad = ({ locals, params }) => {
 			{
 				length: 11,
 			},
-			(_, index) => ({
-				seed: crypto.randomUUID().slice(0, 8),
-				style: index % 2 === 0 ? ("critters" as const) : ("sprouts" as const),
-			}),
+			(_, index) => {
+				const seed = crypto.randomUUID().slice(0, 8);
+				let style: "critters" | "sprouts" = "sprouts";
+
+				if (index % 2 === 0) {
+					style = "critters";
+				}
+
+				return {
+					seed,
+					style,
+				};
+			},
 		),
 		deletable: profiles.length > 1,
 		profile,
@@ -54,7 +46,9 @@ export const actions: Actions = {
 		if (!locals.viewer) {
 			error(401, "Not signed in");
 		}
+
 		const { viewer } = locals;
+
 		const deleted = await attempt(
 			viewer.sora.request(route.deleteProfile, {
 				params: {
@@ -63,14 +57,17 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
+
 		if (deleted.error?.code === "LAST_PROFILE") {
 			return fail(409, {
 				message: "An account keeps at least one profile.",
 			});
 		}
+
 		if (deleted.error?.status === 404) {
 			error(404, "No such profile");
 		}
+
 		if (deleted.error) {
 			throw deleted.error;
 		}
@@ -83,16 +80,42 @@ export const actions: Actions = {
 		}
 
 		const target = url.searchParams.get("redirect");
-		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
+
+		if (target) {
+			redirect(303, `/profiles?redirect=${encodeURIComponent(target)}`);
+		}
+
+		redirect(303, "/profiles");
 	},
 
 	save: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get("name") ?? "");
-		const changes = Changes.safeParse({
-			avatar: form.get("avatar"),
-			name,
-		});
+
+		const changes = z
+			.object({
+				avatar: z
+					.string()
+					.transform((value) => {
+						const [style, ...seed] = value.split(":");
+
+						return {
+							seed: seed.join(":"),
+							style,
+						};
+					})
+					.pipe(
+						z.object({
+							seed: z.string().trim().min(1).max(64),
+							style: z.enum(["sprouts", "critters"]),
+						}),
+					),
+				name: z.string().trim().min(1).max(40),
+			})
+			.safeParse({
+				avatar: form.get("avatar"),
+				name,
+			});
 
 		if (!changes.success) {
 			return fail(400, {
@@ -114,14 +137,21 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
+
 		if (updated.error?.status === 404) {
 			error(404, "No such profile");
 		}
+
 		if (updated.error) {
 			throw updated.error;
 		}
 
 		const target = url.searchParams.get("redirect");
-		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
+
+		if (target) {
+			redirect(303, `/profiles?redirect=${encodeURIComponent(target)}`);
+		}
+
+		redirect(303, "/profiles");
 	},
 };

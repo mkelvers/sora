@@ -2,7 +2,7 @@
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import { mascots } from "$lib/mascots";
 	import { onVisible } from "$lib/utils";
-	import { getCatalogPage } from "$routes/(app)/(catalog)/catalog.remote";
+	import { getPage } from "$routes/(app)/(catalog)/catalog.remote";
 	import type { CatalogRequest } from "$routes/(app)/(catalog)/catalog.remote";
 	import Poster from "$routes/(app)/components/poster.svelte";
 	import { CircleNotchIcon } from "phosphor-svelte";
@@ -28,24 +28,29 @@
 				length: count,
 			},
 			(_, index) =>
-				getCatalogPage({
+				getPage({
 					...request,
 					page: index + 1,
 				}),
 		),
 	);
+
 	const pages = $derived(await Promise.all(queries));
+
 	const items = $derived.by(() => {
 		const seen = new Set<string>();
+
 		return pages
 			.flatMap((page) => page.items)
 			.filter((item) => !seen.has(item.card.id) && !!seen.add(item.card.id));
 	});
+
 	const hasNextPage = $derived(pages.at(-1)?.hasNextPage ?? false);
 	const sections = $derived([...Map.groupBy(items, (item) => item.group)]);
 
 	$effect(() => {
 		const waiting = queries.filter((_, index) => pages[index]?.preparing);
+
 		if (!waiting.length) {
 			return;
 		}
@@ -55,6 +60,7 @@
 				query.refresh();
 			}
 		}, 1000);
+
 		return () => clearTimeout(timer);
 	});
 </script>

@@ -31,36 +31,53 @@
 		if (!grid) {
 			return;
 		}
+
 		const element = grid;
+
 		const observer = new ResizeObserver(
 			() => (columns = getComputedStyle(element).gridTemplateColumns.split(" ").length),
 		);
+
 		observer.observe(element);
+
 		return () => observer.disconnect();
 	});
 
-	const stop = (target: number) =>
-		series.episode_count - target <= tail ? series.episode_count : target;
+	const stop = (target: number) => {
+		if (series.episode_count - target <= tail) {
+			return series.episode_count;
+		}
+
+		return target;
+	};
+
 	const stops = $derived.by(() => {
 		const list = [stop(pageSize)];
+
 		for (let step = 1; step <= steps; step += 1) {
 			const end = stop(Math.ceil((pageSize * step) / columns) * columns);
+
 			if (end > (list.at(-1) ?? 0)) {
 				list.push(end);
 			}
 		}
+
 		return list;
 	});
+
 	const chunks = $derived(
 		stops.map((end, index) => {
 			const offset = stops[index - 1] ?? 0;
+
 			return {
 				limit: end - offset,
 				offset,
 			};
 		}),
 	);
+
 	const loaded = $derived(stops.at(-1) ?? 0);
+
 	let selected = $state<{
 		seriesId: string;
 		episode: number;
@@ -71,6 +88,7 @@
 		if (selected === null) {
 			return;
 		}
+
 		const { episode, seriesId, watched } = selected;
 		selected = null;
 		markEpisode({

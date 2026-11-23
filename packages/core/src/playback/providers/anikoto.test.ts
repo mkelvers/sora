@@ -2,70 +2,50 @@ import { describe, expect, test } from "bun:test";
 
 import { HttpClient } from "anime-sdk";
 
-import { AniKotoStreamProvider } from "./anikoto";
+import { AniKoto } from "./anikoto";
+import { listing, seriesResponseOf, skipSegments, sources } from "./anikoto.fixture";
 
 const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html>";
-const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
-
-/** `getSources` as MegaPlay sends it, with the source unencrypted. */
-const sources = (intro: object | undefined, outro: object | undefined) =>
-	JSON.stringify({
-		intro,
-		outro,
-		server: 4,
-		sources: {
-			file: "https://cdn.example/master.m3u8",
-		},
-		t: 1,
-		tracks: [],
-	});
 
 /**
  * A provider whose HTTP requests are answered by `pages`, keyed by path, and
  * the URLs it requested.
  */
-const providerServing = (pages: Record<string, string>) => {
-	const requested: string[] = [];
-	const http = new HttpClient({
-		retry: false,
-		transport: {
-			fetch: (url) => {
-				requested.push(url);
-				const page = pages[new URL(url).pathname];
-				return Promise.resolve(
-					page === undefined
-						? new Response("Not found", {
-								status: 404,
-							})
-						: new Response(page),
-				);
-			},
-		},
-	});
+class Site {
+	readonly requested: string[] = [];
+	readonly provider: AniKoto;
 
-	return {
-		provider: new AniKotoStreamProvider(http, {
+	constructor(pages: Record<string, string>) {
+		const http = new HttpClient({
+			retry: false,
+			transport: {
+				fetch: (url) => {
+					this.requested.push(url);
+					const page = pages[new URL(url).pathname];
+
+					if (page === undefined) {
+						return Promise.resolve(
+							new Response("Not found", {
+								status: 404,
+							}),
+						);
+					}
+
+					return Promise.resolve(new Response(page));
+				},
+			},
+		});
+
+		this.provider = new AniKoto(http, {
 			listsLanguages: true,
 			locale: "en",
-		}),
-		requested,
-	};
-};
+		});
+	}
+}
 
-/** The skip segments shipped with the stream `provider` resolves. */
-const skipSegments = async (
-	provider: AniKotoStreamProvider,
-	episodeId: string,
-	language: "sub" | "dub",
-) => {
-	const stream = await provider.resolveStream(episodeId, language);
-
-	return stream.skipSegments;
-};
-
-describe("AniKotoStreamProvider audio", () => {
+describe("AniKoto audio", () => {
 	test("hands sub and dub MegaPlay's playlist as it is, for Sora to choose the audio", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/getSources": sources(undefined, undefined),
 			"/stream/s-2/704348/dub": embedPage,
 			"/stream/s-2/704348/sub": embedPage,
@@ -81,9 +61,11 @@ describe("AniKotoStreamProvider audio", () => {
 	});
 });
 
-describe("AniKotoStreamProvider skip segments", () => {
+describe("AniKoto skip segments", () => {
+	const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
+
 	test("reads the opening and ending, as for Frieren episode 3", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/getSources": sources(
 				{
 					end: 89,
@@ -112,7 +94,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 	});
 
 	test("come with the stream, requesting only the embed and its file's sources", async () => {
-		const { provider, requested } = providerServing({
+		const { provider, requested } = new Site({
 			"/stream/getSources": sources(undefined, undefined),
 			"/stream/s-2/107260/dub": embedPage,
 		});
@@ -126,7 +108,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 	});
 
 	test("treats MegaPlay's 0–0 placeholder as no segment", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/getSources": sources(
 				{
 					end: 0,
@@ -144,7 +126,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 	});
 
 	test("keeps a known span when the other is missing", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/getSources": sources(undefined, {
 				end: 1390,
 				start: 1300,
@@ -162,7 +144,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 	});
 
 	test("drops a span that ends before it starts", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/getSources": sources(
 				{
 					end: 10,
@@ -178,7 +160,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 
 	test("orders spans by start time", async () => {
 		// A cold open can put the opening after an early ending card.
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/getSources": sources(
 				{
 					end: 390,
@@ -198,7 +180,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 	});
 
 	test("fails when MegaPlay has no source in that language", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/s-2/1/dub": errorPage,
 		});
 
@@ -208,7 +190,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 	});
 
 	test("drops a malformed span without failing the stream", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/stream/getSources": sources(
 				{
 					end: 90,
@@ -232,68 +214,21 @@ describe("AniKotoStreamProvider skip segments", () => {
 	});
 });
 
-/**
- * AniKoto's series API, listing `numbers` with an embed for each language
- * in `languages`. Its episodes default to 56–58 of Naruto: Shippuden, sub only.
- */
-const seriesResponseOf = (
-	numbers: readonly number[],
-	languages: (number: number) => readonly string[] = () => ["sub"],
-) =>
-	JSON.stringify({
-		data: {
-			episodes: numbers.map((number) => ({
-				embed_url: Object.fromEntries(
-					languages(number).map((language) => [
-						language,
-						`https://megaplay.buzz/stream/s-2/${7880 + number}/${language}`,
-					]),
-				),
-				episode_embed_id: `${7880 + number}`,
-				id: 27_298 + number,
-				number,
-				title: `Episode ${number}`,
-			})),
-		},
-		ok: true,
-	});
-
 const seriesResponse = seriesResponseOf([56, 57, 58]);
 
-/** One link of AniKoto's episode list. `sub` and `dub` default to flagged and unflagged. */
-interface ListedLink {
-	className?: string;
-	sub?: "0" | "1";
-	dub?: "0" | "1";
-}
-
-/** AniKoto's episode list, as its watch page loads it, with a link per episode number. */
-const episodeList = (links: Record<number, ListedLink | string>) => {
-	const items = Object.entries(links).map(([number, link]) => {
-		const {
-			className = "",
-			sub = "1",
-			dub = "0",
-		} = typeof link === "string"
-			? {
-					className: link,
-				}
-			: link;
-		return `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-mal="44037" data-timestamp="1729246208" data-sub="${sub}" data-dub="${dub}" data-ids="SmV3" class="${className}" >${number}</a></li>`;
-	});
-	return JSON.stringify({
-		result: `<div class="body"><ul class="ep-range">${items.join("\n")}</ul></div>`,
-		status: 200,
-	});
-};
-
-describe("AniKotoStreamProvider.listEpisodes", () => {
+describe("AniKoto.listEpisodes", () => {
 	test("marks the episodes AniKoto's episode list tags as filler, as in Naruto: Shippuden", async () => {
-		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
-				56: "  ",
-				57: " filler ",
-				58: "active filler",
+		const { provider } = new Site({
+			"/ajax/episode/list/1498": listing({
+				56: {
+					className: "  ",
+				},
+				57: {
+					className: " filler ",
+				},
+				58: {
+					className: "active filler",
+				},
 			}),
 			"/series/1498": seriesResponse,
 		});
@@ -308,7 +243,7 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 	});
 
 	test("keeps the episode IDs stored lists hold, which resolveStream takes", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/series/1498": seriesResponse,
 		});
 
@@ -318,7 +253,7 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 	});
 
 	test("lists the episodes without filler flags when the episode list cannot be read", async () => {
-		const { provider } = providerServing({
+		const { provider } = new Site({
 			"/series/1498": seriesResponse,
 		});
 
@@ -332,8 +267,8 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 	});
 
 	test("leaves filler unknown rather than false when the episode list has no episodes", async () => {
-		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({}),
+		const { provider } = new Site({
+			"/ajax/episode/list/1498": listing({}),
 			"/series/1498": seriesResponse,
 		});
 
@@ -343,10 +278,10 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 	});
 });
 
-describe("AniKotoStreamProvider.listEpisodes languages", () => {
+describe("AniKoto.listEpisodes languages", () => {
 	test("adds dubs the API leaves out, as in Banished from the Hero's Party episodes 1–3", async () => {
-		const { provider } = providerServing({
-			"/ajax/episode/list/6752": episodeList({
+		const { provider } = new Site({
+			"/ajax/episode/list/6752": listing({
 				1: {
 					className: "active",
 					dub: "1",
@@ -361,9 +296,13 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 					dub: "1",
 				},
 			}),
-			"/series/6752": seriesResponseOf([1, 2, 3, 4], (number) =>
-				number < 4 ? ["sub"] : ["sub", "dub"],
-			),
+			"/series/6752": seriesResponseOf([1, 2, 3, 4], (number) => {
+				if (number < 4) {
+					return ["sub"];
+				}
+
+				return ["sub", "dub"];
+			}),
 		});
 
 		const units = await provider.listEpisodes("6752");
@@ -377,8 +316,8 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 	});
 
 	test("lists no dub when neither the API nor the episode list has one", async () => {
-		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+		const { provider } = new Site({
+			"/ajax/episode/list/1498": listing({
 				56: {},
 				57: {},
 				58: {},
@@ -392,8 +331,8 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 	});
 
 	test("keeps a language the API has an embed for when the episode list does not flag it", async () => {
-		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+		const { provider } = new Site({
+			"/ajax/episode/list/1498": listing({
 				56: {
 					dub: "0",
 				},
@@ -407,8 +346,8 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 	});
 
 	test("lists a dub-only episode without a sub", async () => {
-		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+		const { provider } = new Site({
+			"/ajax/episode/list/1498": listing({
 				56: {
 					dub: "1",
 					sub: "0",
@@ -423,8 +362,14 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 	});
 
 	test("keeps the API's languages when the episode list cannot be read", async () => {
-		const { provider } = providerServing({
-			"/series/6752": seriesResponseOf([1, 4], (number) => (number < 4 ? ["sub"] : ["sub", "dub"])),
+		const { provider } = new Site({
+			"/series/6752": seriesResponseOf([1, 4], (number) => {
+				if (number < 4) {
+					return ["sub"];
+				}
+
+				return ["sub", "dub"];
+			}),
 		});
 
 		const units = await provider.listEpisodes("6752");
@@ -436,8 +381,8 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 	});
 
 	test("keeps the API's languages, and leaves filler unknown, for an episode the list leaves out", async () => {
-		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+		const { provider } = new Site({
+			"/ajax/episode/list/1498": listing({
 				56: {
 					className: "filler",
 					dub: "1",

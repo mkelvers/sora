@@ -4,7 +4,7 @@
 	import { mascots } from "$lib/mascots";
 	import { onVisible } from "$lib/utils";
 	import Poster from "$routes/(app)/components/poster.svelte";
-	import { searchSeries } from "$routes/(app)/search/search.remote";
+	import { getResults } from "$routes/(app)/search/search.remote";
 
 	let {
 		q,
@@ -19,12 +19,13 @@
 	} = $props();
 
 	const search = $derived(
-		searchSeries({
+		getResults({
 			page,
 			perPage: 24,
 			q,
 		}),
 	);
+
 	const found = $derived(await search);
 	const stale = $derived(navigating.to?.url.pathname === "/search");
 
@@ -34,6 +35,7 @@
 		}
 
 		const timer = setTimeout(() => search.refresh(), 1000);
+
 		return () => clearTimeout(timer);
 	});
 </script>

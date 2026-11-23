@@ -37,19 +37,23 @@
 			y: 1,
 		},
 	];
+
 	type Handle = (typeof corners)[number] | "logo";
 
 	const unit = (value: number) => clamp(value, -1, 1);
 	const zoomed = (value: number) => clamp(Math.round(value * 100) / 100, 0.5, 2);
 
 	let stage: HTMLElement | undefined;
+
 	let box = $state<{
 		left: number;
 		top: number;
 		width: number;
 		height: number;
 	}>();
+
 	let hovered = $state<Handle>();
+
 	let drag = $state<{
 		handle: Handle;
 		pointerX: number;
@@ -62,14 +66,25 @@
 	}>();
 
 	const activeHandle = $derived(drag?.handle ?? hovered);
+
 	const cursor = $derived.by(() => {
 		if (activeHandle === "logo") {
-			return drag ? "cursor-grabbing" : "cursor-grab";
+			if (drag) {
+				return "cursor-grabbing";
+			}
+
+			return "cursor-grab";
 		}
+
 		if (!activeHandle) {
 			return;
 		}
-		return activeHandle.x === activeHandle.y ? "cursor-nwse-resize" : "cursor-nesw-resize";
+
+		if (activeHandle.x === activeHandle.y) {
+			return "cursor-nwse-resize";
+		}
+
+		return "cursor-nesw-resize";
 	});
 
 	const elements = () => ({
@@ -90,6 +105,7 @@
 
 	$effect(() => {
 		void [scale, x, y];
+
 		if (stage) {
 			measure();
 		}
@@ -97,14 +113,19 @@
 
 	const track = (node: HTMLElement) => {
 		stage = node;
+
 		const observer = new ResizeObserver(() => {
 			const { hero, logo } = elements();
+
 			for (const element of [hero, logo, defined(defined(logo.parentElement).parentElement)]) {
 				observer.observe(element);
 			}
+
 			measure();
 		});
+
 		observer.observe(node);
+
 		return () => {
 			observer.disconnect();
 			stage = undefined;
@@ -120,18 +141,41 @@
 	};
 
 	const hit = (event: PointerEvent, logo: DOMRect): Handle | undefined => {
-		const reach = event.pointerType === "touch" ? 24 : 10;
-		const corner = corners.find(
-			(candidate) =>
-				Math.abs(event.clientX - (candidate.x < 0 ? logo.left : logo.right)) <= reach &&
-				Math.abs(event.clientY - (candidate.y < 0 ? logo.top : logo.bottom)) <= reach,
-		);
+		let reach = 10;
+
+		if (event.pointerType === "touch") {
+			reach = 24;
+		}
+
+		const corner = corners.find((candidate) => {
+			let edgeX = logo.right;
+
+			if (candidate.x < 0) {
+				edgeX = logo.left;
+			}
+
+			let edgeY = logo.bottom;
+
+			if (candidate.y < 0) {
+				edgeY = logo.top;
+			}
+
+			return Math.abs(event.clientX - edgeX) <= reach && Math.abs(event.clientY - edgeY) <= reach;
+		});
+
 		const inside =
 			event.clientX >= logo.left &&
 			event.clientX <= logo.right &&
 			event.clientY >= logo.top &&
 			event.clientY <= logo.bottom;
-		return corner ?? (inside ? "logo" : undefined);
+
+		if (corner) {
+			return corner;
+		}
+
+		if (inside) {
+			return "logo";
+		}
 	};
 
 	const start = (event: PointerEvent) => {
@@ -143,6 +187,7 @@
 		const { hero, logo } = elements();
 		const rect = logo.getBoundingClientRect();
 		const found = hit(event, rect);
+
 		if (!found) {
 			return;
 		}
@@ -165,37 +210,65 @@
 		if (!drag) {
 			measure();
 			hovered = hit(event, elements().logo.getBoundingClientRect());
+
 			return;
 		}
 
 		const { handle, hero, logo } = drag;
+
 		if (handle === "logo") {
 			const dx = clamp(
 				event.clientX - drag.pointerX,
 				Math.min(0, hero.left - logo.left),
 				Math.max(0, hero.right - logo.right),
 			);
+
 			const dy = clamp(
 				event.clientY - drag.pointerY,
 				Math.min(0, hero.top - logo.top),
 				Math.max(0, hero.bottom - logo.bottom),
 			);
+
 			x = unit(drag.x + dx / hero.width);
 			y = unit(drag.y + dy / hero.width);
+
 			return;
 		}
 
-		const anchorX = handle.x > 0 ? logo.left : logo.right;
-		const anchorY = handle.y > 0 ? logo.top : logo.bottom;
+		let anchorX = logo.right;
+
+		if (handle.x > 0) {
+			anchorX = logo.left;
+		}
+
+		let anchorY = logo.bottom;
+
+		if (handle.y > 0) {
+			anchorY = logo.top;
+		}
+
 		const along =
 			((event.clientX - anchorX) * handle.x * logo.width +
 				(event.clientY - anchorY) * handle.y * logo.height) /
 			(logo.width ** 2 + logo.height ** 2);
+
 		scale = zoomed(drag.scale * along);
 
 		const factor = scale / drag.scale;
-		x = unit(drag.x + (handle.x < 0 ? logo.width * (1 - factor) : 0) / hero.width);
-		y = unit(drag.y + (handle.y > 0 ? logo.height * (factor - 1) : 0) / hero.width);
+		let shiftX = 0;
+
+		if (handle.x < 0) {
+			shiftX = logo.width * (1 - factor);
+		}
+
+		let shiftY = 0;
+
+		if (handle.y > 0) {
+			shiftY = logo.height * (factor - 1);
+		}
+
+		x = unit(drag.x + shiftX / hero.width);
+		y = unit(drag.y + shiftY / hero.width);
 	};
 
 	const end = () => {
@@ -205,31 +278,45 @@
 		}
 	};
 
-	const moves: Record<string, [number, number]> = {
-		ArrowDown: [0, 1],
-		ArrowLeft: [-1, 0],
-		ArrowRight: [1, 0],
-		ArrowUp: [0, -1],
-	};
-	const zooms: Record<string, number> = {
-		"+": 1,
-		"-": -1,
-		"=": 1,
-	};
+	const moves = new Map<string, [number, number]>(
+		Object.entries({
+			ArrowDown: [0, 1],
+			ArrowLeft: [-1, 0],
+			ArrowRight: [1, 0],
+			ArrowUp: [0, -1],
+		}),
+	);
+
+	const zooms = new Map<string, number>(
+		Object.entries({
+			"+": 1,
+			"-": -1,
+			"=": 1,
+		}),
+	);
 
 	const nudge = (event: KeyboardEvent) => {
-		const direction = moves[event.key];
-		const zoom = zooms[event.key];
+		const direction = moves.get(event.key);
+		const zoom = zooms.get(event.key);
+
 		if (!direction && !zoom) {
 			return;
 		}
 
 		event.preventDefault();
+
 		if (direction) {
-			const step = event.shiftKey ? 0.02 : 0.005;
+			let step = 0.005;
+
+			if (event.shiftKey) {
+				step = 0.02;
+			}
+
 			x = unit(x + direction[0] * step);
 			y = unit(y + direction[1] * step);
-		} else {
+		}
+
+		if (zoom) {
 			scale = zoomed(scale + zoom * 0.05);
 		}
 	};
@@ -275,7 +362,7 @@
 				style:height="{box.height}px"
 				onkeydown={nudge}
 				onkeyup={(event) => {
-					if (event.key in moves || event.key in zooms) {
+					if (moves.has(event.key) || zooms.has(event.key)) {
 						save();
 					}
 				}}

@@ -5,10 +5,10 @@
 	import Button from "$lib/components/ui/button.svelte";
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import { cn, pollWhileVisible } from "$lib/utils";
-	import { browse, setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { browse, filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
-	import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
-	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
+	import { getUnread } from "$routes/(app)/notifications/notifications.remote";
+	import { picker } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {
 		BellSimpleIcon,
@@ -31,7 +31,7 @@
 		profiles: Profile[];
 	} = $props();
 
-	const unread = getUnreadNotifications();
+	const unread = getUnread();
 	const genres = getGenres();
 
 	let categories = $state(false);
@@ -60,7 +60,7 @@
 		{
 			href: "/browse",
 			label: "Browse All Anime",
-			onclick: () => setBrowse({}),
+			onclick: () => filterBy({}),
 		},
 		{
 			href: "/categories",
@@ -78,17 +78,30 @@
 
 	const current = (href: string) => {
 		const { pathname } = page.url;
-		return pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined;
+
+		const here = pathname === href || pathname.startsWith(`${href}/`);
+
+		if (!here) {
+			return;
+		}
+
+		return "page";
 	};
 
-	const browsing = (genre: string) =>
-		page.url.pathname === "/browse" &&
-		browse.genres.length === 1 &&
-		browse.genres[0] === genre &&
-		browse.tags.length === 0 &&
-		browse.studios.length === 0
-			? "page"
-			: undefined;
+	const browsing = (genre: string) => {
+		const only =
+			page.url.pathname === "/browse" &&
+			browse.genres.length === 1 &&
+			browse.genres[0] === genre &&
+			browse.tags.length === 0 &&
+			browse.studios.length === 0;
+
+		if (!only) {
+			return;
+		}
+
+		return "page";
+	};
 
 	$effect(() => {
 		if (page.url.pathname === "/notifications") {
@@ -162,7 +175,7 @@
 												class="pl-9"
 												aria-current={browsing(genre)}
 												onclick={() =>
-													setBrowse({
+													filterBy({
 														genres: [genre],
 													})}
 											>
@@ -244,7 +257,7 @@
 											variant="item"
 											aria-current={browsing(genre)}
 											onclick={() =>
-												setBrowse({
+												filterBy({
 													genres: [genre],
 												})}
 										>
@@ -349,7 +362,7 @@
 									href="/profiles"
 									variant="item"
 									class="gap-3"
-									onclick={() => (profilesPage.managing = true)}
+									onclick={() => (picker.managing = true)}
 								>
 									<UsersIcon size="1.25rem" />
 									Manage Profiles

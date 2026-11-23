@@ -1,4 +1,5 @@
 import { defined } from "@sora/shared";
+
 /** One cue of a WebVTT file, with its text stripped of markup. */
 export interface Cue {
 	start: number;
@@ -15,21 +16,26 @@ const timing = /^(?<start>\S+)\s+-->\s+(?<end>\S+)(?<settings>.*)$/mu;
 export const parseTimestamp = (value: string) => {
 	const parts =
 		/^(?:(?<hours>\d+):)?(?<minutes>\d{2}):(?<seconds>\d{2})\.(?<milliseconds>\d{3})$/u.exec(value);
+
 	if (!parts) {
 		return null;
 	}
 
 	const [, hours = "0", minutes, seconds, milliseconds] = parts;
+
 	return (
 		Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds) + Number(milliseconds) / 1000
 	);
 };
 
-const pad = (value: number, length = 2) => String(value).padStart(length, "0");
-
 export const formatTimestamp = (seconds: number) => {
 	const milliseconds = Math.round(seconds * 1000);
-	return `${pad(Math.floor(milliseconds / 3_600_000))}:${pad(Math.floor(milliseconds / 60_000) % 60)}:${pad(Math.floor(milliseconds / 1000) % 60)}.${pad(milliseconds % 1000, 3)}`;
+	const hours = String(Math.floor(milliseconds / 3_600_000)).padStart(2, "0");
+	const minutes = String(Math.floor(milliseconds / 60_000) % 60).padStart(2, "0");
+	const wholeSeconds = String(Math.floor(milliseconds / 1000) % 60).padStart(2, "0");
+	const fraction = String(milliseconds % 1000).padStart(3, "0");
+
+	return `${hours}:${minutes}:${wholeSeconds}.${fraction}`;
 };
 
 /** The blocks of a WebVTT file, separated by blank lines. */
@@ -43,7 +49,10 @@ export const readTiming = (block: string) => {
 	const match = timing.exec(block);
 	const start = match && parseTimestamp(defined(match[1]));
 	const end = match && parseTimestamp(defined(match[2]));
-	if (!match || start === null || end === null) {
+
+	const malformed = !match || start === null || end === null;
+
+	if (malformed) {
 		return null;
 	}
 
@@ -57,25 +66,30 @@ export const readTiming = (block: string) => {
 /** Replaces the timing of a cue block, keeping its identifier, settings, and text. */
 export const writeTiming = (block: string, start: number, end: number) => {
 	const settings = timing.exec(block)?.[3] ?? "";
+
 	return block.replace(timing, `${formatTimestamp(start)} --> ${formatTimestamp(end)}${settings}`);
 };
 
 /** The cues of a WebVTT file in file order, with markup, line breaks, and empty cues removed. */
 export const readCues = (content: string) => {
 	const cues: Cue[] = [];
+
 	for (const block of splitBlocks(content)) {
 		const cue = readTiming(block);
+
 		if (!cue) {
 			continue;
 		}
 
 		const lines = block.split(/\r?\n/u);
+
 		const text = lines
 			.slice(lines.findIndex((line) => line.includes("-->")) + 1)
 			.join(" ")
 			.replaceAll(/<[^>]*>|\{\\[^}]*\}/gu, "")
 			.replaceAll(/\s+/gu, " ")
 			.trim();
+
 		if (text) {
 			cues.push({
 				end: cue.end,

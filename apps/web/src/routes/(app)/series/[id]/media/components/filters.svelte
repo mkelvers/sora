@@ -13,6 +13,7 @@
 
 	const allImages = $derived(await getImages(seriesId));
 	const images = $derived(allImages.filter((image) => image.type === media.type));
+
 	const languages = $derived(
 		[...Map.groupBy(images, (image) => image.language ?? "none")]
 			.map(([code, group]) => ({

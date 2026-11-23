@@ -1,4 +1,4 @@
-import { attempt, inSequence, second } from "@sora/shared";
+import { attempt, second, sequence } from "@sora/shared";
 
 import type { ProviderUnit } from "../episodes/episodes";
 import type { ProviderVideo, StreamProvider } from "../providers/provider";
@@ -6,10 +6,7 @@ import { servedLocale } from "../providers/registry";
 import { audioLanguages, isInLocale } from "../proxy/playlist";
 import { canFetchStream, readPlaylist } from "../proxy/proxy";
 import type { PlaylistReader } from "../proxy/proxy";
-import { StreamUpstreamError } from "../proxy/upstream";
-
-/** How long a video's host has to answer before its provider is passed over. */
-const videoProbeTimeoutMs = 3 * second;
+import { StreamUpstreamError } from "../proxy/upstream-error";
 
 /**
  * What {@link probeVideos} found of one video; `null` when no host serves it.
@@ -28,11 +25,6 @@ export interface ProbeDependencies {
 	canFetchStream: typeof canFetchStream;
 }
 
-const liveProbes: ProbeDependencies = {
-	canFetchStream,
-	readPlaylist,
-};
-
 /**
  * Probes each of a provider's videos with one request: an HLS video by reading
  * its master playlist, which lists its audio languages, any other by its
@@ -43,37 +35,55 @@ const liveProbes: ProbeDependencies = {
  */
 export const probeVideos = (
 	videos: readonly ProviderVideo[],
-	dependencies: ProbeDependencies = liveProbes,
-): Promise<VideoProbe[]> =>
-	Promise.all(
+	dependencies?: ProbeDependencies,
+): Promise<VideoProbe[]> => {
+	/** How long a video's host has to answer before its provider is passed over. */
+	const timeoutMs = 3 * second;
+
+	const hosts = dependencies ?? {
+		canFetchStream,
+		readPlaylist,
+	};
+
+	return Promise.all(
 		videos.map(async (video) => {
-			const signal = AbortSignal.timeout(videoProbeTimeoutMs);
+			const signal = AbortSignal.timeout(timeoutMs);
+
 			if (video.format === "hls") {
 				const { data, error } = await attempt(
-					dependencies.readPlaylist(video.url, video.headers, {
+					hosts.readPlaylist(video.url, video.headers, {
 						signal,
 					}),
 					StreamUpstreamError,
 				);
-				if (error) {
-					return error.status === 429
-						? {
-								audioLanguages: null,
-							}
-						: null;
+
+				if (!error) {
+					return {
+						audioLanguages: audioLanguages(data.content),
+					};
 				}
+
+				if (error.status !== 429) {
+					return null;
+				}
+
 				return {
-					audioLanguages: audioLanguages(data.content),
+					audioLanguages: null,
 				};
 			}
-			const loads = await dependencies.canFetchStream(video.url, video.headers, [], signal);
-			return loads
-				? {
-						audioLanguages: [],
-					}
-				: null;
+
+			const loads = await hosts.canFetchStream(video.url, video.headers, [], signal);
+
+			if (loads) {
+				return {
+					audioLanguages: [],
+				};
+			}
+
+			return null;
 		}),
 	);
+};
 
 /**
  * Whether a dub's videos have audio in {@link servedLocale}: one lists it, or
@@ -93,16 +103,17 @@ export const hasDubAudio = (probes: readonly VideoProbe[]) =>
 	);
 
 /** Whether `provider` streams an episode's dub with audio in {@link servedLocale}. */
-export const streamsDub = async (
+export const servesDub = async (
 	provider: Pick<StreamProvider, "resolveStream">,
 	episodeId: string,
 ) => {
 	const { data, error } = await attempt(provider.resolveStream(episodeId, "dub"));
+
 	return !error && hasDubAudio(await probeVideos(data.videos));
 };
 
 /**
- * `units` without the dubs they newly list that `streamsDub` does not
+ * `units` without the dubs they newly list that `servesDub` does not
  * confirm, so an episode is never labelled dubbed before its dub plays.
  *
  * A dub is new when `previous`, the list stored before, did not have it.
@@ -124,8 +135,9 @@ export const withConfirmedDubs = async (
 	const dubbedBefore = new Set(
 		previous.filter((unit) => unit.languages?.includes("dub")).map((unit) => unit.number),
 	);
+
 	const unconfirmed = new Set<string>();
-	await inSequence(
+	await sequence.all(
 		units.filter((unit) => unit.languages?.includes("dub") && !dubbedBefore.has(unit.number)),
 		async (unit) => {
 			if (!(await confirm(unit))) {
@@ -134,12 +146,14 @@ export const withConfirmedDubs = async (
 		},
 	);
 
-	return units.map((unit) =>
-		unconfirmed.has(unit.id)
-			? {
-					...unit,
-					languages: unit.languages?.filter((language) => language !== "dub") ?? null,
-				}
-			: unit,
-	);
+	return units.map((unit) => {
+		if (unconfirmed.has(unit.id)) {
+			return {
+				...unit,
+				languages: unit.languages?.filter((language) => language !== "dub") ?? null,
+			};
+		}
+
+		return unit;
+	});
 };

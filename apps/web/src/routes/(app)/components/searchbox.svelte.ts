@@ -1,7 +1,9 @@
 import { afterNavigate, goto } from "$app/navigation";
-import { page } from "$app/state";
+import { navigating, page } from "$app/state";
 import { attempt } from "@sora/shared";
 import { tick } from "svelte";
+
+import { editedSearchHref } from "./search-edit";
 
 export class Search {
 	form = $state<HTMLFormElement>();
@@ -14,8 +16,6 @@ export class Search {
 	focused = $state(false);
 	dismissed = $state(false);
 	active = $state(-1);
-	retry: (() => void) | undefined;
-
 	private timer: ReturnType<typeof setTimeout> | undefined;
 
 	onSearch = $derived(page.url.pathname === "/search");
@@ -24,11 +24,23 @@ export class Search {
 	shown = $derived(
 		this.focused && !this.dismissed && !this.onSearch && !!this.term && !!this.text.trim(),
 	);
-	activeId = $derived(this.shown && this.active >= 0 ? `search-option-${this.active}` : undefined);
+	activeId = $derived.by(() => {
+		const highlighted = this.shown && !this.typing && this.active >= 0;
+
+		if (!highlighted) {
+			return;
+		}
+
+		return `search-option-${this.active}`;
+	});
 
 	constructor() {
 		this.open = this.onSearch;
-		this.text = this.onSearch ? this.query : "";
+		this.text = "";
+
+		if (this.onSearch) {
+			this.text = this.query;
+		}
 
 		afterNavigate(({ to, type }) => {
 			this.active = -1;
@@ -39,10 +51,12 @@ export class Search {
 				this.text = "";
 				this.term = "";
 				this.input?.blur();
+
 				return;
 			}
 
 			if (type !== "goto") {
+				clearTimeout(this.timer);
 				this.text = this.query;
 			}
 
@@ -60,14 +74,16 @@ export class Search {
 		clearTimeout(this.timer);
 		this.timer = setTimeout(() => {
 			this.term = this.text.trim();
-			this.retry?.();
-			this.retry = undefined;
 
-			if (this.onSearch && this.term && this.term !== this.query) {
-				goto(`/search?q=${encodeURIComponent(this.term)}`, {
-					replace: true,
-					reset: false,
-				});
+			const href = editedSearchHref(this.term, page.url, navigating.to?.url);
+
+			if (href) {
+				attempt(
+					goto(href, {
+						replace: true,
+						reset: false,
+					}),
+				);
 			}
 		}, 250);
 	};
@@ -99,13 +115,12 @@ export class Search {
 		const value = this.text.trim();
 
 		if (value) {
-			goto(`/search?q=${encodeURIComponent(value)}`);
+			clearTimeout(this.timer);
+			attempt(goto(`/search?q=${encodeURIComponent(value)}`));
 		}
 	};
 
 	keydown = (event: KeyboardEvent) => {
-		const options = this.panel?.querySelectorAll<HTMLElement>('[role="option"]');
-
 		if (event.key === "Escape") {
 			if (this.shown) {
 				this.dismissed = true;
@@ -113,12 +128,20 @@ export class Search {
 			} else {
 				this.input?.blur();
 			}
+
 			return;
+		}
+
+		let options: NodeListOf<HTMLElement> | undefined;
+
+		if (this.shown && !this.typing) {
+			options = this.panel?.querySelectorAll<HTMLElement>('[role="option"]');
 		}
 
 		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			if (!this.shown) {
 				this.dismissed = false;
+
 				return;
 			}
 
@@ -127,20 +150,26 @@ export class Search {
 			}
 
 			event.preventDefault();
-			const step = event.key === "ArrowDown" ? 1 : -1;
+			let step = -1;
+
+			if (event.key === "ArrowDown") {
+				step = 1;
+			}
+
 			const count = options.length + 1;
 			this.active = ((this.active + 1 + step + count) % count) - 1;
+
 			return;
 		}
 
-		if (event.key === "Enter" && this.shown && this.active >= 0 && options?.[this.active]) {
+		if (event.key === "Enter" && options?.[this.active]) {
 			event.preventDefault();
 			options[this.active].click();
 		}
 	};
 
 	leave = (event: FocusEvent) => {
-		if (this.form?.contains(event.relatedTarget as Node | null)) {
+		if (event.relatedTarget instanceof Node && this.form?.contains(event.relatedTarget)) {
 			return;
 		}
 
@@ -153,16 +182,16 @@ export class Search {
 	};
 
 	shortcut = (event: KeyboardEvent) => {
-		const target = event.target as HTMLElement;
+		const { target } = event;
+		const modified = event.metaKey || event.ctrlKey || event.altKey;
 
-		if (
-			event.key !== "/" ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.altKey ||
-			target.isContentEditable ||
-			["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-		) {
+		const typing =
+			target instanceof HTMLElement &&
+			(target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+		const ignored = event.key !== "/" || modified || typing;
+
+		if (ignored) {
 			return;
 		}
 

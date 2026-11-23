@@ -18,22 +18,17 @@
 	import Episodes, { pageSize } from "./components/episodes.svelte";
 	import Hero from "./components/hero.svelte";
 	import Related from "./components/related.svelte";
-	import {
-		getEpisodes,
-		getSimilarSeries,
-		getSeries,
-		getSeriesProgress,
-		markSeries,
-	} from "./series.remote";
+	import { getEpisodes, getSimilar, getDetails, getTitleProgress, markAll } from "./series.remote";
 
 	let { params }: PageProps = $props();
 
 	const extraEvery = 2;
 
-	const series = $derived(await getSeries(params.id));
+	const series = $derived(await getDetails(params.id));
+
 	const [progress] = $derived(
 		await Promise.all([
-			getSeriesProgress(params.id),
+			getTitleProgress(params.id),
 			getEpisodes({
 				backdrop: series.backdrop_url,
 				id: params.id,
@@ -42,37 +37,73 @@
 			}),
 		]),
 	);
+
 	const current = $derived(series.seasons.find((part) => part.series_id === series.id));
+
 	const subject = $derived.by(() => {
 		if (series.format === "MOVIE") {
 			return "Movie";
 		}
-		return current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")
-			? "Season"
-			: "Title";
+
+		if (current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")) {
+			return "Season";
+		}
+
+		return "Title";
 	});
 
-	const position = $derived(current?.role === "season" ? series.seasons.indexOf(current) : -1);
-	const previous = $derived(position > 0 ? series.seasons[position - 1] : undefined);
-	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
+	const position = $derived.by(() => {
+		if (current?.role === "season") {
+			return series.seasons.indexOf(current);
+		}
+
+		return -1;
+	});
+
+	const previous = $derived.by(() => {
+		if (position <= 0) {
+			return;
+		}
+
+		return series.seasons[position - 1];
+	});
+
+	const next = $derived.by(() => {
+		if (position === -1) {
+			return;
+		}
+
+		return series.seasons[position + 1];
+	});
+
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
-	const similar = $derived(getSimilarSeries(params.id));
+	const similar = $derived(getSimilar(params.id));
+
 	const alike = $derived.by(() => {
 		if (!similar.current) {
 			return [];
 		}
+
 		const extras = series.related.filter((part) => part.role === "extra").map((part) => part.card);
+
 		const cards = series.related
 			.filter((part) => part.role === "spin_off")
 			.map((part) => part.card);
+
 		for (const [index, card] of similar.current.entries()) {
 			cards.push(card);
-			const extra = index % extraEvery === extraEvery - 1 ? extras.shift() : undefined;
+			let extra: (typeof extras)[number] | undefined;
+
+			if (index % extraEvery === extraEvery - 1) {
+				extra = extras.shift();
+			}
+
 			if (extra) {
 				cards.push(extra);
 			}
 		}
+
 		return [...cards, ...extras];
 	});
 
@@ -84,12 +115,16 @@
 			return "Movie";
 		}
 
-		return part.episode_count ? episodes(part.episode_count) : "Coming soon";
+		if (part.episode_count) {
+			return episodes(part.episode_count);
+		}
+
+		return "Coming soon";
 	};
 
 	const mark = () => {
 		options = false;
-		markSeries({
+		markAll({
 			seriesId: series.id,
 			watched: !progress.finished,
 		});

@@ -47,7 +47,7 @@ describe("attempt", () => {
 	});
 
 	test("wraps a thrown value that is not an Error", async () => {
-		const thrown: unknown = "nope";
+		const thrown = "nope";
 		const { error } = await attempt(Promise.reject(thrown));
 		expect(error?.message).toBe("nope");
 		expect(error?.cause).toBe("nope");
@@ -55,9 +55,11 @@ describe("attempt", () => {
 
 	test("narrows data once error is ruled out", async () => {
 		const { data, error } = await attempt(Promise.resolve("value"));
+
 		if (error) {
 			throw error;
 		}
+
 		const length: number = data.length;
 		expect(length).toBe(5);
 	});

@@ -1,21 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { judgeSongs } from "./detect";
-import type { FoundSong } from "./detect";
-
-const found = (
-	kind: FoundSong["kind"],
-	start: number,
-	end: number,
-	coverage = 1,
-	clipped = false,
-): FoundSong => ({
-	clipped,
-	coverage,
-	end,
-	kind,
-	start,
-});
+import { found } from "./detect.fixture";
 
 describe("judgeSongs", () => {
 	test("takes where the opening and ending songs play", () => {

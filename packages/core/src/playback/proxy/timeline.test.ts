@@ -1,27 +1,32 @@
 import { describe, expect, test } from "bun:test";
 
-import { masterPlaylist } from "./playlist.fixture";
+import { master } from "./playlist.fixture";
 import { streamTimeline } from "./proxy";
 import type { PlaylistReader } from "./proxy";
 
-/** A reader serving `playlists` by URL, and the URLs it was asked for. */
-const serving = (playlists: Record<string, string>) => {
-	const requested: string[] = [];
-	const read: PlaylistReader = (url) => {
-		requested.push(url);
-		const content = playlists[url];
-		return content === undefined
-			? Promise.reject(new Error(`${url} is not served`))
-			: Promise.resolve({
-					content,
-					url,
-				});
+/** Playlists served by URL, a reader of them, and the URLs it was asked for. */
+class Playlists {
+	readonly requested: string[] = [];
+	readonly #playlists: Record<string, string>;
+
+	constructor(playlists: Record<string, string>) {
+		this.#playlists = playlists;
+	}
+
+	read: PlaylistReader = (url) => {
+		this.requested.push(url);
+		const content = this.#playlists[url];
+
+		if (content === undefined) {
+			return Promise.reject(new Error(`${url} is not served`));
+		}
+
+		return Promise.resolve({
+			content,
+			url,
+		});
 	};
-	return {
-		read,
-		requested,
-	};
-};
+}
 
 const mediaPlaylist = [
 	"#EXTM3U",
@@ -34,9 +39,9 @@ const mediaPlaylist = [
 
 describe("streamTimeline", () => {
 	test("reads a master playlist's first variant through the reader it is given", async () => {
-		const { read, requested } = serving({
+		const { read, requested } = new Playlists({
 			"https://cdn.example/show/index-f1.m3u8": mediaPlaylist,
-			"https://cdn.example/show/master.m3u8": masterPlaylist(["ja", "en"]),
+			"https://cdn.example/show/master.m3u8": master(["ja", "en"]),
 		});
 
 		expect(await streamTimeline("https://cdn.example/show/master.m3u8", {}, read)).toEqual({
@@ -50,7 +55,7 @@ describe("streamTimeline", () => {
 	});
 
 	test("reads a media playlist alone", async () => {
-		const { read, requested } = serving({
+		const { read, requested } = new Playlists({
 			"https://cdn.example/show/index.m3u8": mediaPlaylist,
 		});
 

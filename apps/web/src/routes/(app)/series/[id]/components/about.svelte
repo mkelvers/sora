@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button.svelte";
-	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getTags } from "$routes/(app)/(catalog)/catalog.remote";
 	import type { Series } from "@sora/sdk";
@@ -10,8 +10,10 @@
 	let expanded = $state(false);
 
 	const offered = getTags();
+
 	const tags = $derived.by(() => {
 		const names = new Set((offered.current ?? []).map((tag) => tag.name));
+
 		return series.tags
 			.filter((tag) => !tag.spoiler && names.has(tag.name))
 			.slice(0, 6)
@@ -28,7 +30,7 @@
 					<span class="comma-separated">
 						<a
 							href="/browse"
-							onclick={() => setBrowse(filter(name))}
+							onclick={() => filterBy(filter(name))}
 							class="underline underline-offset-2 transition-colors hover:text-foreground"
 						>
 							{name}

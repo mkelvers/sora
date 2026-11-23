@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { LanguageSchema, SeriesCardSchema } from "./series";
+import { LanguageSchema, CardSchema } from "./series";
 
 export const SubtitleChoiceSchema = z
 	.object({
@@ -146,7 +146,7 @@ export const NextEpisodeSchema = z.object(nextEpisode).meta({
 
 export const ContinueWatchingSchema = z
 	.object({
-		series: SeriesCardSchema,
+		series: CardSchema,
 		...nextEpisode,
 	})
 	.meta({
@@ -179,7 +179,7 @@ export const WatchlistEntrySchema = z
 			description: "When the title was put on the watchlist, as an ISO 8601 timestamp.",
 			example: "2026-10-01T18:00:00.000Z",
 		}),
-		series: SeriesCardSchema,
+		series: CardSchema,
 		status: WatchlistStatusSchema,
 		updated_at: z.string().meta({
 			description: "When its status last changed, as an ISO 8601 timestamp.",
@@ -190,7 +190,7 @@ export const WatchlistEntrySchema = z
 		id: "WatchlistEntry",
 	});
 
-export const WatchlistStatusEntrySchema = z
+export const StatusEntrySchema = z
 	.object({
 		series_id: z.string().meta({
 			description: "The title's ID.",
@@ -254,7 +254,7 @@ export const NotificationSchema = z
 				"When it came out, or for `announced` when Sora first stored the announced title, as an ISO 8601 timestamp.",
 			example: "2026-10-04T13:30:00.000Z",
 		}),
-		series: SeriesCardSchema,
+		series: CardSchema,
 		still_url: z.string().nullable().meta({
 			description:
 				"A still of `last_episode`, or of the first episode for a premiere; null for `announced`.",
@@ -267,7 +267,7 @@ export const NotificationSchema = z
 		id: "Notification",
 	});
 
-export const PlaybackPreferencesUpdateSchema = z
+export const PlaybackChangesSchema = z
 	.object({
 		audio: LanguageSchema.nullable().optional(),
 		auto_skip: z.boolean().optional(),
@@ -317,7 +317,7 @@ export const ProfilePreferencesSchema = z
 		id: "ProfilePreferences",
 	});
 
-export const ProfilePreferencesUpdateSchema = z
+export const ProfileChangesSchema = z
 	.object({
 		hide_spoilers: z.boolean().optional(),
 		notifications: ProfilePreferencesSchema.shape.notifications.partial().optional().meta({
@@ -347,18 +347,33 @@ export const ProgressInputSchema = z
 	});
 
 export type ProfilePreferences = z.infer<typeof ProfilePreferencesSchema>;
-export type ProfilePreferencesUpdate = z.input<typeof ProfilePreferencesUpdateSchema>;
-export type PlaybackPreferencesUpdate = z.input<typeof PlaybackPreferencesUpdateSchema>;
+
+export type ProfilePreferencesUpdate = z.input<typeof ProfileChangesSchema>;
+
+export type PlaybackPreferencesUpdate = z.input<typeof PlaybackChangesSchema>;
+
 export type ProgressInput = z.input<typeof ProgressInputSchema>;
+
 export type SubtitleChoice = z.infer<typeof SubtitleChoiceSchema>;
+
 export type SubtitleStyle = z.infer<typeof SubtitleStyleSchema>;
+
 export type PlaybackPreferences = z.infer<typeof PlaybackPreferencesSchema>;
+
 export type Progress = z.infer<typeof ProgressSchema>;
+
 export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
+
 export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
+
 export type WatchlistStatus = z.infer<typeof WatchlistStatusSchema>;
+
 export type Rating = z.infer<typeof RatingSchema>;
+
 export type WatchlistEntry = z.infer<typeof WatchlistEntrySchema>;
-export type WatchlistStatusEntry = z.infer<typeof WatchlistStatusEntrySchema>;
+
+export type WatchlistStatusEntry = z.infer<typeof StatusEntrySchema>;
+
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
+
 export type Notification = z.infer<typeof NotificationSchema>;

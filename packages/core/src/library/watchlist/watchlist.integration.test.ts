@@ -1,22 +1,15 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { eq } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
-import { getSeries, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
-import {
-	getWatchlist,
-	getWatchlistStatuses,
-	setWatchlistStatus,
-	updateWatchlistAfterPlayback,
-} from "./watchlist";
+import { series, titleEpisode } from "../../database/schema/series";
+import { toCards, titles } from "../../series/queries";
+import { watchlist } from "./watchlist";
 
-// Opt in against a migrated local database. Synthetic IDs keep the fixture
-// separate from real accounts and titles; cleanup runs after failed assertions.
-describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short titles", () => {
+describe("saved short titles", () => {
 	const profile = `watchlist-test-${crypto.randomUUID()}`;
 	const id = `${profile}-short`;
 	const anilistId = -Math.floor(Math.random() * 100_000_000) - 1;
@@ -79,38 +72,37 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 		});
 	});
 
-	afterAll(async () => {
-		await db.delete(series).where(eq(series.id, id));
-		await db.delete(anime).where(eq(anime.anilistId, anilistId));
-	});
-
 	test("keeps saved dates and a usable detail page while discovery excludes the title", async () => {
 		const [row] = await db.select().from(series).where(eq(series.id, id));
+
 		if (!row) {
 			throw new Error("Missing watchlist test fixture");
 		}
-		const cards = await toSeriesCards([row]);
-		const cardsOfAnotherTitle = await toSeriesCards([row], ["another-title"]);
-		expect(cards.size).toBe(0);
-		expect(cardsOfAnotherTitle.size).toBe(0);
 
-		const [entry] = await getWatchlist(profile);
+		const cards = await toCards([row]);
+		const otherCards = await toCards([row], ["another-title"]);
+		expect(cards.size).toBe(0);
+		expect(otherCards.size).toBe(0);
+
+		const [entry] = await watchlist.list(profile);
+
 		if (!entry) {
 			throw new Error("Saved short title missing from watchlist");
 		}
+
 		expect(entry.series.id).toBe(id);
 		expect(entry.series.format).toBe("TV_SHORT");
 		expect(entry.added_at).toBe(addedAt.toISOString());
 		expect(entry.updated_at).toBe(updatedAt.toISOString());
 
-		const details = await getSeries(id);
+		const details = await titles.get(id);
 		expect(details.id).toBe(id);
 		expect(details.seasons.some((season) => season.series_id === id)).toBe(true);
-		expect(await getSeriesEpisodes(id)).toEqual([]);
+		expect(await titles.episodes(id)).toEqual([]);
 
-		await setWatchlistStatus(profile, id, "completed");
-		expect(await getWatchlist(profile)).toEqual([entry]);
-		expect(await getWatchlistStatuses(profile)).toEqual([
+		await watchlist.set(profile, id, "completed");
+		expect(await watchlist.list(profile)).toEqual([entry]);
+		expect(await watchlist.statuses(profile)).toEqual([
 			{
 				series_id: id,
 				status: "completed",
@@ -119,18 +111,30 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 	});
 
 	test("completes at the stored playable finale instead of AniList's short count", async () => {
-		await db.insert(seriesEpisode).values({ number: 24, seriesId: id });
-		await setWatchlistStatus(profile, id, "watching");
-		await updateWatchlistAfterPlayback(profile, id, { episode: 24, finished: true });
-		const [completed] = await getWatchlist(profile);
+		await db.insert(titleEpisode).values({
+			number: 24,
+			seriesId: id,
+		});
+		await watchlist.set(profile, id, "watching");
+		await watchlist.followPlayback(profile, id, {
+			episode: 24,
+			finished: true,
+		});
+		const [completed] = await watchlist.list(profile);
 		expect(completed?.status).toBe("completed");
 	});
 
 	test("does not complete when the finale is finished without the episodes before it", async () => {
-		await db.insert(seriesEpisode).values({ number: 23, seriesId: id });
-		await setWatchlistStatus(profile, id, "watching");
-		await updateWatchlistAfterPlayback(profile, id, { episode: 24, finished: true });
-		const [entry] = await getWatchlist(profile);
+		await db.insert(titleEpisode).values({
+			number: 23,
+			seriesId: id,
+		});
+		await watchlist.set(profile, id, "watching");
+		await watchlist.followPlayback(profile, id, {
+			episode: 24,
+			finished: true,
+		});
+		const [entry] = await watchlist.list(profile);
 		expect(entry?.status).toBe("watching");
 	});
 });

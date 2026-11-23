@@ -10,19 +10,6 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import type { Problem } from "./openapi/schemas";
 
-/** The HTTP status for each core failure. Every code must be listed. */
-const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
-	ANIME_NOT_FOUND: 404,
-	EPISODE_NOT_FOUND: 404,
-	INVALID_INPUT: 422,
-	INVALID_STREAM_TOKEN: 403,
-	LAST_PROFILE: 409,
-	PLAYBACK_UNAVAILABLE: 502,
-	PROFILE_NOT_FOUND: 404,
-	SERIES_NOT_FOUND: 404,
-	UPSTREAM_UNAVAILABLE: 503,
-};
-
 /** What `/v1` middleware puts on the context for handlers. */
 export interface V1Env {
 	Variables: {
@@ -67,9 +54,23 @@ export const sendProblem = (
  * The app's error handler. Core errors map through {@link statusByCode};
  * anything else is a defect, logged and answered with a generic 500.
  */
-export const onError = (error: unknown, c: Context) => {
+export const onFailure = (error: Error, c: Context) => {
+	/** The HTTP status for each core failure. Every code must be listed. */
+	const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
+		ANIME_NOT_FOUND: 404,
+		EPISODE_NOT_FOUND: 404,
+		INVALID_INPUT: 422,
+		INVALID_STREAM_TOKEN: 403,
+		LAST_PROFILE: 409,
+		PLAYBACK_UNAVAILABLE: 502,
+		PROFILE_NOT_FOUND: 404,
+		SERIES_NOT_FOUND: 404,
+		UPSTREAM_UNAVAILABLE: 503,
+	};
+
 	if (!(error instanceof CoreError)) {
 		console.error(`${c.req.method} ${c.req.path} failed`, error);
+
 		return sendProblem(c, 500, "INTERNAL_ERROR", "Something went wrong on our side");
 	}
 
@@ -77,8 +78,14 @@ export const onError = (error: unknown, c: Context) => {
 		console.warn(`${c.req.method} ${c.req.path}: ${error.message}`, error.attempts);
 	}
 
-	const status = error instanceof StreamUpstreamError ? 502 : statusByCode[error.code];
+	let status = statusByCode[error.code];
+
+	if (error instanceof StreamUpstreamError) {
+		status = 502;
+	}
+
 	const response = sendProblem(c, status, error.code, error.message);
+
 	if (error instanceof UpstreamUnavailableError && error.retryAfterMs !== null) {
 		response.headers.set("Retry-After", formatRetryAfter(error.retryAfterMs));
 	}

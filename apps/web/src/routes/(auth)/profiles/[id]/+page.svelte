@@ -15,14 +15,22 @@
 	let choices = $derived(data.choices);
 	let pending = $state(false);
 
-	const shown = $derived(
-		[data.profile.avatar, ...choices]
-			.map((avatar) => ({
-				avatar,
-				key: `${avatar.style}:${avatar.seed}`,
-			}))
-			.filter(({ key }, index, all) => all.findIndex((other) => other.key === key) === index),
-	);
+	const shown = $derived.by(() => {
+		const byKey = new Map<string, typeof data.profile.avatar>();
+
+		for (const avatar of [data.profile.avatar, ...choices]) {
+			const key = `${avatar.style}:${avatar.seed}`;
+
+			if (!byKey.has(key)) {
+				byKey.set(key, avatar);
+			}
+		}
+
+		return [...byKey].map(([key, avatar]) => ({
+			avatar,
+			key,
+		}));
+	});
 </script>
 
 <svelte:head>

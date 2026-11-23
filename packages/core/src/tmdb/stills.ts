@@ -1,50 +1,14 @@
 import { attempt, defined } from "@sora/shared";
 import { eq } from "drizzle-orm";
-import sharp from "sharp";
 
 import { config } from "../config";
 import { db } from "../database/client";
 import { episodeStill } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
+import { Frame } from "./frame";
 import type { TmdbEpisode, TmdbImage } from "./resources";
 import { loadStillModel, stillModel } from "./still-model";
-
-const widescreen = 16 / 9;
-
-/** How far from 16:9 a still's aspect ratio may be and count as widescreen. */
-const widescreenTolerance = 0.1;
-
-/** Stills narrower than this are the last to be picked. */
-const smallestWidth = 1000;
-
-/** The width a still is measured at; TMDB serves this size directly. */
-const measuredWidth = 320;
-const measuredHeight = 180;
-
-/**
- * A line of pixels counts as black when all but its brightest 2% are below
- * this luma. Lossy compression leaves a bar's pixels up to about 12; a dark
- * scene's vignette is above it within a few lines of the edge.
- */
-const blackLuma = 12;
-
-/**
- * A bar ends in a step: the lines just past it are brighter, on average,
- * than the ones just inside it by at least this much. A dark scene fades.
- */
-const barStep = 10;
-
-/** Bars thinner than this share of the frame are not seen, and not counted. */
-const thinnestBar = 0.02;
-
-/** A black edge wider than this share of the frame is a dark frame, not a bar. */
-const widestBar = 0.4;
-
-const tier = (still: TmdbImage) => [
-	Number(still.iso_639_1 !== null),
-	Number(Math.abs(still.width / still.height - widescreen) > widescreenTolerance),
-	Number(still.width < smallestWidth),
-];
+import { StillRank } from "./still-rank";
 
 /**
  * Orders a TMDB episode's stills, best first. A still is better when:
@@ -54,15 +18,16 @@ const tier = (still: TmdbImage) => [
  *    were such art, where of 64 picked at random from the 1,592 without one,
  *    1 had text.
  * 2. it is widescreen, which the episode cards crop to anyway.
- * 3. it is at least {@link smallestWidth} wide.
+ * 3. it is at least 1000 pixels wide.
  * 4. TMDB's voters rate it higher.
  *
  * and then TMDB's own pick comes first, then the larger one.
  */
-export const rankStills = (stills: readonly TmdbImage[], defaultPath: string | null): TmdbImage[] =>
+export const bestFirst = (stills: readonly TmdbImage[], defaultPath: string | null): TmdbImage[] =>
 	stills.toSorted((left, right) => {
-		const leftTier = tier(left);
-		const rightTier = tier(right);
+		const leftTier = new StillRank(left).tier;
+		const rightTier = new StillRank(right).tier;
+
 		for (const [index, value] of leftTier.entries()) {
 			if (value !== rightTier[index]) {
 				return value - defined(rightTier[index]);
@@ -76,39 +41,6 @@ export const rankStills = (stills: readonly TmdbImage[], defaultPath: string | n
 		);
 	});
 
-const depth = (edge: { brightest: number; mean: number }[]) => {
-	let bar = 0;
-	while (bar < edge.length && defined(edge[bar]).brightest < blackLuma) {
-		bar += 1;
-	}
-	if (bar === 0 || bar > edge.length * widestBar) {
-		return 0;
-	}
-
-	const inside = Math.max(...edge.slice(Math.max(0, bar - 2), bar).map((line) => line.mean));
-	const outside = Math.max(...edge.slice(bar, bar + 2).map((line) => line.mean));
-	return outside - inside >= barStep ? bar / edge.length : 0;
-};
-
-const lines = (count: number, length: number, at: (line: number, index: number) => number) =>
-	Array.from(
-		{
-			length: count,
-		},
-		(_, line) => {
-			const values = Array.from(
-				{
-					length,
-				},
-				(_value, index) => at(line, index),
-			).toSorted((left, right) => left - right);
-			return {
-				brightest: defined(values[Math.floor(length * 0.98)]),
-				mean: values.reduce((sum, value) => sum + value, 0) / length,
-			};
-		},
-	);
-
 /**
  * The share of the frame that black bars take up along its widest edge:
  * `0.12` for the bars of a 2.35:1 picture in a 16:9 frame, 0 for a picture
@@ -119,45 +51,42 @@ const lines = (count: number, length: number, at: (line: number, index: number) 
  * given 1.33:1 to 2.35:1 bars, it finds every one at least 2% thick.
  */
 export const blackBars = async (image: Buffer): Promise<number> => {
-	const { data } = await sharp(image)
-		.resize(measuredWidth, measuredHeight, {
-			fit: "fill",
-		})
-		.greyscale()
-		.raw()
-		.toBuffer({
-			resolveWithObject: true,
-		});
+	const frame = await Frame.of(image);
 
-	const rows = lines(measuredHeight, measuredWidth, (line, index) =>
-		defined(data[line * measuredWidth + index]),
-	);
-	const columns = lines(measuredWidth, measuredHeight, (line, index) =>
-		defined(data[index * measuredWidth + line]),
-	);
-	return Math.max(
-		depth(rows),
-		depth(rows.toReversed()),
-		depth(columns),
-		depth(columns.toReversed()),
-	);
+	return frame.bars;
 };
 
 /** Whether {@link blackBars} finds bars thick enough to see. */
-export const hasBlackBars = async (image: Buffer): Promise<boolean> =>
-	(await blackBars(image)) >= thinnestBar;
+export const hasBlackBars = async (image: Buffer): Promise<boolean> => {
+	/** Bars thinner than this share of the frame are not seen, and not counted. */
+	const thinnestBar = 0.02;
 
-/**
- * A still is a scene when CLIP gives it at least this much of its
- * probability. Bleach's title card of episode 18, which CLIP finds hardest,
- * gets 0.79. Of 1,323 stills from 430 episodes, this turns away every one the
- * whole 32-bit model turned away at 0.75, and four more: two title cards and
- * a poster it let through, and a letterboxed scene that its black bars turn
- * away first.
- */
-const sceneShare = 0.8;
+	return (await blackBars(image)) >= thinnestBar;
+};
 
-let classifier: ReturnType<typeof loadStillModel> | null = null;
+/** CLIP, loaded on first use; a load that fails is forgotten, so the next still tries again. */
+class Classifier {
+	/** The one the process shares, so the model loads once. */
+	static readonly shared = new Classifier();
+
+	#loading: ReturnType<typeof loadStillModel> | null = null;
+
+	/** @throws {UpstreamUnavailableError} when the model cannot be loaded. */
+	async load() {
+		this.#loading ??= loadStillModel(config.stillModelDir);
+		const loaded = await attempt(this.#loading);
+
+		if (loaded.error) {
+			this.#loading = null;
+			throw new UpstreamUnavailableError(`could not load ${stillModel}: ${loaded.error.message}`, {
+				cause: loaded.error,
+				retryAfterMs: null,
+			});
+		}
+
+		return loaded.data;
+	}
+}
 
 /**
  * Whether a still is a title card, a logo, or other text rather than a
@@ -166,45 +95,51 @@ let classifier: ReturnType<typeof loadStillModel> | null = null;
  * over them in a set of 1,691, among them every plain title card (Bleach's
  * numbered cards, Dragon Ball's chapter cards), for 12 others turned away.
  * It misses a logo over a scene, which the language TMDB gives such a still
- * catches (see `rankStills`).
+ * catches (see `bestFirst`).
  *
  * @throws {UpstreamUnavailableError} when the model cannot be loaded.
  */
 export const showsText = async (image: Buffer): Promise<boolean> => {
-	classifier ??= loadStillModel(config.stillModelDir);
-	const loaded = await attempt(classifier);
-	if (loaded.error) {
-		classifier = null;
-		throw new UpstreamUnavailableError(`could not load ${stillModel}: ${loaded.error.message}`, {
-			cause: loaded.error,
-			retryAfterMs: null,
-		});
-	}
+	/**
+	 * A still is a scene when CLIP gives it at least this much of its
+	 * probability. Bleach's title card of episode 18, which CLIP finds hardest,
+	 * gets 0.79. Of 1,323 stills from 430 episodes, this turns away every one the
+	 * whole 32-bit model turned away at 0.75, and four more: two title cards and
+	 * a poster it let through, and a letterboxed scene that its black bars turn
+	 * away first.
+	 */
+	const sceneShare = 0.8;
 
-	return (await loaded.data(image)) < sceneShare;
+	const classify = await Classifier.shared.load();
+
+	return (await classify(image)) < sceneShare;
 };
 
 /**
- * Gives each episode the still stored for it by `chooseStill`, in place of
+ * Gives each episode the still stored for it by `stills.choose`, in place of
  * TMDB's own pick, and none when none was fit to show. An episode with
  * nothing stored keeps TMDB's pick until one is.
  */
-export const withChosenStills = async (
+export const withChoices = async (
 	showId: number,
 	episodes: TmdbEpisode[],
 ): Promise<TmdbEpisode[]> => {
 	const chosen = await db.select().from(episodeStill).where(eq(episodeStill.showId, showId));
+
 	const paths = new Map(
 		chosen.map((row) => [`${row.seasonNumber}:${row.episodeNumber}`, row.path]),
 	);
 
 	return episodes.map((episode) => {
 		const key = `${episode.season_number}:${episode.episode_number}`;
-		return paths.has(key)
-			? {
-					...episode,
-					still_path: paths.get(key) ?? null,
-				}
-			: episode;
+
+		if (paths.has(key)) {
+			return {
+				...episode,
+				still_path: paths.get(key) ?? null,
+			};
+		}
+
+		return episode;
 	});
 };

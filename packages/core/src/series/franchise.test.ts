@@ -1,31 +1,46 @@
 import { describe, expect, test } from "bun:test";
 
-import { franchiseParts } from "./franchise";
+import { Franchise } from "./franchise";
 import type { FranchiseTitle } from "./franchise";
 
-const title = (
-	anilistId: number,
-	name: string,
-	format: FranchiseTitle["format"],
-	startDate: string,
-): FranchiseTitle => ({
-	anilistId,
-	episodeCount: 12,
-	format,
-	seriesId: `series-${anilistId}`,
-	startDate,
-	title: name,
-});
+/** A title of a franchise of 12 episodes, its series named after its AniList ID. */
+class Fixture {
+	readonly #anilistId: number;
+	readonly #name: string;
+	readonly #format: FranchiseTitle["format"];
+	readonly #startDate: string;
 
-const titlesOf = (parts: ReturnType<typeof franchiseParts>) => parts.map((part) => part.title);
+	constructor(
+		anilistId: number,
+		name: string,
+		format: FranchiseTitle["format"],
+		startDate: string,
+	) {
+		this.#anilistId = anilistId;
+		this.#name = name;
+		this.#format = format;
+		this.#startDate = startDate;
+	}
 
-describe("franchiseParts", () => {
+	get title(): FranchiseTitle {
+		return {
+			anilistId: this.#anilistId,
+			episodeCount: 12,
+			format: this.#format,
+			seriesId: `series-${this.#anilistId}`,
+			startDate: this.#startDate,
+			title: this.#name,
+		};
+	}
+}
+
+describe("Franchise", () => {
 	test("keeps a crossover that the opening title is named after at the start", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(481, "Yu-Gi-Oh!", "TV", "2000-04-18"),
-				title(10_015, "Yu-Gi-Oh! Zexal", "TV", "2011-04-11"),
-				title(15_489, "Yu-Gi-Oh! Zexal II", "TV", "2012-10-07"),
+				new Fixture(481, "Yu-Gi-Oh!", "TV", "2000-04-18").title,
+				new Fixture(10_015, "Yu-Gi-Oh! Zexal", "TV", "2011-04-11").title,
+				new Fixture(15_489, "Yu-Gi-Oh! Zexal II", "TV", "2012-10-07").title,
 			],
 			[[10_015, 15_489]],
 			{
@@ -33,6 +48,7 @@ describe("franchiseParts", () => {
 				currentId: 10_015,
 			},
 		);
+
 		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
 			"series-481",
 			"series-10015",
@@ -41,11 +57,11 @@ describe("franchiseParts", () => {
 	});
 
 	test("does not start a franchise with an older crossover", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(4975, "Chaos;Head", "TV", "2008-10-09"),
-				title(9253, "Steins;Gate", "TV", "2011-04-06"),
-				title(10_863, "Steins;Gate: Egoistic Poriomania", "OVA", "2012-02-22"),
+				new Fixture(4975, "Chaos;Head", "TV", "2008-10-09").title,
+				new Fixture(9253, "Steins;Gate", "TV", "2011-04-06").title,
+				new Fixture(10_863, "Steins;Gate: Egoistic Poriomania", "OVA", "2012-02-22").title,
 			],
 			[[9253, 10_863]],
 			{
@@ -53,6 +69,7 @@ describe("franchiseParts", () => {
 				currentId: 9253,
 			},
 		);
+
 		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
 			"series-9253",
 			"series-10863",
@@ -61,13 +78,14 @@ describe("franchiseParts", () => {
 	});
 
 	test("keeps JoJo's older adaptations out of the modern viewing path", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19"),
-				title(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25"),
-				title(14_719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
-				title(20_474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
-				title(21_778, "Thus Spoke Rohan Kishibe", "OVA", "2017-09-20"),
+				new Fixture(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19").title,
+				new Fixture(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25").title,
+				new Fixture(14_719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06").title,
+				new Fixture(20_474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05")
+					.title,
+				new Fixture(21_778, "Thus Spoke Rohan Kishibe", "OVA", "2017-09-20").title,
 			],
 			[
 				[665, 666],
@@ -81,17 +99,23 @@ describe("franchiseParts", () => {
 				currentId: 14_719,
 			},
 		);
-		expect(titlesOf(parts)).toEqual(["Season 1", "Stardust Crusaders", "Thus Spoke Rohan Kishibe"]);
+
+		expect(parts.map((part) => part.title)).toEqual([
+			"Season 1",
+			"Stardust Crusaders",
+			"Thus Spoke Rohan Kishibe",
+		]);
 		expect(parts[0]?.next_series_id).toBe("series-20474");
 	});
 
 	test("keeps the same main seasons when an alternative adaptation is selected", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19"),
-				title(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25"),
-				title(14_719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
-				title(20_474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
+				new Fixture(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19").title,
+				new Fixture(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25").title,
+				new Fixture(14_719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06").title,
+				new Fixture(20_474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05")
+					.title,
 			],
 			[
 				[665, 666],
@@ -105,6 +129,7 @@ describe("franchiseParts", () => {
 				currentId: 665,
 			},
 		);
+
 		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
 			"series-14719",
 			"series-20474",
@@ -114,38 +139,43 @@ describe("franchiseParts", () => {
 	});
 
 	test("keeps essential sequel films and specials in the picker", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Show", "TV", "2020-01-01"),
-				title(2, "Show: Finale", "SPECIAL", "2021-01-01"),
-				title(3, "Show: Movie", "MOVIE", "2022-01-01"),
+				new Fixture(1, "Show", "TV", "2020-01-01").title,
+				new Fixture(2, "Show: Finale", "SPECIAL", "2021-01-01").title,
+				new Fixture(3, "Show: Movie", "MOVIE", "2022-01-01").title,
 			],
 			[
 				[1, 2],
 				[2, 3],
 			],
 		);
+
 		expect(parts.every((part) => part.role === "season")).toBe(true);
 		expect(parts[0]?.next_series_id).toBe("series-2");
 	});
 
 	test("does not turn an optional OVA prequel into the starting season", () => {
-		const parts = franchiseParts(
-			[title(2, "Show: Prequel", "OVA", "2015-01-01"), title(1, "Show", "TV", "2020-01-01")],
+		const { parts } = new Franchise(
+			[
+				new Fixture(2, "Show: Prequel", "OVA", "2015-01-01").title,
+				new Fixture(1, "Show", "TV", "2020-01-01").title,
+			],
 			[[2, 1]],
 		);
+
 		expect(parts.map((part) => part.role)).toEqual(["season", "extra"]);
 		expect(parts[1]?.next_series_id).toBeNull();
 	});
 
 	test("recommends one version of an arc and excludes recaps", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Show", "TV", "2020-01-01"),
-				title(2, "Show: Movie", "MOVIE", "2021-01-01"),
-				title(3, "Show: Arc", "TV", "2022-01-01"),
-				title(4, "Show Season 2", "TV", "2023-01-01"),
-				title(5, "Show: Recap", "MOVIE", "2024-01-01"),
+				new Fixture(1, "Show", "TV", "2020-01-01").title,
+				new Fixture(2, "Show: Movie", "MOVIE", "2021-01-01").title,
+				new Fixture(3, "Show: Arc", "TV", "2022-01-01").title,
+				new Fixture(4, "Show Season 2", "TV", "2023-01-01").title,
+				new Fixture(5, "Show: Recap", "MOVIE", "2024-01-01").title,
 			],
 			[
 				[1, 2],
@@ -153,46 +183,59 @@ describe("franchiseParts", () => {
 				[2, 4],
 				[3, 4],
 			],
-			{ alternatives: [[2, 3]], summaries: [5] },
+			{
+				alternatives: [[2, 3]],
+				summaries: [5],
+			},
 		);
-		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2"]);
+
+		expect(parts.map((part) => part.title)).toEqual(["Season 1", "Arc", "Season 2"]);
 		expect(parts[0]?.next_series_id).toBe("series-3");
 	});
 
 	test("never auto-continues into an ambiguous or unavailable sequel", () => {
-		const first = title(1, "Show", "TV", "2020-01-01");
-		const second = title(2, "Show Season 2", "TV", "2021-01-01");
+		const first = new Fixture(1, "Show", "TV", "2020-01-01").title;
+		const second = new Fixture(2, "Show Season 2", "TV", "2021-01-01").title;
 		expect(
-			franchiseParts(
+			new Franchise(
 				[first, second],
 				[
 					[1, 2],
 					[1, 3],
 				],
-			)[0]?.next_series_id,
+			).parts[0]?.next_series_id,
 		).toBeNull();
 		expect(
-			franchiseParts([first, { ...second, episodeCount: 0 }], [[1, 2]])[0]?.next_series_id,
+			new Franchise(
+				[
+					first,
+					{
+						...second,
+						episodeCount: 0,
+					},
+				],
+				[[1, 2]],
+			).parts[0]?.next_series_id,
 		).toBeNull();
-		expect(franchiseParts([first, second], [])[0]?.next_series_id).toBeNull();
+		expect(new Franchise([first, second], []).parts[0]?.next_series_id).toBeNull();
 		expect(
-			franchiseParts(
+			new Franchise(
 				[first, second],
 				[
 					[1, 2],
 					[2, 1],
 				],
-			).every((part) => part.next_series_id === null),
+			).parts.every((part) => part.next_series_id === null),
 		).toBe(true);
 	});
 
 	test("keeps the same main seasons when a film alternative is selected", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Show", "TV", "2020-01-01"),
-				title(2, "Show: Movie", "MOVIE", "2021-01-01"),
-				title(3, "Show: Arc", "TV", "2022-01-01"),
-				title(4, "Show Season 2", "TV", "2023-01-01"),
+				new Fixture(1, "Show", "TV", "2020-01-01").title,
+				new Fixture(2, "Show: Movie", "MOVIE", "2021-01-01").title,
+				new Fixture(3, "Show: Arc", "TV", "2022-01-01").title,
+				new Fixture(4, "Show Season 2", "TV", "2023-01-01").title,
 			],
 			[
 				[1, 2],
@@ -200,42 +243,61 @@ describe("franchiseParts", () => {
 				[2, 4],
 				[3, 4],
 			],
-			{ alternatives: [[2, 3]], currentId: 2 },
+			{
+				alternatives: [[2, 3]],
+				currentId: 2,
+			},
 		);
-		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2", "Movie"]);
+
+		expect(parts.map((part) => part.title)).toEqual(["Season 1", "Arc", "Season 2", "Movie"]);
 		expect(parts[0]?.next_series_id).toBe("series-3");
 		expect(parts[3]?.role).toBe("alternative");
 		expect(parts[3]?.next_series_id).toBeNull();
 	});
 	test("preserves known season and part numbers across translated titles", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "That Time I Got Reincarnated as a Slime", "TV", "2018-01-01"),
-				title(2, "Tensei Shitara Slime Datta Ken 4th Season Part 3", "TV", "2027-01-01"),
+				new Fixture(1, "That Time I Got Reincarnated as a Slime", "TV", "2018-01-01").title,
+				new Fixture(2, "Tensei Shitara Slime Datta Ken 4th Season Part 3", "TV", "2027-01-01")
+					.title,
 			],
 			[[1, 2]],
 		);
+
 		expect(parts[1]?.title).toBe("Season 4 Part 3");
-		expect(franchiseParts([title(1, "Show Season 2", "TV", "2020-01-01")], [])[0]?.title).toBe(
-			"Season 2",
-		);
+		expect(
+			new Franchise([new Fixture(1, "Show Season 2", "TV", "2020-01-01").title], []).parts[0]
+				?.title,
+		).toBe("Season 2");
 	});
 	test("lists Slime's seasons first, named without the franchise's name", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(
+				new Fixture(
 					6,
 					"That Time I Got Reincarnated as a Slime the Movie: Tears of the Azure Sea",
 					"MOVIE",
 					"2026-02-27",
-				),
-				title(4, "That Time I Got Reincarnated as a Slime Season 3", "TV", "2024-04-05"),
-				title(5, "That Time I Got Reincarnated as a Slime OAD", "OVA", "2019-03-29"),
-				title(1, "That Time I Got Reincarnated as a Slime", "TV", "2018-10-02"),
-				title(7, "That Time I Got Reincarnated as a Slime: Visions of Coleus", "OVA", "2023-11-01"),
-				title(2, "That Time I Got Reincarnated as a Slime Season 2", "TV", "2021-01-12"),
-				title(3, "That Time I Got Reincarnated as a Slime Season 2 Part 2", "TV", "2021-07-06"),
-				title(8, "The Slime Diaries", "TV", "2021-04-06"),
+				).title,
+				new Fixture(4, "That Time I Got Reincarnated as a Slime Season 3", "TV", "2024-04-05")
+					.title,
+				new Fixture(5, "That Time I Got Reincarnated as a Slime OAD", "OVA", "2019-03-29").title,
+				new Fixture(1, "That Time I Got Reincarnated as a Slime", "TV", "2018-10-02").title,
+				new Fixture(
+					7,
+					"That Time I Got Reincarnated as a Slime: Visions of Coleus",
+					"OVA",
+					"2023-11-01",
+				).title,
+				new Fixture(2, "That Time I Got Reincarnated as a Slime Season 2", "TV", "2021-01-12")
+					.title,
+				new Fixture(
+					3,
+					"That Time I Got Reincarnated as a Slime Season 2 Part 2",
+					"TV",
+					"2021-07-06",
+				).title,
+				new Fixture(8, "The Slime Diaries", "TV", "2021-04-06").title,
 			],
 			[
 				[1, 2],
@@ -244,7 +306,7 @@ describe("franchiseParts", () => {
 			],
 		);
 
-		expect(titlesOf(parts)).toEqual([
+		expect(parts.map((part) => part.title)).toEqual([
 			"Season 1",
 			"Season 2",
 			"Season 2 Part 2",
@@ -263,25 +325,30 @@ describe("franchiseParts", () => {
 	});
 
 	test("leaves a spin-off named after the franchise out of its seasons", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Attack on Titan", "TV", "2013-04-07"),
-				title(2, "Attack on Titan: Junior High", "TV", "2015-10-04"),
-				title(3, "Attack on Titan Season 2", "TV", "2017-04-01"),
+				new Fixture(1, "Attack on Titan", "TV", "2013-04-07").title,
+				new Fixture(2, "Attack on Titan: Junior High", "TV", "2015-10-04").title,
+				new Fixture(3, "Attack on Titan Season 2", "TV", "2017-04-01").title,
 			],
 			[[1, 3]],
 		);
 
-		expect(titlesOf(parts)).toEqual(["Season 1", "Season 2", "Junior High"]);
+		expect(parts.map((part) => part.title)).toEqual(["Season 1", "Season 2", "Junior High"]);
 		expect(parts.find((part) => part.series_id === "series-2")?.role).toBe("extra");
 	});
 
 	test("follows the sequels through a film", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Demon Slayer: Kimetsu no Yaiba", "TV", "2019-04-06"),
-				title(2, "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train", "MOVIE", "2020-10-16"),
-				title(3, "Demon Slayer: Kimetsu no Yaiba Mugen Train Arc", "TV", "2021-10-10"),
+				new Fixture(1, "Demon Slayer: Kimetsu no Yaiba", "TV", "2019-04-06").title,
+				new Fixture(
+					2,
+					"Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
+					"MOVIE",
+					"2020-10-16",
+				).title,
+				new Fixture(3, "Demon Slayer: Kimetsu no Yaiba Mugen Train Arc", "TV", "2021-10-10").title,
 			],
 			[
 				[1, 2],
@@ -289,55 +356,59 @@ describe("franchiseParts", () => {
 			],
 		);
 
-		expect(titlesOf(parts)).toEqual(["Season 1", "Mugen Train", "Mugen Train Arc"]);
+		expect(parts.map((part) => part.title)).toEqual(["Season 1", "Mugen Train", "Mugen Train Arc"]);
 	});
 
 	test("goes by names when AniList relates no sequels", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Bleach", "TV", "2004-10-05"),
-				title(2, "Bleachers", "TV", "2010-01-01"),
-				title(3, "Bleach: Thousand-Year Blood War", "TV", "2022-10-11"),
+				new Fixture(1, "Bleach", "TV", "2004-10-05").title,
+				new Fixture(2, "Bleachers", "TV", "2010-01-01").title,
+				new Fixture(3, "Bleach: Thousand-Year Blood War", "TV", "2022-10-11").title,
 			],
 			[],
 		);
 
-		expect(titlesOf(parts)).toEqual(["Season 1", "Thousand-Year Blood War", "Bleachers"]);
+		expect(parts.map((part) => part.title)).toEqual([
+			"Season 1",
+			"Thousand-Year Blood War",
+			"Bleachers",
+		]);
 	});
 
 	test("drops the marks a title wraps its own name in", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Attack on Titan", "TV", "2013-04-07"),
-				title(2, "Attack on Titan ~Chronicle~", "MOVIE", "2020-07-17"),
+				new Fixture(1, "Attack on Titan", "TV", "2013-04-07").title,
+				new Fixture(2, "Attack on Titan ~Chronicle~", "MOVIE", "2020-07-17").title,
 			],
 			[],
 		);
 
-		expect(titlesOf(parts)).toEqual(["Season 1", "Chronicle"]);
+		expect(parts.map((part) => part.title)).toEqual(["Season 1", "Chronicle"]);
 	});
 
 	test("names a franchise's first film by its own title", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Your Name.", "MOVIE", "2016-08-26"),
-				title(2, "Your Name. Director's Cut", "MOVIE", "2017-01-01"),
+				new Fixture(1, "Your Name.", "MOVIE", "2016-08-26").title,
+				new Fixture(2, "Your Name. Director's Cut", "MOVIE", "2017-01-01").title,
 			],
 			[],
 		);
 
-		expect(titlesOf(parts)).toEqual(["Your Name.", "Director's Cut"]);
+		expect(parts.map((part) => part.title)).toEqual(["Your Name.", "Director's Cut"]);
 		expect(parts.every((part) => part.role === "extra")).toBe(true);
 	});
 
 	test("joins an era AniList leaves unlinked after the latest earlier season", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Pokémon", "TV", "1997-04-01"),
-				title(2, "Pokémon: Black & White", "TV", "2010-09-23"),
-				title(3, "Pokémon the Series: XY", "TV", "2013-10-17"),
-				title(4, "Pokémon the Series: XYZ", "TV", "2015-10-29"),
-				title(5, "Pokémon the Movie: I Choose You!", "MOVIE", "2017-07-15"),
+				new Fixture(1, "Pokémon", "TV", "1997-04-01").title,
+				new Fixture(2, "Pokémon: Black & White", "TV", "2010-09-23").title,
+				new Fixture(3, "Pokémon the Series: XY", "TV", "2013-10-17").title,
+				new Fixture(4, "Pokémon the Series: XYZ", "TV", "2015-10-29").title,
+				new Fixture(5, "Pokémon the Movie: I Choose You!", "MOVIE", "2017-07-15").title,
 			],
 			[
 				[1, 2],
@@ -347,6 +418,7 @@ describe("franchiseParts", () => {
 				alternatives: [[1, 5]],
 			},
 		);
+
 		expect(parts.map((part) => [part.series_id, part.role])).toEqual([
 			["series-1", "season"],
 			["series-2", "season"],
@@ -358,29 +430,32 @@ describe("franchiseParts", () => {
 	});
 
 	test("does not chain an alternative adaptation as a later season", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Fullmetal Alchemist", "TV", "2003-10-04"),
-				title(2, "Fullmetal Alchemist: Brotherhood", "TV", "2009-04-05"),
-				title(3, "Fullmetal Alchemist: The Movie", "MOVIE", "2005-07-23"),
+				new Fixture(1, "Fullmetal Alchemist", "TV", "2003-10-04").title,
+				new Fixture(2, "Fullmetal Alchemist: Brotherhood", "TV", "2009-04-05").title,
+				new Fixture(3, "Fullmetal Alchemist: The Movie", "MOVIE", "2005-07-23").title,
 			],
 			[[1, 3]],
 			{
 				alternatives: [[1, 2]],
 			},
 		);
+
 		expect(parts.find((part) => part.series_id === "series-2")?.role).not.toBe("season");
 	});
 
 	test("keeps the story together across a film with nothing to watch", () => {
 		const titles = [
-			title(1, "Rascal Does Not Dream of Bunny Girl Senpai", "TV", "2018-10-04"),
-			title(2, "Rascal Does Not Dream of a Dreaming Girl", "MOVIE", "2019-06-15"),
-			title(3, "Rascal Does Not Dream of a Sister Venturing Out", "MOVIE", "2023-06-23"),
-			title(4, "Rascal Does Not Dream of a Knapsack Kid", "MOVIE", "2023-12-01"),
-			title(5, "Rascal Does Not Dream of Santa Claus", "TV", "2025-07-05"),
+			new Fixture(1, "Rascal Does Not Dream of Bunny Girl Senpai", "TV", "2018-10-04").title,
+			new Fixture(2, "Rascal Does Not Dream of a Dreaming Girl", "MOVIE", "2019-06-15").title,
+			new Fixture(3, "Rascal Does Not Dream of a Sister Venturing Out", "MOVIE", "2023-06-23")
+				.title,
+			new Fixture(4, "Rascal Does Not Dream of a Knapsack Kid", "MOVIE", "2023-12-01").title,
+			new Fixture(5, "Rascal Does Not Dream of Santa Claus", "TV", "2025-07-05").title,
 		];
-		const parts = franchiseParts(
+
+		const { parts } = new Franchise(
 			titles,
 			[
 				[1, 2],
@@ -401,23 +476,26 @@ describe("franchiseParts", () => {
 
 	test("keeps a spin-off and its sequels a story of their own", () => {
 		const titles = [
-			title(21_459, "My Hero Academia", "TV", "2016-04-03"),
-			title(163_139, "My Hero Academia Season 7", "TV", "2024-05-04"),
-			title(185_736, "My Hero Academia: Vigilantes", "TV", "2025-04-07"),
-			title(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04"),
-			title(195_322, "My Hero Academia: Vigilantes Season 2", "TV", "2026-01-05"),
+			new Fixture(21_459, "My Hero Academia", "TV", "2016-04-03").title,
+			new Fixture(163_139, "My Hero Academia Season 7", "TV", "2024-05-04").title,
+			new Fixture(185_736, "My Hero Academia: Vigilantes", "TV", "2025-04-07").title,
+			new Fixture(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04").title,
+			new Fixture(195_322, "My Hero Academia: Vigilantes Season 2", "TV", "2026-01-05").title,
 		];
+
 		const sequels = [
 			[21_459, 163_139],
 			[163_139, 182_896],
 			[185_736, 195_322],
 		] as const;
+
 		const spinOffs = [[21_459, 185_736]] as const;
 
-		const original = franchiseParts(titles, sequels, {
+		const original = new Franchise(titles, sequels, {
 			currentId: 21_459,
 			spinOffs,
-		});
+		}).parts;
+
 		expect(original.map((part) => [part.title, part.role])).toEqual([
 			["Season 1", "season"],
 			["Season 7", "season"],
@@ -426,11 +504,12 @@ describe("franchiseParts", () => {
 			["Vigilantes Season 2", "extra"],
 		]);
 
-		const spinOff = franchiseParts(titles, sequels, {
+		const spinOff = new Franchise(titles, sequels, {
 			apart: [21_459],
 			currentId: 195_322,
 			spinOffs,
-		});
+		}).parts;
+
 		expect(spinOff.filter((part) => part.role === "season").map((part) => part.title)).toEqual([
 			"Season 1",
 			"Season 2",
@@ -438,11 +517,16 @@ describe("franchiseParts", () => {
 	});
 
 	test("never starts a franchise with a title reached only across a spin-off", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(110_857, "Aggretsuko: Season 3", "ONA", "2020-08-27"),
-				title(124_960, "OTMGirls no YOKIYOKI Channel", "ONA", "2020-12-01"),
-				title(156_907, "OTMGirls no YOKIYOKI Channel: Birthday special story", "ONA", "2021-10-29"),
+				new Fixture(110_857, "Aggretsuko: Season 3", "ONA", "2020-08-27").title,
+				new Fixture(124_960, "OTMGirls no YOKIYOKI Channel", "ONA", "2020-12-01").title,
+				new Fixture(
+					156_907,
+					"OTMGirls no YOKIYOKI Channel: Birthday special story",
+					"ONA",
+					"2021-10-29",
+				).title,
 			],
 			[],
 			{
@@ -450,17 +534,22 @@ describe("franchiseParts", () => {
 				currentId: 156_907,
 			},
 		);
+
 		expect(parts.find((part) => part.role === "season")?.series_id).toBe("series-124960");
 	});
 
 	test("folds short specials after a season into it", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(163_139, "My Hero Academia", "TV", "2024-05-04"),
-				title(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04"),
-				{ ...title(204_356, "My Hero Academia More", "SPECIAL", "2026-05-02"), episodeCount: 1 },
+				new Fixture(163_139, "My Hero Academia", "TV", "2024-05-04").title,
+				new Fixture(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04").title,
 				{
-					...title(211_711, "My Hero Academia: I am a hero too", "SPECIAL", "2026-08-03"),
+					...new Fixture(204_356, "My Hero Academia More", "SPECIAL", "2026-05-02").title,
+					episodeCount: 1,
+				},
+				{
+					...new Fixture(211_711, "My Hero Academia: I am a hero too", "SPECIAL", "2026-08-03")
+						.title,
 					episodeCount: 1,
 				},
 			],
@@ -482,31 +571,42 @@ describe("franchiseParts", () => {
 	});
 
 	test("names a story's seasons without the numbering its first title ends with", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "The Seven Deadly Sins: Grudge of Edinburgh Part 1", "ONA", "2022-12-20"),
-				title(2, "The Seven Deadly Sins: Grudge of Edinburgh Part 2", "ONA", "2023-08-31"),
-				title(3, "Fate/strange Fake (Zoku-hen)", "TV", "2024-01-01"),
-				title(4, "The Seven Deadly Sins: Grudge of Edinburgh x Crossover", "ONA", "2024-01-01"),
+				new Fixture(1, "The Seven Deadly Sins: Grudge of Edinburgh Part 1", "ONA", "2022-12-20")
+					.title,
+				new Fixture(2, "The Seven Deadly Sins: Grudge of Edinburgh Part 2", "ONA", "2023-08-31")
+					.title,
+				new Fixture(3, "Fate/strange Fake (Zoku-hen)", "TV", "2024-01-01").title,
+				new Fixture(
+					4,
+					"The Seven Deadly Sins: Grudge of Edinburgh x Crossover",
+					"ONA",
+					"2024-01-01",
+				).title,
 			],
 			[[1, 2]],
 		);
-		expect(titlesOf(parts).slice(0, 2)).toEqual(["Part 1", "Part 2"]);
-		expect(titlesOf(parts)).toContain("The Seven Deadly Sins: Grudge of Edinburgh x Crossover");
+
+		expect(parts.map((part) => part.title).slice(0, 2)).toEqual(["Part 1", "Part 2"]);
+		expect(parts.map((part) => part.title)).toContain(
+			"The Seven Deadly Sins: Grudge of Edinburgh x Crossover",
+		);
 	});
 
 	test("drops a release qualifier and keeps a bracketed name whole", () => {
-		const parts = franchiseParts(
+		const { parts } = new Franchise(
 			[
-				title(1, "Kingdom", "TV", "2012-06-04"),
-				title(2, "Kingdom (Zoku-hen)", "TV", "2013-06-08"),
-				title(3, "Kingdom 2nd Season (Web)", "ONA", "2014-01-01"),
+				new Fixture(1, "Kingdom", "TV", "2012-06-04").title,
+				new Fixture(2, "Kingdom (Zoku-hen)", "TV", "2013-06-08").title,
+				new Fixture(3, "Kingdom 2nd Season (Web)", "ONA", "2014-01-01").title,
 			],
 			[
 				[1, 2],
 				[2, 3],
 			],
 		);
-		expect(titlesOf(parts)).toEqual(["Season 1", "Zoku-hen", "Season 2"]);
+
+		expect(parts.map((part) => part.title)).toEqual(["Season 1", "Zoku-hen", "Season 2"]);
 	});
 });

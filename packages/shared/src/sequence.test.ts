@@ -1,16 +1,17 @@
 import { describe, expect, test } from "bun:test";
 
-import { chunked, firstInSequence, inParallel, inSequence } from "./sequence";
+import { chunked, inParallel, sequence } from "./sequence";
 
-describe("inSequence", () => {
+describe("sequence.all", () => {
 	test("starts each item once the one before it has finished, and keeps the order", async () => {
 		const started: number[] = [];
 		const finished: number[] = [];
 
-		const results = await inSequence([30, 10, 20], async (delay, index) => {
+		const results = await sequence.all([30, 10, 20], async (delay, index) => {
 			started.push(index);
 			await Bun.sleep(delay);
 			finished.push(index);
+
 			return delay * 2;
 		});
 
@@ -20,14 +21,20 @@ describe("inSequence", () => {
 	});
 
 	test("resolves to nothing for no items", async () => {
-		expect(await inSequence([], () => Promise.resolve(1))).toEqual([]);
+		expect(await sequence.all([], () => Promise.resolve(1))).toEqual([]);
 	});
 
 	test("stops at the first rejection", async () => {
 		const seen: number[] = [];
-		const run = inSequence([1, 2, 3], (item) => {
+
+		const run = sequence.all([1, 2, 3], (item) => {
 			seen.push(item);
-			return item === 2 ? Promise.reject(new RangeError("two")) : Promise.resolve(item);
+
+			if (item === 2) {
+				return Promise.reject(new RangeError("two"));
+			}
+
+			return Promise.resolve(item);
 		});
 
 		await expect(run).rejects.toThrow("two");
@@ -36,17 +43,23 @@ describe("inSequence", () => {
 
 	test("takes tens of thousands of items", async () => {
 		const items = Array.from({ length: 50_000 }, (_, index) => index);
-		const results = await inSequence(items, (item) => Promise.resolve(item));
+		const results = await sequence.all(items, (item) => Promise.resolve(item));
 		expect(results).toHaveLength(50_000);
 	});
 });
 
-describe("firstInSequence", () => {
+describe("sequence.first", () => {
 	test("stops at the first item that gives a result", async () => {
 		const seen: number[] = [];
-		const found = await firstInSequence([1, 2, 3, 4], (item) => {
+
+		const found = await sequence.first([1, 2, 3, 4], (item) => {
 			seen.push(item);
-			return Promise.resolve(item === 2 ? "two" : undefined);
+
+			if (item === 2) {
+				return Promise.resolve("two");
+			}
+
+			return Promise.resolve(undefined);
 		});
 
 		expect(found).toBe("two");
@@ -54,7 +67,7 @@ describe("firstInSequence", () => {
 	});
 
 	test("resolves to undefined when none gives a result", async () => {
-		expect(await firstInSequence([1, 2], () => Promise.resolve(undefined))).toBeUndefined();
+		expect(await sequence.first([1, 2], () => Promise.resolve(undefined))).toBeUndefined();
 	});
 });
 

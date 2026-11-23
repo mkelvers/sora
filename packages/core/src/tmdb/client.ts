@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 
 import { attempt, parseRetryAfter } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import { eq } from "drizzle-orm";
-import type { z } from "zod";
+import { z } from "zod";
 
 import { config } from "../config";
 import { db } from "../database/client";
@@ -10,22 +11,6 @@ import { tmdbResponse } from "../database/schema/catalog";
 import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
 import type { TmdbEndpoints } from "./api.generated";
-
-const endpoint = "https://api.themoviedb.org/3";
-
-/**
- * Minimum spacing between the starts of upstream requests from this process.
- *
- * TMDB allows roughly 40 requests per second per IP. Requests may overlap;
- * only their start times are spaced, which keeps a franchise lookup that
- * needs dozens of calls fast without bursting past the limit.
- */
-const requestSpacingMs = 30;
-
-const requestTimeoutMs = 10_000;
-
-/** A 429 is retried this many times before giving up. */
-const rateLimitRetries = 2;
 
 /** Freshness policy for one TMDB request. */
 export interface TmdbRequestOptions {
@@ -43,12 +28,10 @@ export interface TmdbRequestOptions {
 	store?: boolean;
 }
 
-type Params = Record<string, unknown>;
-
 /** A path template with each `{name}` filled by the type of that path parameter. */
 type Filled<
 	Template extends string,
-	Path extends Params,
+	Path extends Record<string, unknown>,
 > = Template extends `${infer Head}{${infer Name}}${infer Tail}`
 	? `${Head}${Path[Name] extends number ? number : string}${Filled<Tail, Path>}`
 	: Template;
@@ -73,8 +56,21 @@ export type Fetch = (input: URL, init: RequestInit) => Promise<Response>;
 
 /** Where the client keeps responses between requests; see `tmdbResponse`. */
 export interface ResponseStore {
-	find: (key: string) => Promise<{ data: unknown; fetchedAt: Date } | undefined>;
-	save: (key: string, response: { path: string; data: unknown; fetchedAt: Date }) => Promise<void>;
+	find: (key: string) => Promise<
+		| {
+				data: unknown;
+				fetchedAt: Date;
+		  }
+		| undefined
+	>;
+	save: (
+		key: string,
+		response: {
+			path: string;
+			data: unknown;
+			fetchedAt: Date;
+		},
+	) => Promise<void>;
 }
 
 /** What a TMDB client depends on, so tests can give it a plain `fetch` and an in-memory store. */
@@ -83,16 +79,23 @@ export interface TmdbDependencies {
 	store: ResponseStore;
 }
 
-const retryAfter = (response: Response) => {
-	const wait = parseRetryAfter(response.headers.get("Retry-After"));
-	return wait === null || wait === 0 ? null : wait;
-};
-
 /**
  * Creates a TMDB client with its own request spacing and coalescing. The
  * process shares one, {@link tmdb}, since TMDB's limit is per IP.
  */
-export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
+export const connect = ({ fetch, store }: TmdbDependencies) => {
+	/** A 429 is retried this many times before giving up. */
+	const rateLimitRetries = 2;
+
+	/**
+	 * Minimum spacing between the starts of upstream requests from this process.
+	 *
+	 * TMDB allows roughly 40 requests per second per IP. Requests may overlap;
+	 * only their start times are spaced, which keeps a franchise lookup that
+	 * needs dozens of calls fast without bursting past the limit.
+	 */
+	const requestSpacingMs = 30;
+
 	let nextRequestAt = 0;
 	const inFlight = new InFlight<string, unknown>();
 
@@ -102,12 +105,13 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		nextRequestAt = startAt + requestSpacingMs;
 
 		const wait = startAt - Date.now();
+
 		if (wait > 0) {
 			await Bun.sleep(wait);
 		}
 	};
 
-	const execute = async (url: URL, tries = 0): Promise<unknown> => {
+	const execute = async (url: URL, tries = 0): Promise<Json> => {
 		await nextSlot();
 
 		const response = await attempt(
@@ -116,9 +120,10 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 					Accept: "application/json",
 					Authorization: `Bearer ${config.tmdbReadAccessToken}`,
 				},
-				signal: AbortSignal.timeout(requestTimeoutMs),
+				signal: AbortSignal.timeout(10_000),
 			}),
 		);
+
 		if (response.error) {
 			throw new UpstreamUnavailableError("TMDB could not be reached", {
 				cause: response.error,
@@ -126,10 +131,17 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			});
 		}
 
+		let askedWaitMs = parseRetryAfter(response.data.headers.get("Retry-After"));
+
+		if (askedWaitMs === 0) {
+			askedWaitMs = null;
+		}
+
 		if (response.data.status === 429) {
-			const retryAfterMs = retryAfter(response.data) ?? 2000;
+			const retryAfterMs = askedWaitMs ?? 2000;
 			// Pause every request from this process, not just this one.
 			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
+
 			if (tries < rateLimitRetries) {
 				return await execute(url, tries + 1);
 			}
@@ -147,12 +159,13 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			throw new UpstreamUnavailableError(
 				`TMDB returned ${response.data.status} for ${url.pathname}`,
 				{
-					retryAfterMs: retryAfter(response.data),
+					retryAfterMs: askedWaitMs,
 				},
 			);
 		}
 
 		const body = await attempt(response.data.json());
+
 		if (body.error) {
 			throw new UpstreamUnavailableError(
 				`TMDB returned a response for ${url.pathname} that is not JSON`,
@@ -162,7 +175,8 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 				},
 			);
 		}
-		return body.data;
+
+		return z.json().parse(body.data);
 	};
 
 	/** Fetches one resource and stores it unless told not to. A 404 is returned as `null` and not stored. */
@@ -173,6 +187,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		options: TmdbRequestOptions,
 	) => {
 		const data = await execute(url);
+
 		if (data === null || options.store === false) {
 			return data;
 		}
@@ -213,8 +228,9 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		schema: TSchema,
 		options: TmdbRequestOptions,
 	): Promise<z.infer<TSchema> | null> => {
-		const url = new URL(`${endpoint}${path}`);
-		for (const [name, value] of Object.entries(query as Params).toSorted(([left], [right]) =>
+		const url = new URL(`${"https://api.themoviedb.org/3"}${path}`);
+
+		for (const [name, value] of Object.entries(query).toSorted(([left], [right]) =>
 			left.localeCompare(right),
 		)) {
 			if (value !== undefined) {
@@ -223,10 +239,16 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		}
 
 		const key = createHash("sha256").update(url.toString()).digest("hex");
-		const stored = options.store === false ? undefined : await store.find(key);
+		const stored = options.store !== false && (await store.find(key));
+		let kept: z.ZodSafeParseResult<z.infer<TSchema>> | null = null;
 
-		const kept = stored ? schema.safeParse(stored.data) : null;
-		if (stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
+		if (stored) {
+			kept = schema.safeParse(stored.data);
+		}
+
+		const fresh = stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now();
+
+		if (fresh && kept?.success) {
 			return kept.data;
 		}
 
@@ -234,10 +256,12 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			inFlight.run(key, () => fetchAndStore(key, path, url, options)),
 			UpstreamUnavailableError,
 		);
+
 		if (error) {
 			if (kept?.success) {
 				return kept.data;
 			}
+
 			throw error;
 		}
 
@@ -246,6 +270,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		}
 
 		const parsed = schema.safeParse(data);
+
 		if (!parsed.success) {
 			throw new UpstreamUnavailableError(`TMDB returned an unexpected response for ${path}`, {
 				cause: parsed.error,
@@ -261,27 +286,30 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 	};
 };
 
-/** The responses TMDB is asked for, kept in the database. */
-const databaseStore: ResponseStore = {
-	find: async (key) => {
-		const [stored] = await db.select().from(tmdbResponse).where(eq(tmdbResponse.key, key)).limit(1);
-		return stored;
-	},
-	save: async (key, values) => {
-		await db
-			.insert(tmdbResponse)
-			.values({
-				key,
-				...values,
-			})
-			.onConflictDoUpdate({
-				set: values,
-				target: tmdbResponse.key,
-			});
-	},
-};
-
-export const { tmdb } = createTmdbClient({
+export const { tmdb } = connect({
 	fetch,
-	store: databaseStore,
+	/** The responses TMDB is asked for, kept in the database. */
+	store: {
+		find: async (key) => {
+			const [stored] = await db
+				.select()
+				.from(tmdbResponse)
+				.where(eq(tmdbResponse.key, key))
+				.limit(1);
+
+			return stored;
+		},
+		save: async (key, values) => {
+			await db
+				.insert(tmdbResponse)
+				.values({
+					key,
+					...values,
+				})
+				.onConflictDoUpdate({
+					set: values,
+					target: tmdbResponse.key,
+				});
+		},
+	},
 });

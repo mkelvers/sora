@@ -1,33 +1,42 @@
 import type { Task } from "graphile-worker";
 
-import { pruneProviderCalls } from "../../playback/providers/calls";
-import { getProviderHealth } from "../../playback/providers/health";
+import { calls } from "../../playback/providers/calls";
+import { statusReport } from "../../playback/providers/health";
 
 /** The graphile-worker task that drops old provider calls. */
-export const pruneProviderCallsTask = "prune-provider-calls";
+export const pruneLogTask = "prune-provider-calls";
 
 /** Drops recorded provider calls older than a month. Runs daily. */
-export const pruneProviderCallsJob: Task = async (_payload, helpers) => {
-	const deleted = await pruneProviderCalls();
+export const pruneLog: Task = async (_payload, helpers) => {
+	const deleted = await calls.prune();
 	helpers.logger.info(`Pruned ${deleted} hourly rows of provider calls`);
 };
 
 /** The graphile-worker task that warns about providers that stopped working. */
-export const checkProviderHealthTask = "check-provider-health";
+export const healthTask = "check-provider-health";
 
 /**
  * Warns about every provider that is being called but has had no successful
  * call for three hours, such as a scraper whose site changed.
  * Runs hourly, so the warning repeats until the provider recovers.
  */
-export const checkProviderHealthJob: Task = async (_payload, helpers) => {
-	for (const health of await getProviderHealth()) {
+export const checkHealth: Task = async (_payload, helpers) => {
+	for (const health of await statusReport()) {
 		if (health.status !== "failing") {
 			continue;
 		}
 
-		const lastOk = health.last_ok_at ? `since ${health.last_ok_at}` : "on record";
-		const lastError = health.last_error ? `; last error: ${health.last_error}` : "";
+		let lastOk = "on record";
+		let lastError = "";
+
+		if (health.last_ok_at) {
+			lastOk = `since ${health.last_ok_at}`;
+		}
+
+		if (health.last_error) {
+			lastError = `; last error: ${health.last_error}`;
+		}
+
 		helpers.logger.warn(
 			`Provider ${health.provider} has had no successful call ${lastOk}${lastError}`,
 		);

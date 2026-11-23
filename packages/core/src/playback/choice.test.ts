@@ -1,33 +1,21 @@
 import { describe, expect, test } from "bun:test";
 
-import type { PlaybackMedia } from "../models/playback";
-import { choosePlayback } from "./choice";
-
-const track = (
-	language: string,
-	kind: "dialogue" | "signs" | null,
-	isDefault = false,
-): PlaybackMedia["subtitles"][number] => ({
-	default: isDefault,
-	format: "vtt",
-	kind,
-	label: language,
-	language,
-	url: `${language}-${kind}`,
-});
+import { chooseVersion } from "./choice";
+import { track } from "./choice.fixture";
 
 const sub = {
 	audio: "sub" as const,
 	subtitles: [track("en", "signs"), track("en", "dialogue", true), track("de", "dialogue")],
 };
+
 const dub = {
 	audio: "dub" as const,
 	subtitles: [track("en", "dialogue", true)],
 };
 
-describe("choosePlayback", () => {
+describe("chooseVersion", () => {
 	test("plays the preferred audio with its default track", () => {
-		const chosen = choosePlayback([dub, sub], {
+		const chosen = chooseVersion([dub, sub], {
 			audio: "sub",
 			subtitles: {},
 		});
@@ -38,7 +26,7 @@ describe("choosePlayback", () => {
 
 	test("plays the first version when the preferred audio is missing", () => {
 		expect(
-			choosePlayback([dub], {
+			chooseVersion([dub], {
 				audio: "raw",
 				subtitles: {},
 			}).media,
@@ -51,15 +39,35 @@ describe("choosePlayback", () => {
 			subtitles: [],
 		};
 
-		expect(choosePlayback([raw, sub], { audio: "dub", subtitles: {} }).media).toBe(sub);
-		expect(choosePlayback([raw], { audio: "dub", subtitles: {} }).media).toBe(raw);
-		expect(choosePlayback([dub, raw], { audio: "sub", subtitles: {} }).media).toBe(raw);
-		expect(choosePlayback([dub], { audio: "sub", subtitles: {} }).media).toBe(dub);
+		expect(
+			chooseVersion([raw, sub], {
+				audio: "dub",
+				subtitles: {},
+			}).media,
+		).toBe(sub);
+		expect(
+			chooseVersion([raw], {
+				audio: "dub",
+				subtitles: {},
+			}).media,
+		).toBe(raw);
+		expect(
+			chooseVersion([dub, raw], {
+				audio: "sub",
+				subtitles: {},
+			}).media,
+		).toBe(raw);
+		expect(
+			chooseVersion([dub], {
+				audio: "sub",
+				subtitles: {},
+			}).media,
+		).toBe(dub);
 	});
 
 	test("picks the chosen language and kind, else the language", () => {
 		expect(
-			choosePlayback([sub], {
+			chooseVersion([sub], {
 				audio: null,
 				subtitles: {
 					sub: {
@@ -70,7 +78,7 @@ describe("choosePlayback", () => {
 			}).subtitle?.url,
 		).toBe("en-signs");
 		expect(
-			choosePlayback([sub], {
+			chooseVersion([sub], {
 				audio: null,
 				subtitles: {
 					sub: {
@@ -83,36 +91,88 @@ describe("choosePlayback", () => {
 	});
 
 	test("keeps the selected variant when a language has multiple dialogue tracks", () => {
-		const first = { ...track("es", "dialogue"), variant: "first" };
-		const alternate = { ...first, url: "alternate-url", variant: "alternate" };
-		const media = { ...sub, subtitles: [first, alternate] };
+		const first = {
+			...track("es", "dialogue"),
+			variant: "first",
+		};
+
+		const alternate = {
+			...first,
+			url: "alternate-url",
+			variant: "alternate",
+		};
+
+		const media = {
+			...sub,
+			subtitles: [first, alternate],
+		};
+
 		const preferences = {
 			audio: "sub",
-			subtitles: { sub: { kind: "dialogue", language: "es", variant: "alternate" } },
+			subtitles: {
+				sub: {
+					kind: "dialogue",
+					language: "es",
+					variant: "alternate",
+				},
+			},
 		} as const;
 
-		expect(choosePlayback([media], preferences).subtitle).toBe(alternate);
-		const refreshed = { ...alternate, url: "refreshed-url" };
+		expect(chooseVersion([media], preferences).subtitle).toBe(alternate);
+
+		const refreshed = {
+			...alternate,
+			url: "refreshed-url",
+		};
+
 		expect(
-			choosePlayback([{ ...media, subtitles: [refreshed, first] }], preferences).subtitle,
+			chooseVersion(
+				[
+					{
+						...media,
+						subtitles: [refreshed, first],
+					},
+				],
+				preferences,
+			).subtitle,
 		).toBe(refreshed);
-		expect(choosePlayback([{ ...media, subtitles: [first] }], preferences).subtitle).toBe(first);
+		expect(
+			chooseVersion(
+				[
+					{
+						...media,
+						subtitles: [first],
+					},
+				],
+				preferences,
+			).subtitle,
+		).toBe(first);
 	});
 
 	test("falls back to another region of the preferred language before using the default", () => {
 		const spanish = track("es-419", "dialogue");
-		const media = { ...sub, subtitles: [...sub.subtitles, spanish] };
+
+		const media = {
+			...sub,
+			subtitles: [...sub.subtitles, spanish],
+		};
+
 		expect(
-			choosePlayback([media], {
+			chooseVersion([media], {
 				audio: "sub",
-				subtitles: { sub: { kind: "dialogue", language: "es-ES" } },
+				subtitles: {
+					sub: {
+						kind: "dialogue",
+						language: "es-ES",
+					},
+				},
 			}).subtitle,
 		).toBe(spanish);
 	});
 
 	test("shows no track when subtitles are off or the version is raw", () => {
 		expect(
-			choosePlayback([sub], {
+			chooseVersion([sub], {
 				audio: null,
 				subtitles: {
 					sub: null,
@@ -120,7 +180,7 @@ describe("choosePlayback", () => {
 			}).subtitle,
 		).toBeUndefined();
 		expect(
-			choosePlayback(
+			chooseVersion(
 				[
 					{
 						audio: "raw" as const,

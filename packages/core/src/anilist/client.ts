@@ -1,5 +1,4 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { createHash } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { attempt, parseRetryAfter, second } from "@sora/shared";
@@ -11,23 +10,7 @@ import { anilistResponse } from "../database/schema/catalog";
 import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
 import type { TypedDocumentString } from "./graphql.generated";
-
-const endpoint = "https://graphql.anilist.co";
-
-/**
- * Minimum spacing between requests a viewer is waiting on. They may use the
- * {@link viewerReserve} without waiting for a new window, but AniList also
- * limits bursts: 300 ms and 700 ms apart ran into it within ten requests,
- * with most of the minute's budget still left.
- */
-const viewerSpacingMs = 1000;
-
-/**
- * Requests of each minute's budget kept for requests a viewer is waiting
- * on: background requests wait rather than spend them. A search that finds
- * a title not stored yet needs about three, for a few titles at once.
- */
-const viewerReserve = 10;
+import { Query } from "./query";
 
 /**
  * The most urgent priority of background work. Requests at a more urgent
@@ -36,35 +19,14 @@ const viewerReserve = 10;
  */
 export const viewerWaitingPriority = -2;
 
-const requestTimeoutMs = 10_000;
-
 /** Freshness policy for one AniList request. */
-export interface AniListRequestOptions {
+export interface RequestOptions {
 	/**
 	 * How old a stored response may be and still be served without asking
 	 * AniList again, in milliseconds.
 	 */
 	maxAgeMs: number;
 }
-
-/**
- * Validates the GraphQL envelope only.
- *
- * The contents of `data` are typed by codegen from AniList's schema, which is
- * the runtime contract for a GraphQL response. Re-validating every field here
- * would duplicate that schema by hand.
- */
-const EnvelopeSchema = z.object({
-	data: z.record(z.string(), z.unknown()).nullable().optional(),
-	errors: z
-		.array(
-			z.object({
-				message: z.string(),
-				status: z.number().optional(),
-			}),
-		)
-		.optional(),
-});
 
 /** A request waiting for its turn under the rate limit. */
 interface QueuedRequest {
@@ -86,15 +48,12 @@ interface QueuedRequest {
  */
 export const aniListPriority = new AsyncLocalStorage<number>();
 
-/** The priority requests made here are queued at; see {@link aniListPriority}. */
-const currentAniListPriority = () => aniListPriority.getStore() ?? Number.NEGATIVE_INFINITY;
-
 /**
  * An operation that loads AniList media by ID in pages of 50, AniList's cap,
  * each page an aliased `Page` field taking its own IDs. How many pages fit
  * in one request is bounded by AniList's query complexity limit of 500.
  */
-export interface MediaByIdOperation<
+export interface MediaOperation<
 	TResult,
 	TVariables,
 	TMedia extends {
@@ -104,13 +63,15 @@ export interface MediaByIdOperation<
 	document: TypedDocumentString<TResult, TVariables>;
 	/** How many pages of 50 IDs one request holds. */
 	pages: number;
+	/** Checks the selected fields before the response is cached or handed to callers. */
+	schema: z.ZodType<NoInfer<TResult>>;
 	/** The variables for IDs split into at most `pages` pages, the first never empty. */
 	variables: (pages: readonly number[][]) => NoInfer<TVariables>;
 	/** Every media a response holds, from all its pages. */
 	media: (result: TResult) => Iterable<TMedia | null | undefined>;
 }
 
-/** IDs gathered into one request of a {@link loadMediaById} loader while it waits its turn. */
+/** IDs gathered into one request of a {@link loadMedia} loader while it waits its turn. */
 interface MediaBatch<TMedia> {
 	key: string;
 	priority: number;
@@ -127,22 +88,25 @@ interface MediaBatch<TMedia> {
 
 const mediaPageSize = 50;
 
-/**
- * How many AniList 429s one batch waits out before failing its callers.
- * Walking franchises needs bursts of requests and AniList often runs at its
- * degraded limit of 30 per minute, but a 429 only pauses the queue.
- */
-const mediaBatchRetries = 3;
-
 /** What the client sends AniList's requests with; the global `fetch` fits. */
 export type Fetch = (input: string, init: RequestInit) => Promise<Response>;
 
 /** Where the client keeps responses between requests; see `anilistResponse`. */
 export interface ResponseStore {
-	find: (key: string) => Promise<{ data: unknown; fetchedAt: Date } | undefined>;
+	find: (key: string) => Promise<
+		| {
+				data: unknown;
+				fetchedAt: Date;
+		  }
+		| undefined
+	>;
 	save: (
 		key: string,
-		response: { operation: string; data: unknown; fetchedAt: Date },
+		response: {
+			operation: string;
+			data: unknown;
+			fetchedAt: Date;
+		},
 	) => Promise<void>;
 }
 
@@ -161,38 +125,6 @@ export interface Budget {
 	remaining: number;
 	resetAt: number;
 }
-
-const sortedKeys = (_key: string, value: unknown) => {
-	if (value === null || typeof value !== "object" || Array.isArray(value)) {
-		return value;
-	}
-
-	return Object.fromEntries(
-		Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right)),
-	);
-};
-
-/**
- * Derives a stable key from the query text and variables.
- *
- * Object keys are sorted so `{ a, b }` and `{ b, a }` share a stored response, and the
- * query text is included so editing an operation leaves its stored responses behind.
- */
-const responseKey = (query: string, variables: unknown) =>
-	createHash("sha256")
-		.update(query)
-		.update("\0")
-		.update(JSON.stringify(variables, sortedKeys) ?? "null")
-		.digest("hex");
-
-const operationName = (query: string) => {
-	const name = /\b(?:query|mutation)\s+(?<name>\w+)/u.exec(query)?.[1];
-	if (!name) {
-		throw new TypeError("AniList documents must be named operations");
-	}
-
-	return name;
-};
 
 const minuteMs = 60_000;
 
@@ -221,21 +153,50 @@ export interface LimiterState {
  * counts other processes on the same IP.
  */
 export const waitToSend = (priority: number, now: number, state: LimiterState) => {
+	/**
+	 * Requests of each minute's budget kept for requests a viewer is waiting
+	 * on: background requests wait rather than spend them. A search that finds
+	 * a title not stored yet needs about three, for a few titles at once.
+	 */
+	const viewerReserve = 10;
+
+	/**
+	 * Minimum spacing between requests a viewer is waiting on. They may use the
+	 * {@link viewerReserve} without waiting for a new window, but AniList also
+	 * limits bursts: 300 ms and 700 ms apart ran into it within ten requests,
+	 * with most of the minute's budget still left.
+	 */
+	const viewerSpacingMs = 1000;
+
 	const isViewerWaiting = priority <= viewerWaitingPriority;
-	// Background requests spread the per-minute limit evenly, with a margin for jitter.
-	const spacing = isViewerWaiting ? viewerSpacingMs : Math.ceil(minuteMs / state.limit) + 100;
-	const floor = isViewerWaiting ? 0 : viewerReserve;
+	let spacing = viewerSpacingMs;
+	let floor = 0;
+
+	if (!isViewerWaiting) {
+		// Background requests spread the per-minute limit evenly, with a margin for jitter.
+		spacing = Math.ceil(minuteMs / state.limit) + 100;
+		floor = viewerReserve;
+	}
+
 	const recent = state.recentSends.filter((sentAt) => sentAt > now - minuteMs);
 	const lastSentAt = recent.at(-1) ?? Number.NEGATIVE_INFINITY;
 
 	// Enough of the oldest recent requests must leave the last 60 s to bring
 	// them under the budget this request may use.
 	const excess = recent.length - (state.limit - floor - 1);
-	const windowWait = excess > 0 ? (recent[excess - 1] ?? now) + minuteMs - now : 0;
-	const reportedWait =
-		state.budget && now < state.budget.resetAt && state.budget.remaining <= floor
-			? state.budget.resetAt - now
-			: 0;
+	let windowWait = 0;
+
+	if (excess > 0) {
+		windowWait = (recent[excess - 1] ?? now) + minuteMs - now;
+	}
+
+	const { budget } = state;
+	const isSpent = budget !== null && now < budget.resetAt && budget.remaining <= floor;
+	let reportedWait = 0;
+
+	if (isSpent) {
+		reportedWait = budget.resetAt - now;
+	}
 
 	return Math.max(0, state.pausedUntil - now, lastSentAt + spacing - now, windowWait, reportedWait);
 };
@@ -248,20 +209,18 @@ export const waitToSend = (priority: number, now: number, state: LimiterState) =
  */
 export const followBudget = (previous: Budget | null, remaining: number, now: number): Budget => {
 	const isNewWindow = !previous || now >= previous.resetAt || remaining > previous.remaining;
+
+	if (isNewWindow) {
+		return {
+			remaining,
+			resetAt: now + 60_000,
+		};
+	}
+
 	return {
 		remaining,
-		resetAt: isNewWindow ? now + 60_000 : previous.resetAt,
+		resetAt: previous.resetAt,
 	};
-};
-
-/**
- * How long AniList asks to wait, from `Retry-After`. It sometimes answers a
- * 429 with `Retry-After: 0`, meaning now; a second is waited then, so as not
- * to answer it with a burst.
- */
-const retryAfter = (response: Response) => {
-	const wait = parseRetryAfter(response.headers.get("Retry-After"));
-	return wait === null ? null : Math.max(wait, second);
 };
 
 /**
@@ -269,7 +228,31 @@ const retryAfter = (response: Response) => {
  * coalescing. The process shares one, {@link anilist}, since the limit AniList
  * applies is per IP.
  */
-export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
+export const connect = ({ fetch, store }: AniListDependencies) => {
+	/** The transport envelope; result fields are checked with each operation's schema. */
+	const EnvelopeSchema = z.object({
+		data: z.record(z.string(), z.unknown()).nullable().optional(),
+		errors: z
+			.array(
+				z.object({
+					message: z.string(),
+					status: z.number().optional(),
+				}),
+			)
+			.optional(),
+	});
+
+	/**
+	 * How many AniList 429s one batch waits out before failing its callers.
+	 * Walking franchises needs bursts of requests and AniList often runs at its
+	 * degraded limit of 30 per minute, but a 429 only pauses the queue.
+	 */
+	const mediaBatchRetries = 3;
+
+	const requestTimeoutMs = 10_000;
+
+	const endpoint = "https://graphql.anilist.co";
+
 	/**
 	 * Requests per minute AniList allows this IP: 90, or 30 when degraded.
 	 * Starts at the normal limit and follows the one AniList reports on every
@@ -297,8 +280,13 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 	/** Queues a request behind every one at least as urgent. */
 	const enqueue = (request: QueuedRequest) => {
-		const later = waiting.findIndex((other) => other.priority > request.priority);
-		waiting.splice(later === -1 ? waiting.length : later, 0, request);
+		let later = waiting.findIndex((other) => other.priority > request.priority);
+
+		if (later === -1) {
+			later = waiting.length;
+		}
+
+		waiting.splice(later, 0, request);
 		// A waiting viewer's request should not sit out a background one's wait.
 		wake?.();
 	};
@@ -311,6 +299,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	const raisePriority = (key: string, priority: number) => {
 		const index = waiting.findIndex((request) => request.key === key);
 		const request = waiting[index];
+
 		if (request && priority < request.priority) {
 			waiting.splice(index, 1);
 			enqueue({
@@ -335,7 +324,12 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		// Picked only once its turn comes, so a more urgent request queued
 		// during the wait goes first.
 		const [next] = waiting;
-		const wait = next ? waitToSend(next.priority, Date.now(), limiterState()) : 0;
+		let wait = 0;
+
+		if (next) {
+			wait = waitToSend(next.priority, Date.now(), limiterState());
+		}
+
 		if (wait > 0) {
 			const waking = new AbortController();
 			wake = () => waking.abort();
@@ -346,6 +340,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			);
 			wake = null;
 			await sendWaiting();
+
 			return;
 		}
 
@@ -353,6 +348,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		const sentAt = Date.now();
 		recentSends = recentSends.filter((earlier) => earlier > sentAt - minuteMs);
 		recentSends.push(sentAt);
+
 		// Counted until AniList's response reports the budget itself.
 		if (budget && sentAt < budget.resetAt) {
 			budget = {
@@ -360,6 +356,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				resetAt: budget.resetAt,
 			};
 		}
+
 		await request?.send();
 		await sendWaiting();
 	};
@@ -382,17 +379,21 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		const { promise, resolve, reject } = Promise.withResolvers<T>();
 		enqueue({
 			key,
-			priority: currentAniListPriority(),
+			priority: aniListPriority.getStore() ?? Number.NEGATIVE_INFINITY,
 			send: async () => {
 				const { data, error } = await attempt(task());
+
 				if (error) {
 					reject(error);
+
 					return;
 				}
+
 				resolve(data);
 			},
 		});
 		attempt(drain());
+
 		return promise;
 	};
 
@@ -406,21 +407,28 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 */
 	const followRateLimit = (response: Response) => {
 		const limit = Number(response.headers.get("x-ratelimit-limit"));
+
 		if (Number.isInteger(limit) && limit > 0) {
 			requestLimit = limit;
 		}
 
 		const remaining = Number(response.headers.get("x-ratelimit-remaining"));
-		if (
+
+		const reported =
 			response.headers.has("x-ratelimit-remaining") &&
 			Number.isInteger(remaining) &&
-			remaining >= 0
-		) {
+			remaining >= 0;
+
+		if (reported) {
 			budget = followBudget(budget, remaining, Date.now());
 		}
 	};
 
-	const execute = async (query: string, variables: unknown) => {
+	const execute = async <TVariables, TResult>(
+		query: string,
+		variables: TVariables,
+		schema: z.ZodType<TResult>,
+	) => {
 		const response = await attempt(
 			fetch(endpoint, {
 				body: JSON.stringify({
@@ -435,6 +443,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				signal: AbortSignal.timeout(requestTimeoutMs),
 			}),
 		);
+
 		if (response.error) {
 			throw new UpstreamUnavailableError("AniList could not be reached", {
 				cause: response.error,
@@ -444,8 +453,17 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 		followRateLimit(response.data);
 
+		// AniList sometimes answers a 429 with `Retry-After: 0`, meaning now; a
+		// second is waited then, so as not to answer it with a burst.
+		const asked = parseRetryAfter(response.data.headers.get("Retry-After"));
+		let askedWaitMs: number | null = null;
+
+		if (asked !== null) {
+			askedWaitMs = Math.max(asked, second);
+		}
+
 		if (response.data.status === 429) {
-			const retryAfterMs = retryAfter(response.data) ?? 60_000;
+			const retryAfterMs = askedWaitMs ?? 60_000;
 			// Pause every queued request, not just this one.
 			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
 			budget = {
@@ -458,6 +476,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 
 		const json = await attempt(response.data.json());
+
 		if (json.error) {
 			throw new UpstreamUnavailableError(
 				`AniList returned a ${response.data.status} response that is not JSON`,
@@ -469,6 +488,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 
 		const body = EnvelopeSchema.safeParse(json.data);
+
 		if (!body.success) {
 			throw new UpstreamUnavailableError(
 				`AniList returned an invalid ${response.data.status} response`,
@@ -482,31 +502,52 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		// AniList reports a missing Media as a 404 GraphQL error with `data.Media: null`.
 		// That is a valid answer, not an outage, so it is returned as data.
 		const notFoundOnly = body.data.errors?.every((error) => error.status === 404) ?? false;
-		if (body.data.data && (response.data.ok || notFoundOnly)) {
-			return body.data.data;
+
+		const answered = body.data.data && (response.data.ok || notFoundOnly);
+
+		if (answered) {
+			const parsed = schema.safeParse(body.data.data);
+
+			if (!parsed.success) {
+				throw new UpstreamUnavailableError(
+					"AniList returned data that does not match its operation",
+					{
+						cause: parsed.error,
+						retryAfterMs: null,
+					},
+				);
+			}
+
+			return parsed.data;
 		}
 
 		throw new UpstreamUnavailableError(
 			body.data.errors?.[0]?.message ?? `AniList returned ${response.data.status}`,
 			{
-				retryAfterMs: retryAfter(response.data),
+				retryAfterMs: askedWaitMs,
 			},
 		);
 	};
 
-	const fetchAndStore = async <TResult>(key: string, query: string, variables: unknown) => {
-		const data = await rateLimited(key, () => execute(query, variables));
+	const fetchAndStore = async <TVariables>(
+		key: string,
+		query: string,
+		variables: TVariables,
+		schema: z.ZodType,
+	) => {
+		const data = await rateLimited(key, () => execute(query, variables, schema));
+
 		const values = {
 			data,
 			fetchedAt: new Date(),
-			operation: operationName(query),
+			operation: new Query(query).name,
 		};
 
 		await store.save(key, values);
 
-		// The envelope was validated; the payload shape is guaranteed by the schema.
-		return data as TResult;
+		return data;
 	};
+
 	/**
 	 * Executes a generated AniList operation with request coalescing and rate
 	 * limiting, storing the response (see `anilistResponse`).
@@ -519,41 +560,46 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 *
 	 * @example
 	 * ```ts
-	 * const { Page } = await anilist(AnimeCardsDocument, { ids: [21, 20], perPage: 2 }, { maxAgeMs: HOUR });
+	 * const { Page } = await anilist(AnimeCardsDocument, { ids: [21, 20], perPage: 2 }, zAnimeCardsQuery, { maxAgeMs: HOUR });
 	 * ```
 	 */
 	const anilist = async <TResult, TVariables>(
 		document: TypedDocumentString<TResult, TVariables>,
 		variables: NoInfer<TVariables>,
-		options: AniListRequestOptions,
+		schema: z.ZodType<NoInfer<TResult>>,
+		options: RequestOptions,
 	): Promise<TResult> => {
 		const query = document.toString();
-		const key = responseKey(query, variables);
+		const key = new Query(query).key(variables);
 
 		const stored = await store.find(key);
 
-		if (stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
-			// Stored by this function from a response typed as TResult.
-			return stored.data as TResult;
+		const valid = stored && schema.safeParse(stored.data);
+		const fresh = stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now();
+
+		if (fresh && valid?.success) {
+			return valid.data;
 		}
 
 		if (inFlight.has(key)) {
 			// A viewer asking what a background job already queued should not wait at its priority.
-			raisePriority(key, currentAniListPriority());
+			raisePriority(key, aniListPriority.getStore() ?? Number.NEGATIVE_INFINITY);
 		}
 
 		const { data, error } = await attempt(
-			inFlight.run(key, () => fetchAndStore<TResult>(key, query, variables)),
+			inFlight.run(key, () => fetchAndStore(key, query, variables, schema)),
 			UpstreamUnavailableError,
 		);
+
 		if (error) {
-			if (stored) {
-				return stored.data as TResult;
+			if (valid?.success) {
+				return valid.data;
 			}
+
 			throw error;
 		}
-		// Stored by fetchAndStore from a response typed as TResult.
-		return data as TResult;
+
+		return schema.parse(data);
 	};
 
 	/**
@@ -577,18 +623,18 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 * @throws {UpstreamUnavailableError} from the returned function when
 	 *   AniList fails, or keeps answering with 429s.
 	 */
-	const loadMediaById = <
+	const loadMedia = <
 		TResult,
 		TVariables,
 		TMedia extends {
 			id: number;
 		},
 	>(
-		operation: MediaByIdOperation<TResult, TVariables, TMedia>,
+		operation: MediaOperation<TResult, TVariables, TMedia>,
 	) => {
 		const capacity = operation.pages * mediaPageSize;
 		const query = operation.document.toString();
-		const name = operationName(query);
+		const { name } = new Query(query);
 		/** IDs queued or being fetched, each settling with its media, or `null` when AniList has none. */
 		const loading = new InFlight<number, TMedia | null>();
 		/** The batch each queued ID waits in, until it is sent. */
@@ -612,6 +658,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			}
 
 			const ids = [...batch.wanted.keys()].toSorted((left, right) => left - right);
+
 			for (const id of ids) {
 				queuedIn.delete(id);
 			}
@@ -622,28 +669,37 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				},
 				(_, page) => ids.slice(page * mediaPageSize, (page + 1) * mediaPageSize),
 			);
-			const { data, error } = await attempt(execute(query, operation.variables(pages)));
+
+			const { data, error } = await attempt(
+				execute(query, operation.variables(pages), operation.schema),
+			);
+
 			if (error) {
 				const isRateLimited =
 					error instanceof UpstreamUnavailableError && error.retryAfterMs !== null;
+
 				if (isRateLimited && batch.retries < mediaBatchRetries) {
 					batch.retries += 1;
+
 					for (const id of ids) {
 						queuedIn.set(id, batch);
 					}
+
 					requeue(batch);
+
 					return;
 				}
 
 				for (const { reject } of batch.wanted.values()) {
 					reject(error);
 				}
+
 				return;
 			}
 
-			// The envelope was validated; the payload shape is guaranteed by the schema.
 			const found = new Map<number, TMedia>();
-			for (const media of operation.media(data as TResult)) {
+
+			for (const media of operation.media(data)) {
 				if (media) {
 					found.set(media.id, media);
 				}
@@ -672,8 +728,10 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				retries: 0,
 				wanted: new Map(),
 			};
+
 			open = batch;
 			queue(batch);
+
 			return batch;
 		};
 
@@ -691,21 +749,29 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				});
 				queuedIn.set(id, batch);
 				raise(batch, priority);
+
 				if (batch.wanted.size >= capacity) {
 					open = null;
 				}
+
 				return promise;
 			});
 		};
 
 		return async (ids: Iterable<number>): Promise<Map<number, TMedia>> => {
-			const priority = currentAniListPriority();
+			const priority = aniListPriority.getStore() ?? Number.NEGATIVE_INFINITY;
 			const unique = [...new Set(ids)];
 			const loaded = await Promise.all(unique.map((id) => load(id, priority)));
+
 			return new Map(
 				unique.flatMap((id, index) => {
 					const media = loaded[index];
-					return media ? [[id, media] as const] : [];
+
+					if (media) {
+						return [[id, media] as const];
+					}
+
+					return [];
 				}),
 			);
 		};
@@ -713,35 +779,34 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 	return {
 		anilist,
-		loadMediaById,
+		loadMedia,
 	};
 };
 
-/** The responses AniList is asked for, kept in the database. */
-const databaseStore: ResponseStore = {
-	find: async (key) => {
-		const [stored] = await db
-			.select()
-			.from(anilistResponse)
-			.where(eq(anilistResponse.key, key))
-			.limit(1);
-		return stored;
-	},
-	save: async (key, values) => {
-		await db
-			.insert(anilistResponse)
-			.values({
-				key,
-				...values,
-			})
-			.onConflictDoUpdate({
-				set: values,
-				target: anilistResponse.key,
-			});
-	},
-};
-
-export const { anilist, loadMediaById } = createAniListClient({
+export const { anilist, loadMedia } = connect({
 	fetch,
-	store: databaseStore,
+	/** The responses AniList is asked for, kept in the database. */
+	store: {
+		find: async (key) => {
+			const [stored] = await db
+				.select()
+				.from(anilistResponse)
+				.where(eq(anilistResponse.key, key))
+				.limit(1);
+
+			return stored;
+		},
+		save: async (key, values) => {
+			await db
+				.insert(anilistResponse)
+				.values({
+					key,
+					...values,
+				})
+				.onConflictDoUpdate({
+					set: values,
+					target: anilistResponse.key,
+				});
+		},
+	},
 });

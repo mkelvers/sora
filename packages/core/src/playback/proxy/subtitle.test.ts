@@ -351,6 +351,7 @@ Welcome to the
 			"A B",
 		]) {
 			const text = `WEBVTT\n\n00:00:01.000 --> 00:00:03.000\n${name}`;
+
 			for (const page of ["windows-1251", "windows-1252"] as const) {
 				const bytes = new TextEncoder().encode(text);
 				const misread = new TextDecoder(page).decode(bytes);

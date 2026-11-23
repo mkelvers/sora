@@ -17,21 +17,21 @@ export interface RecordedMigration {
 	hash: string;
 }
 
-const JournalSchema = z.object({
-	entries: z.array(
-		z.object({
-			tag: z.string(),
-			when: z.number(),
-		}),
-	),
-});
-
 /** The migrations in `folder`, in the order drizzle applies them. */
 export const readMigrationHistory = (folder: string): MigrationFile[] => {
-	const journal = JournalSchema.parse(
-		JSON.parse(readFileSync(path.join(folder, "meta/_journal.json"), "utf-8")),
-	);
+	const journal = z
+		.object({
+			entries: z.array(
+				z.object({
+					tag: z.string(),
+					when: z.number(),
+				}),
+			),
+		})
+		.parse(JSON.parse(readFileSync(path.join(folder, "meta/_journal.json"), "utf-8")));
+
 	const tags = new Map(journal.entries.map(({ tag, when }) => [when, tag]));
+
 	return readMigrationFiles({
 		migrationsFolder: folder,
 	}).map(({ folderMillis, hash }) => ({
@@ -59,13 +59,22 @@ export const skippedMigrations = (
 ): string[] => {
 	const hashes = new Map(recorded.map(({ createdAt, hash }) => [createdAt, hash]));
 	const newest = Math.max(...recorded.map(({ createdAt }) => createdAt));
+
 	return files.flatMap(({ hash, tag, when }) => {
 		const applied = hashes.get(when);
+
 		if (applied === undefined) {
-			return when < newest
-				? [`${tag} was never applied, and a newer migration was, so drizzle never will`]
-				: [];
+			if (when < newest) {
+				return [`${tag} was never applied, and a newer migration was, so drizzle never will`];
+			}
+
+			return [];
 		}
-		return applied === hash ? [] : [`${tag} was applied as a different version of its file`];
+
+		if (applied === hash) {
+			return [];
+		}
+
+		return [`${tag} was applied as a different version of its file`];
 	});
 };

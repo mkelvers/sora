@@ -3,8 +3,9 @@ import { sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { providerCalls } from "../../database/schema/playback";
+import { OperationSchema } from "./calls";
 import type { ProviderOperation } from "./calls";
-import { streamProviders } from "./registry";
+import { providers } from "./registry";
 
 /**
  * A provider that is being called but has had no successful call for this
@@ -18,9 +19,6 @@ export const failingAfterMs = 3 * hour;
  * every title, and a quiet hour may only ask it for ones it lacks.
  */
 export const failingAfterCalls = 5;
-
-/** Calls are summarized over this window. */
-const summaryWindowMs = day;
 
 /**
  * - `ok`: a call succeeded within {@link failingAfterMs}.
@@ -57,7 +55,7 @@ export interface ProviderHealth {
 	operations: OperationSummary[];
 }
 
-/** What {@link getProviderHealth} reads for one provider operation. */
+/** What {@link statusReport} reads for one provider operation. */
 export interface OperationRow {
 	provider: string;
 	operation: string;
@@ -75,63 +73,74 @@ export interface OperationRow {
 }
 
 /**
- * Start of the first hour that counts as recent. Hours are stored by their
- * start, so an hour counts if any of it is within {@link failingAfterMs}.
- */
-const recentFrom = (now: Date) =>
-	new Date(Math.floor((now.getTime() - failingAfterMs) / hour) * hour);
-
-const toDate = (value: unknown) => (value === null ? null : new Date(value as string | Date));
-
-/**
  * Folds per-operation rows into one {@link ProviderHealth} per provider in
- * `providerIds`. Rows of other providers, such as removed ones, are ignored.
+ * `ids`. Rows of other providers, such as removed ones, are ignored.
  */
-export const summarizeHealth = (
-	providerIds: readonly string[],
+export const summarize = (
+	ids: readonly string[],
 	rows: readonly OperationRow[],
 	now: Date,
 ): ProviderHealth[] => {
-	const recent = recentFrom(now).getTime();
+	// Hours are stored by their start, so an hour counts as recent if any of it
+	// is within failingAfterMs.
+	const recent = Math.floor((now.getTime() - failingAfterMs) / hour) * hour;
 
-	return providerIds.map((provider) => {
+	return ids.map((provider) => {
 		const own = rows.filter((row) => row.provider === provider);
+
 		const latest = (pick: (row: OperationRow) => Date | null) => {
 			let found: Date | null = null;
+
 			for (const row of own) {
 				const value = pick(row);
-				if (value && (!found || value > found)) {
+
+				const later = value && (!found || value > found);
+
+				if (later) {
 					found = value;
 				}
 			}
+
 			return found;
 		};
 
 		const lastOk = latest((row) => row.lastOkHour);
 		const recentCalls = own.reduce((total, row) => total + row.recentCalls, 0);
 		const lastErrorAt = latest((row) => row.lastErrorAt);
+
 		const lastError = own.find(
 			(row) => lastErrorAt !== null && row.lastErrorAt?.getTime() === lastErrorAt.getTime(),
 		);
-		const failing: ProviderStatus = recentCalls >= failingAfterCalls ? "failing" : "idle";
-		const status: ProviderStatus = lastOk !== null && lastOk.getTime() >= recent ? "ok" : failing;
+
+		let status: ProviderStatus = "idle";
+
+		if (recentCalls >= failingAfterCalls) {
+			status = "failing";
+		}
+
+		if (lastOk !== null && lastOk.getTime() >= recent) {
+			status = "ok";
+		}
 
 		return {
 			last_error: lastError?.lastError ?? null,
 			last_error_at: lastErrorAt?.toISOString() ?? null,
 			last_ok_at: lastOk?.toISOString() ?? null,
 			operations: own
+				.values()
 				.filter((row) => row.ok + row.empty + row.failed > 0)
 				.map((row) => {
 					const calls = row.ok + row.empty + row.failed;
+
 					return {
 						average_ms: Math.round(row.durationMs / calls),
 						empty: row.empty,
 						failed: row.failed,
 						ok: row.ok,
-						operation: row.operation as ProviderOperation,
+						operation: OperationSchema.parse(row.operation),
 					};
 				})
+				.toArray()
 				.toSorted((left, right) => left.operation.localeCompare(right.operation)),
 			provider,
 			status,
@@ -143,11 +152,18 @@ export const summarizeHealth = (
  * How each stream provider has been doing, in the order playback tries them,
  * from what `provider_calls` recorded.
  */
-export const getProviderHealth = async (now = new Date()): Promise<ProviderHealth[]> => {
+export const statusReport = async (now = new Date()): Promise<ProviderHealth[]> => {
+	/** Calls are summarized over this window. */
+	const summaryWindowMs = day;
+
 	const windowStart = new Date(now.getTime() - summaryWindowMs);
 	const inWindow = sql`${providerCalls.hour} >= ${windowStart}`;
-	const isRecent = sql`${providerCalls.hour} >= ${recentFrom(now)}`;
+	// Hours are stored by their start, so an hour counts as recent if any of it
+	// is within failingAfterMs.
+	const recentFrom = new Date(Math.floor((now.getTime() - failingAfterMs) / hour) * hour);
+	const isRecent = sql`${providerCalls.hour} >= ${recentFrom}`;
 	const calls = sql`${providerCalls.ok} + ${providerCalls.empty} + ${providerCalls.failed}`;
+
 	const rows = await db
 		.select({
 			durationMs:
@@ -165,10 +181,12 @@ export const getProviderHealth = async (now = new Date()): Promise<ProviderHealt
 			lastError: sql<
 				string | null
 			>`(array_agg(${providerCalls.lastError} order by ${providerCalls.lastErrorAt} desc nulls last))[1]`,
-			lastErrorAt: sql<Date | null>`max(${providerCalls.lastErrorAt})`.mapWith(toDate),
+			lastErrorAt: sql<Date | null>`max(${providerCalls.lastErrorAt})`.mapWith(
+				providerCalls.lastErrorAt,
+			),
 			lastOkHour:
 				sql<Date | null>`max(${providerCalls.hour}) filter (where ${providerCalls.ok} > 0)`.mapWith(
-					toDate,
+					providerCalls.hour,
 				),
 			ok: sql<number>`coalesce(sum(${providerCalls.ok}) filter (where ${inWindow}), 0)`.mapWith(
 				Number,
@@ -182,8 +200,8 @@ export const getProviderHealth = async (now = new Date()): Promise<ProviderHealt
 		.from(providerCalls)
 		.groupBy(providerCalls.provider, providerCalls.operation);
 
-	return summarizeHealth(
-		streamProviders.map((provider) => provider.id),
+	return summarize(
+		providers.map((provider) => provider.id),
 		rows,
 		now,
 	);

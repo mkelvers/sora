@@ -1,18 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { ProfileInputSchema, ProfileSchema } from "@sora/core/models/account";
 import {
-	PlaybackPreferencesUpdateSchema,
+	PlaybackChangesSchema,
 	PlaybackPreferencesSchema,
 	ProfilePreferencesSchema,
-	ProfilePreferencesUpdateSchema,
+	ProfileChangesSchema,
 } from "@sora/core/models/library";
-import { ProfileInputSchema, ProfileSchema } from "@sora/core/models/profile";
 import { FeaturedCardSchema } from "@sora/core/models/series";
 
-import { CountMetaSchema, envelopeOf } from "../../openapi/envelope";
-import { json, problem, EmptyMetaSchema, signedIn, ProfileParams } from "../../openapi/schemas";
+import { CountMetaSchema, envelope } from "../../openapi/envelope";
+import { json, problem, EmptyMeta, signedIn, ProfileParams } from "../../openapi/schemas";
 
 /** The account's profiles, their preferences, and their featured titles. */
-export const profileRoute = {
+export const contract = {
 	createProfile: createRoute({
 		description: "An account may hold any number of profiles.",
 		method: "post",
@@ -29,7 +29,7 @@ export const profileRoute = {
 			},
 		},
 		responses: {
-			201: json(envelopeOf(ProfileSchema, EmptyMetaSchema), "The new profile."),
+			201: json(envelope(ProfileSchema, EmptyMeta), "The new profile."),
 			401: problem("Not signed in."),
 			422: problem("The body is invalid."),
 		},
@@ -67,7 +67,7 @@ export const profileRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(z.array(FeaturedCardSchema), CountMetaSchema), "The titles."),
+			200: json(envelope(z.array(FeaturedCardSchema), CountMetaSchema), "The titles."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -85,7 +85,7 @@ export const profileRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(PlaybackPreferencesSchema, EmptyMetaSchema), "The preferences."),
+			200: json(envelope(PlaybackPreferencesSchema, EmptyMeta), "The preferences."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -103,7 +103,7 @@ export const profileRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(ProfilePreferencesSchema, EmptyMetaSchema), "The preferences."),
+			200: json(envelope(ProfilePreferencesSchema, EmptyMeta), "The preferences."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -118,7 +118,7 @@ export const profileRoute = {
 		operationId: "listProfiles",
 		path: "/profiles",
 		responses: {
-			200: json(envelopeOf(z.array(ProfileSchema), CountMetaSchema), "The profiles."),
+			200: json(envelope(z.array(ProfileSchema), CountMetaSchema), "The profiles."),
 			401: problem("Not signed in."),
 		},
 		security: signedIn,
@@ -135,7 +135,7 @@ export const profileRoute = {
 			body: {
 				content: {
 					"application/json": {
-						schema: PlaybackPreferencesUpdateSchema,
+						schema: PlaybackChangesSchema,
 					},
 				},
 				required: true,
@@ -144,7 +144,7 @@ export const profileRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(PlaybackPreferencesSchema, EmptyMetaSchema),
+				envelope(PlaybackPreferencesSchema, EmptyMeta),
 				"The preferences as they now stand.",
 			),
 			401: problem("Not signed in."),
@@ -171,7 +171,7 @@ export const profileRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(ProfileSchema, EmptyMetaSchema), "The profile."),
+			200: json(envelope(ProfileSchema, EmptyMeta), "The profile."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 			422: problem("The body is invalid."),
@@ -190,7 +190,7 @@ export const profileRoute = {
 			body: {
 				content: {
 					"application/json": {
-						schema: ProfilePreferencesUpdateSchema,
+						schema: ProfileChangesSchema,
 					},
 				},
 				required: true,
@@ -199,7 +199,7 @@ export const profileRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(ProfilePreferencesSchema, EmptyMetaSchema),
+				envelope(ProfilePreferencesSchema, EmptyMeta),
 				"The preferences as they now stand.",
 			),
 			401: problem("Not signed in."),

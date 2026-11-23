@@ -2,13 +2,14 @@
 	import Button from "$lib/components/ui/button.svelte";
 	import Switch from "$lib/components/ui/switch.svelte";
 	import { cn, moveMenuFocus } from "$lib/utils";
-	import type { WatchMedia } from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import type { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
 	import type { PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
 	import { attempt } from "@sora/shared";
 	import { Popover } from "melt/builders";
 	import { CaretLeftIcon, CaretRightIcon, GearSixIcon } from "phosphor-svelte";
 	import { tick } from "svelte";
+
+	import type { WatchMedia } from "../playback.server";
 
 	let {
 		media,
@@ -26,14 +27,16 @@
 		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
 	} = $props();
 
-	const ultraHeight = 2160;
-	const highHeight = 720;
-
 	const qualityLabel = (height: number) => {
-		if (height >= ultraHeight) {
+		if (height >= 2160) {
 			return `${height}p 4K`;
 		}
-		return height >= highHeight ? `${height}p HD` : `${height}p`;
+
+		if (height >= 720) {
+			return `${height}p HD`;
+		}
+
+		return `${height}p`;
 	};
 
 	const pickSubtitle = (url: string) => {
@@ -42,92 +45,140 @@
 		}
 
 		const track = selected.subtitles.find((candidate) => candidate.url === url);
+
+		if (!track) {
+			onpreferences({
+				subtitles: {
+					[selected.audio]: null,
+				},
+			});
+
+			return;
+		}
+
 		onpreferences({
 			subtitles: {
-				[selected.audio]: track
-					? {
-							kind: track.kind,
-							language: track.language,
-							variant: track.variant,
-						}
-					: null,
+				[selected.audio]: {
+					kind: track.kind,
+					language: track.language,
+					variant: track.variant,
+				},
 			},
 		});
 	};
 
-	const menus = $derived([
-		...(media.length
-			? [
+	const menus = $derived.by(() => {
+		const shown: {
+			label: string;
+			options: {
+				label: string;
+				value: string;
+			}[];
+			select: (value: string) => void;
+			value: string;
+		}[] = [];
+
+		if (media.length) {
+			shown.push({
+				label: "Audio",
+				options: media.map((version) => ({
+					label: version.label,
+					value: version.audio,
+				})),
+				select: (value: string) => {
+					const version = media.find((candidate) => candidate.audio === value);
+
+					if (!version) {
+						throw new Error("The selected audio is not available");
+					}
+
+					onpreferences({
+						audio: version.audio,
+					});
+				},
+				value: selected?.audio ?? "",
+			});
+		}
+
+		if (selected?.subtitles.length) {
+			shown.push({
+				label: "Subtitles",
+				options: [
 					{
-						label: "Audio",
-						options: media.map((version) => ({
-							label: version.label,
-							value: version.audio,
-						})),
-						select: (value: string) =>
-							onpreferences({
-								audio: value as WatchMedia["audio"],
-							}),
-						value: selected?.audio ?? "",
+						label: "Off",
+						value: "",
 					},
-				]
-			: []),
-		...(selected?.subtitles.length
-			? [
+					...selected.subtitles.map((track) => ({
+						label: track.label,
+						value: track.url,
+					})),
+				],
+				select: pickSubtitle,
+				value: subtitle ?? "",
+			});
+		}
+
+		if (player.qualities.length > 1) {
+			let quality = "auto";
+
+			if (player.chosen) {
+				quality = String(player.chosen.height);
+			}
+
+			shown.push({
+				label: "Quality",
+				options: [
 					{
-						label: "Subtitles",
-						options: [
-							{
-								label: "Off",
-								value: "",
-							},
-							...selected.subtitles.map((track) => ({
-								label: track.label,
-								value: track.url,
-							})),
-						],
-						select: pickSubtitle,
-						value: subtitle ?? "",
+						label: "Auto",
+						value: "auto",
 					},
-				]
-			: []),
-		...(player.qualities.length > 1
-			? [
-					{
-						label: "Quality",
-						options: [
-							{
-								label: "Auto",
-								value: "auto",
-							},
-							...player.qualities.map(({ height }) => ({
-								label: qualityLabel(height),
-								value: String(height),
-							})),
-						],
-						select: (value: string) =>
-							onpreferences({
-								quality: value === "auto" ? null : Number(value),
-							}),
-						value: player.chosen ? String(player.chosen.height) : "auto",
-					},
-				]
-			: []),
-		{
+					...player.qualities.map(({ height }) => ({
+						label: qualityLabel(height),
+						value: String(height),
+					})),
+				],
+				select: (value: string) => {
+					if (value === "auto") {
+						onpreferences({
+							quality: null,
+						});
+
+						return;
+					}
+
+					onpreferences({
+						quality: Number(value),
+					});
+				},
+				value: quality,
+			});
+		}
+
+		shown.push({
 			label: "Speed",
-			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
-				label: rate === 1 ? "Normal" : `${rate}x`,
-				value: String(rate),
-			})),
+			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => {
+				let label = `${rate}x`;
+
+				if (rate === 1) {
+					label = "Normal";
+				}
+
+				return {
+					label,
+					value: String(rate),
+				};
+			}),
 			select: (value: string) => (player.speed = Number(value)),
 			value: String(player.speed),
-		},
-	]);
+		});
+
+		return shown;
+	});
 
 	let submenu = $state<string>();
 	const open = $derived(menus.find((menu) => menu.label === submenu));
-	const columns = 8;
-	const wide = $derived((open?.options.length ?? 0) > columns);
+
+	const wide = $derived((open?.options.length ?? 0) > 8);
 
 	let content = $state<HTMLElement>();
 

@@ -4,14 +4,21 @@
 	import Skeleton from "$lib/components/snippets/skeleton.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import { mascots } from "$lib/mascots";
-	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getGenres, getStudios, getTags } from "$routes/(app)/(catalog)/catalog.remote";
 
 	import Results from "./components/results.svelte";
 
 	const q = $derived(page.url.searchParams.get("q")?.trim() ?? "");
-	let count = $derived(q ? 1 : 0);
+
+	let count = $derived.by(() => {
+		if (q) {
+			return 1;
+		}
+
+		return 0;
+	});
 
 	const same = (name: string) => name.toLowerCase() === q.toLowerCase();
 
@@ -20,8 +27,14 @@
 	const studios = $derived(getStudios(q.slice(0, 100)));
 
 	const category = $derived.by(
-		(): { name: string; filters: Partial<BrowseFilters> } | undefined => {
+		():
+			| {
+					name: string;
+					filters: Partial<BrowseFilters>;
+			  }
+			| undefined => {
 			const genre = genres.current?.find(same);
+
 			if (genre) {
 				return {
 					filters: {
@@ -30,7 +43,9 @@
 					name: genre,
 				};
 			}
+
 			const tag = tags.current?.find((entry) => same(entry.name));
+
 			if (tag) {
 				return {
 					filters: {
@@ -39,15 +54,19 @@
 					name: tag.name,
 				};
 			}
+
 			const studio = studios.current?.find(same);
-			return studio
-				? {
-						filters: {
-							studios: [studio],
-						},
-						name: studio,
-					}
-				: undefined;
+
+			if (studio) {
+				return {
+					filters: {
+						studios: [studio],
+					},
+					name: studio,
+				};
+			}
+
+			return undefined;
 		},
 	);
 </script>
@@ -62,7 +81,7 @@
 			<div class="mb-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
 				<h1 id="search-title" class="text-2xl font-bold">Search Results for “{q}”</h1>
 				{#if category}
-					<Button variant="link" href="/browse" onclick={() => setBrowse(category.filters)}>
+					<Button variant="link" href="/browse" onclick={() => filterBy(category.filters)}>
 						Browse all {category.name} anime
 					</Button>
 				{/if}

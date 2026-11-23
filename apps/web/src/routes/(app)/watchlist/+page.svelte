@@ -11,16 +11,23 @@
 	import { CaretDownIcon } from "phosphor-svelte";
 
 	import WatchlistSort, { sorts } from "./components/watchlist-sort.svelte";
-	import { getWatchlist } from "./watchlist.remote";
+	import { getEntries } from "./watchlist.remote";
 
-	const watchlist = getWatchlist();
+	const watchlist = getEntries();
 
 	let status = $state<WatchlistStatus | "all">("all");
 	let sort = $state(sorts[0]);
 	let statusSheet = $state(false);
 	let sortSheet = $state(false);
 
-	const options = [{ label: "All", value: "all" }, ...statuses] as const;
+	const options = [
+		{
+			label: "All",
+			value: "all",
+		},
+		...statuses,
+	] as const;
+
 	const selected = $derived(options.find((option) => option.value === status));
 
 	const matching = $derived(

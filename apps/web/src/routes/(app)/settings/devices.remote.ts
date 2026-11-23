@@ -3,7 +3,7 @@ import { remoteViewer } from "$lib/server/sora";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
-export const getDevices = query(async () => {
+export const getSignIns = query(async () => {
 	const { sora } = remoteViewer();
 
 	return await sora.request(route.listDevices, undefined, {
@@ -13,20 +13,20 @@ export const getDevices = query(async () => {
 	});
 });
 
-export const signOutDevice = command(z.string(), async (deviceId) => {
+export const revoke = command(z.string(), async (id) => {
 	const { sora } = remoteViewer();
 
 	await sora.request(route.signOutDevice, {
 		params: {
-			device_id: deviceId,
+			device_id: id,
 		},
 	});
-	await getDevices().refresh();
+	await getSignIns().refresh();
 });
 
-export const signOutOtherDevices = command(async () => {
+export const revokeOthers = command(async () => {
 	const { sora } = remoteViewer();
 
 	await sora.request(route.signOutOtherDevices);
-	await getDevices().refresh();
+	await getSignIns().refresh();
 });

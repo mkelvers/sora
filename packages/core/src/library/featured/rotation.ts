@@ -38,20 +38,20 @@ export const currentFor = 365 * day;
 export const longRunningAfter = 3 * 365 * day;
 
 /** How often the featured titles change: once a day. */
-export const rotationPeriod = day;
+export const period = day;
 
 /** When in the day they change, from the Unix epoch: 06:00 UTC, after the daily AniList trends are stored (05:30 UTC). */
-const rotationStart = 6 * hour;
+const changeAt = 6 * hour;
 
 /**
  * How many rotations of picks are remembered: longer than {@link freshFor},
  * so a title featured when its season ended is not featured again as if it
  * never had been.
  */
-export const historyRotations = 35;
+export const remembered = 35;
 
 /** How many titles are featured, at most. */
-export const featuredCount = 6;
+export const maximumCount = 6;
 
 /**
  * How few titles the carousel may hold before titles with nothing new since
@@ -97,9 +97,6 @@ export const rising = {
 /** How long a rising title rests after it was featured, while it has nothing else new. */
 export const risingRestFor = 7 * day;
 
-/** Days of activity each window needs before it is trusted. */
-const minimumDaysPerWindow = 3;
-
 /** A date `ms` before `now`, as `YYYY-MM-DD`, to compare with the search index's start dates. */
 export const dateBefore = (now: Date, ms: number) =>
 	new Date(now.getTime() - ms).toISOString().slice(0, 10);
@@ -112,9 +109,11 @@ export const isCurrent = (entry: FeaturedEntry, now: Date) => {
 	if (entry.score < currentThresholds.score) {
 		return false;
 	}
+
 	if (entry.status === "RELEASING") {
 		return entry.popularity >= currentThresholds.airingPopularity;
 	}
+
 	return (
 		entry.popularity >= currentThresholds.popularity &&
 		entry.startDate !== null &&
@@ -122,13 +121,11 @@ export const isCurrent = (entry: FeaturedEntry, now: Date) => {
 	);
 };
 
-/** The number of the rotation `now` falls in, counted in {@link rotationPeriod}s since the first. */
-export const rotationOf = (now: Date) =>
-	Math.floor((now.getTime() - rotationStart) / rotationPeriod);
+/** The number of the rotation `now` falls in, counted in {@link period}s since the first. */
+export const numberOf = (now: Date) => Math.floor((now.getTime() - changeAt) / period);
 
 /** When `rotation` starts. */
-export const rotationStartOf = (rotation: number) =>
-	new Date(rotation * rotationPeriod + rotationStart);
+export const startOf = (rotation: number) => new Date(rotation * period + changeAt);
 
 /** One day of AniList activity of an entry. */
 export interface ActivityDay {
@@ -145,15 +142,21 @@ export interface Activity {
 
 /** The average daily activity of `days` in each of {@link activityWindows} before `now`. */
 export const activityOf = (days: readonly ActivityDay[], now: Date): Activity => {
+	/** Days of activity each window needs before it is trusted. */
+	const minimumDays = 3;
+
 	const average = ({ from, to }: { from: number; to: number }) => {
 		const first = dateBefore(now, from);
 		const last = dateBefore(now, to);
 		const inside = days.filter((entry) => entry.day >= first && entry.day < last);
-		if (inside.length < minimumDaysPerWindow) {
+
+		if (inside.length < minimumDays) {
 			return null;
 		}
+
 		return inside.reduce((sum, entry) => sum + entry.trending, 0) / inside.length;
 	};
+
 	return {
 		past: average(activityWindows.past),
 		recent: average(activityWindows.recent),
@@ -190,19 +193,27 @@ export type Reason = "airing" | "fresh" | "rising";
  */
 export const reasonsOf = (candidate: Candidate, now: Date): Reason[] => {
 	const reasons: Reason[] = [];
+
 	if (candidate.status === "RELEASING") {
 		reasons.push("airing");
 	}
-	const isFresh =
-		candidate.lastAiredAt === null
-			? candidate.startDate !== null && candidate.startDate >= dateBefore(now, freshFor)
-			: now.getTime() - candidate.lastAiredAt.getTime() <= freshFor;
+
+	const { lastAiredAt, startDate } = candidate;
+	const airedLately = lastAiredAt !== null && now.getTime() - lastAiredAt.getTime() <= freshFor;
+
+	const startedLately =
+		lastAiredAt === null && startDate !== null && startDate >= dateBefore(now, freshFor);
+
+	const isFresh = airedLately || startedLately;
+
 	if (candidate.status !== "RELEASING" && isFresh) {
 		reasons.push("fresh");
 	}
+
 	if (isRising(candidate.activity)) {
 		reasons.push("rising");
 	}
+
 	return reasons;
 };
 
@@ -213,20 +224,17 @@ export const reasonsOf = (candidate: Candidate, now: Date): Reason[] => {
  */
 export const hasNews = (candidate: Candidate, now: Date) => {
 	const { lastPickedAt, lastAiredAt } = candidate;
+
 	if (lastPickedAt === null) {
 		return true;
 	}
+
 	if (lastAiredAt !== null && lastAiredAt > lastPickedAt) {
 		return true;
 	}
+
 	return isRising(candidate.activity) && now.getTime() - lastPickedAt.getTime() >= risingRestFor;
 };
-
-/** A well-spread 32-bit hash of `text`; not for security. */
-const hash = (text: string) => createHash("sha1").update(text).digest().readUInt32BE(0);
-
-/** How often a title comes first, by its recent daily activity: more talked about, more often, without drowning out the rest. */
-const weightOf = (candidate: Candidate) => Math.sqrt((candidate.activity.recent ?? 0) + 25);
 
 /**
  * Shuffles candidates anew for each `seed` and rotation, each profile in its
@@ -240,10 +248,19 @@ export const shuffle = (
 ): Candidate[] =>
 	candidates
 		.map((candidate) => {
-			const draw = (hash(`${seed}:${rotation}:${candidate.id}`) + 1) / 2 ** 32;
+			// A well-spread 32-bit hash of the seed, rotation and title; not for security.
+			const hash = createHash("sha1")
+				.update(`${seed}:${rotation}:${candidate.id}`)
+				.digest()
+				.readUInt32BE(0);
+
+			const draw = (hash + 1) / 2 ** 32;
+			// More talked about, more often, without drowning out the rest.
+			const weight = Math.sqrt((candidate.activity.recent ?? 0) + 25);
+
 			return {
 				candidate,
-				rank: -Math.log(draw) / weightOf(candidate),
+				rank: -Math.log(draw) / weight,
 			};
 		})
 		.toSorted((a, b) => a.rank - b.rank || a.candidate.id.localeCompare(b.candidate.id))
@@ -264,6 +281,7 @@ export const order = (
 ) => {
 	const reasoned = candidates.filter((candidate) => reasonsOf(candidate, now).length > 0);
 	const news = reasoned.filter((candidate) => hasNews(candidate, now));
+
 	const repeats = reasoned
 		.filter((candidate) => !hasNews(candidate, now))
 		.toSorted(
@@ -271,6 +289,7 @@ export const order = (
 				(a.lastPickedAt?.getTime() ?? 0) - (b.lastPickedAt?.getTime() ?? 0) ||
 				a.id.localeCompare(b.id),
 		);
+
 	return {
 		news: shuffle(news, seed, rotation).map(({ id }) => id),
 		repeats: repeats.map(({ id }) => id),
@@ -293,10 +312,12 @@ export const arrange = (
 	isUsable: (id: string) => boolean,
 	shown = 0,
 ) => {
-	const picked = [...new Set(news)].filter(isUsable).slice(0, Math.max(0, featuredCount - shown));
+	const picked = [...new Set(news)].filter(isUsable).slice(0, Math.max(0, maximumCount - shown));
 	const fill = Math.max(0, minimumCount - shown - picked.length);
+
 	const extra = [...new Set(repeats)]
 		.filter((id) => !picked.includes(id) && isUsable(id))
 		.slice(0, fill);
+
 	return [...picked, ...extra];
 };

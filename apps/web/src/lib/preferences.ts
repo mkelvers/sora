@@ -1,5 +1,7 @@
 import { browser } from "$app/env";
 import { attempt } from "@sora/shared";
+import type { Json } from "@sora/shared";
+import type { z } from "zod";
 
 export class Preferences {
 	private readonly namespace: string;
@@ -8,7 +10,7 @@ export class Preferences {
 		this.namespace = namespace;
 	}
 
-	get(key: string): unknown {
+	get<TValue>(key: string, schema: z.ZodType<TValue>): TValue | null {
 		if (!browser) {
 			return null;
 		}
@@ -18,10 +20,17 @@ export class Preferences {
 			DOMException,
 			SyntaxError,
 		);
-		return data;
+
+		const parsed = schema.safeParse(data);
+
+		if (!parsed.success) {
+			return null;
+		}
+
+		return parsed.data;
 	}
 
-	set(key: string, value: unknown) {
+	set(key: string, value: Json) {
 		if (!browser) {
 			return;
 		}

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { playsIn, songsForEpisode } from "./themes";
-import type { ThemeSong } from "./themes";
+import { song } from "./themes.fixture";
 
 describe("playsIn", () => {
 	test.each([
@@ -18,13 +18,6 @@ describe("playsIn", () => {
 	] as const)("%p includes episode %p: %p", (episodes, episode, expected) => {
 		expect(playsIn(episodes, episode)).toBe(expected);
 	});
-});
-
-const song = (kind: ThemeSong["kind"], slug: string, episodes: string | null): ThemeSong => ({
-	audioUrl: `https://a.animethemes.moe/${slug}.ogg`,
-	episodes,
-	kind,
-	slug,
 });
 
 describe("songsForEpisode", () => {

@@ -1,12 +1,20 @@
 import { attempt, day, hour } from "@sora/shared";
 import { lt, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "../../database/client";
 import { providerCalls } from "../../database/schema/playback";
 import type { StreamProvider } from "./provider";
 
 /** A {@link StreamProvider} method, as `provider_calls` names it. */
-export type ProviderOperation = "find_media" | "list_episodes" | "resolve_stream" | "sync_catalog";
+export const OperationSchema = z.enum([
+	"find_media",
+	"list_episodes",
+	"resolve_stream",
+	"sync_catalog",
+]);
+
+export type ProviderOperation = z.infer<typeof OperationSchema>;
 
 /**
  * How a call went: it returned something, returned nothing (no match, no
@@ -28,57 +36,51 @@ export interface ProviderCall {
 /** Keeps a finished call. Its failure is logged, never passed to the caller. */
 export type CallRecorder = (call: ProviderCall) => Promise<void>;
 
-/** Error messages are cut to this length, since some embed whole pages. */
-const maxErrorLength = 500;
-
-/** Calls are kept this long. */
-const retentionMs = 30 * day;
-
-/** Adds a call to its provider's, operation's, and hour's row of `provider_calls`. */
-const storeCall = async (call: ProviderCall) => {
-	const failed = call.outcome === "failed";
-	await db
-		.insert(providerCalls)
-		.values({
-			durationMs: call.durationMs,
-			empty: call.outcome === "empty" ? 1 : 0,
-			failed: failed ? 1 : 0,
-			hour: new Date(Math.floor(call.startedAt.getTime() / hour) * hour),
-			lastError: call.error,
-			lastErrorAt: failed ? call.startedAt : null,
-			ok: call.outcome === "ok" ? 1 : 0,
-			operation: call.operation,
-			provider: call.provider,
-		})
-		.onConflictDoUpdate({
-			set: {
-				durationMs: sql`${providerCalls.durationMs} + excluded.duration_ms`,
-				empty: sql`${providerCalls.empty} + excluded.empty`,
-				failed: sql`${providerCalls.failed} + excluded.failed`,
-				lastError: sql`coalesce(excluded.last_error, ${providerCalls.lastError})`,
-				lastErrorAt: sql`coalesce(excluded.last_error_at, ${providerCalls.lastErrorAt})`,
-				ok: sql`${providerCalls.ok} + excluded.ok`,
-			},
-			target: [providerCalls.provider, providerCalls.operation, providerCalls.hour],
-		});
-};
-
-const errorMessage = (error: Error) => {
-	const { message } = error;
-	return message.length > maxErrorLength ? `${message.slice(0, maxErrorLength - 1)}…` : message;
-};
-
 /**
  * Wraps a provider so every call through it is recorded with its outcome and
- * duration, by default into `provider_calls`.
+ * duration, into `provider_calls` unless `recorder` is given.
  *
  * Results and errors pass through unchanged, and recording happens in the
  * background: a call never waits on it or fails because of it.
  */
-export const recordingCalls = (
-	provider: StreamProvider,
-	record: CallRecorder = storeCall,
-): StreamProvider => {
+export const recorded = (provider: StreamProvider, recorder?: CallRecorder): StreamProvider => {
+	/** Adds a call to its provider's, operation's, and hour's row of `provider_calls`. */
+	const record =
+		recorder ??
+		(async (call: ProviderCall) => {
+			const failed = call.outcome === "failed";
+			let lastErrorAt: Date | null = null;
+
+			if (failed) {
+				lastErrorAt = call.startedAt;
+			}
+
+			await db
+				.insert(providerCalls)
+				.values({
+					durationMs: call.durationMs,
+					empty: Number(call.outcome === "empty"),
+					failed: Number(failed),
+					hour: new Date(Math.floor(call.startedAt.getTime() / hour) * hour),
+					lastError: call.error,
+					lastErrorAt,
+					ok: Number(call.outcome === "ok"),
+					operation: call.operation,
+					provider: call.provider,
+				})
+				.onConflictDoUpdate({
+					set: {
+						durationMs: sql`${providerCalls.durationMs} + excluded.duration_ms`,
+						empty: sql`${providerCalls.empty} + excluded.empty`,
+						failed: sql`${providerCalls.failed} + excluded.failed`,
+						lastError: sql`coalesce(excluded.last_error, ${providerCalls.lastError})`,
+						lastErrorAt: sql`coalesce(excluded.last_error_at, ${providerCalls.lastErrorAt})`,
+						ok: sql`${providerCalls.ok} + excluded.ok`,
+					},
+					target: [providerCalls.provider, providerCalls.operation, providerCalls.hour],
+				});
+		});
+
 	const observe = async <T>(
 		operation: ProviderOperation,
 		call: () => Promise<T>,
@@ -86,34 +88,55 @@ export const recordingCalls = (
 	) => {
 		const startedAt = new Date();
 		const started = performance.now();
+
 		const finish = async (outcome: CallOutcome, error: Error | null) => {
-			const recorded = await attempt(
+			/** Error messages are cut to this length, since some embed whole pages. */
+			const maxErrorLength = 500;
+
+			let message = error?.message ?? null;
+
+			if (message && message.length > maxErrorLength) {
+				message = `${message.slice(0, maxErrorLength - 1)}…`;
+			}
+
+			const kept = await attempt(
 				record({
 					durationMs: Math.round(performance.now() - started),
-					error: error ? errorMessage(error) : null,
+					error: message,
 					operation,
 					outcome,
 					provider: provider.id,
 					startedAt,
 				}),
 			);
-			if (recorded.error) {
+
+			if (kept.error) {
 				console.warn(
-					`Could not record a ${operation} call to ${provider.id}: ${recorded.error.message}`,
+					`Could not record a ${operation} call to ${provider.id}: ${kept.error.message}`,
 				);
 			}
 		};
 
 		const { data, error } = await attempt(call());
+
 		if (error) {
 			void finish("failed", error);
 			throw error;
 		}
-		void finish(isEmpty(data) ? "empty" : "ok", null);
+
+		let outcome: CallOutcome = "ok";
+
+		if (isEmpty(data)) {
+			outcome = "empty";
+		}
+
+		void finish(outcome, null);
+
 		return data;
 	};
 
 	const syncCatalog = provider.syncCatalog?.bind(provider);
+
 	return {
 		findMedia: (anime) =>
 			observe(
@@ -147,17 +170,23 @@ export const recordingCalls = (
 	};
 };
 
-/**
- * Deletes recorded calls older than a month.
- *
- * @returns How many hourly rows were deleted.
- */
-export const pruneProviderCalls = async () => {
-	const deleted = await db
-		.delete(providerCalls)
-		.where(lt(providerCalls.hour, new Date(Date.now() - retentionMs)))
-		.returning({
-			provider: providerCalls.provider,
-		});
-	return deleted.length;
+export const calls = {
+	/**
+	 * Deletes recorded calls older than a month.
+	 *
+	 * @returns How many hourly rows were deleted.
+	 */
+	async prune() {
+		/** Calls are kept this long. */
+		const retentionMs = 30 * day;
+
+		const deleted = await db
+			.delete(providerCalls)
+			.where(lt(providerCalls.hour, new Date(Date.now() - retentionMs)))
+			.returning({
+				provider: providerCalls.provider,
+			});
+
+		return deleted.length;
+	},
 };

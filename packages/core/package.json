@@ -26,7 +26,8 @@
 		"db:migrate": "bun src/database/migrate.ts",
 		"auth:create-account": "bun src/auth/create-account.ts",
 		"stills:embed-labels": "bun src/tmdb/embed-still-labels.ts",
-		"test": "bun test --env-file=../../.env.test"
+		"test": "bun test --no-env-file --env-file=../../.env.test --path-ignore-patterns='**/*.integration.test.ts'",
+		"test:integration": "bun test --preload ./test/rollback.ts integration.test"
 	},
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",
@@ -43,6 +44,7 @@
 		"@graphql-codegen/cli": "^7.4.2",
 		"@graphql-codegen/typed-document-node": "^7.1.0",
 		"@graphql-codegen/typescript-operations": "^6.1.7",
+		"@nxgt/graphql-codegen-zod": "^0.4.1",
 		"@types/bun": "^1.4.2",
 		"drizzle-kit": "^0.31.11",
 		"graphql": "^17.0.2"

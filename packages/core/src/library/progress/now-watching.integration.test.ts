@@ -1,15 +1,15 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
+import { series, titleEpisode } from "../../database/schema/series";
 import { getNowWatching } from "./now-watching";
 
-// Opt in against the migrated local database; fixtures never touch real profiles.
-describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio titles", () => {
+describe("portfolio titles", () => {
 	const profile = `portfolio-test-${crypto.randomUUID()}`;
+
 	const names = [
 		"Newest",
 		"Second",
@@ -21,12 +21,16 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 		"Other profile",
 		"Rewatch",
 	];
+
 	const ids = names.map((_, index) => `${profile}-${index}`);
+
 	const idAt = (index: number) => {
 		const id = ids[index];
+
 		if (!id) {
 			throw new Error("Missing fixture ID");
 		}
+
 		return id;
 	};
 
@@ -34,6 +38,17 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 		await Promise.all(
 			names.map(async (title, index) => {
 				const id = idAt(index);
+				let userId = profile;
+				let watchedAgoMs = (index + 1) * 60_000;
+
+				if (index === 7) {
+					userId = `${profile}-other`;
+				}
+
+				if (index === 4) {
+					watchedAgoMs = 31 * 86_400_000;
+				}
+
 				await db.insert(series).values({
 					anilistId: -Math.floor(Math.random() * 1_000_000_000) - 1,
 					id,
@@ -43,9 +58,15 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 					status: "FINISHED",
 					title,
 				});
-				await db.insert(seriesEpisode).values([
-					{ number: 1, seriesId: id },
-					{ number: 2, seriesId: id },
+				await db.insert(titleEpisode).values([
+					{
+						number: 1,
+						seriesId: id,
+					},
+					{
+						number: 2,
+						seriesId: id,
+					},
 				]);
 				await db.insert(episodeProgress).values({
 					durationSeconds: 1400,
@@ -53,8 +74,8 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 					finished: index === 5,
 					positionSeconds: 100,
 					seriesId: id,
-					userId: index === 7 ? `${profile}-other` : profile,
-					watchedAt: new Date(Date.now() - (index === 4 ? 31 * 86_400_000 : (index + 1) * 60_000)),
+					userId,
+					watchedAt: new Date(Date.now() - watchedAgoMs),
 				});
 			}),
 		);
@@ -67,14 +88,22 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 			userId: profile,
 		});
 		await db.insert(seriesState).values(
-			[6, 8].map((index) => ({
-				addedAt: new Date(),
-				rewatchStartedAt: index === 8 ? new Date() : null,
-				seriesId: idAt(index),
-				status: "completed" as const,
-				statusChangedAt: new Date(),
-				userId: profile,
-			})),
+			[6, 8].map((index) => {
+				let rewatchStartedAt: Date | null = null;
+
+				if (index === 8) {
+					rewatchStartedAt = new Date();
+				}
+
+				return {
+					addedAt: new Date(),
+					rewatchStartedAt,
+					seriesId: idAt(index),
+					status: "completed" as const,
+					statusChangedAt: new Date(),
+					userId: profile,
+				};
+			}),
 		);
 		await db.insert(episodeProgress).values({
 			durationSeconds: 1400,
@@ -88,10 +117,6 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 		});
 	});
 
-	afterAll(async () => {
-		await db.delete(series).where(inArray(series.id, ids));
-	});
-
 	test("returns at most three titles by active viewing recency, including rewatches", async () => {
 		expect(await getNowWatching(profile)).toEqual(["Rewatch", "Newest", "Second"]);
 	});
@@ -103,9 +128,12 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 	});
 
 	test("excludes series with progress that are not on Continue Watching", async () => {
-		await db
-			.insert(seriesState)
-			.values({ dismissedAt: new Date(), seriesId: idAt(2), userId: profile });
+		await db.delete(series).where(inArray(series.id, [idAt(8), idAt(0), idAt(1)]));
+		await db.insert(seriesState).values({
+			dismissedAt: new Date(),
+			seriesId: idAt(2),
+			userId: profile,
+		});
 		expect(await getNowWatching(profile)).toEqual(["Fourth"]);
 		await db.delete(seriesState).where(eq(seriesState.seriesId, idAt(2)));
 		await db.delete(episodeProgress).where(eq(episodeProgress.userId, profile));

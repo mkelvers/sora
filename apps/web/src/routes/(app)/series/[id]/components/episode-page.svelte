@@ -36,6 +36,7 @@
 		}
 
 		const timer = setTimeout(() => episodes.refresh(), 3000);
+
 		return () => clearTimeout(timer);
 	});
 </script>

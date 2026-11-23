@@ -5,23 +5,29 @@
  * Streams come from third-party scrapers via `anime-sdk`. Providers are tried
  * in priority order, and clients only ever receive signed proxy URLs.
  */
-export { isWebClientKey } from "./proxy/client-key";
-export { proxyStream } from "./proxy/proxy";
-export { StreamUpstreamError } from "./proxy/upstream";
+export { isWebKey } from "./proxy/client-key";
+
+export { serveStream } from "./proxy/proxy";
+
+export { StreamUpstreamError } from "./proxy/upstream-error";
+
 export {
 	PlaybackRequestSchema,
-	resolvePlayback,
 	type Playback,
 	type PlaybackOptions,
 	type PlaybackRequest,
+	streams,
 } from "./streams/resolve";
+
 export type { EpisodeVersion } from "./episodes/versions";
+
 export {
 	failingAfterCalls,
 	failingAfterMs,
-	getProviderHealth,
+	statusReport,
 	type OperationSummary,
 	type ProviderHealth,
 	type ProviderStatus,
 } from "./providers/health";
+
 export type { ProviderOperation } from "./providers/calls";

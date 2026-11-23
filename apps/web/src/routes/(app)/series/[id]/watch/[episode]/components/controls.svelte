@@ -28,7 +28,12 @@
 		children?: Snippet;
 	} = $props();
 
-	let pointer = $state<{ time: number; x: number; width: number }>();
+	let pointer = $state<{
+		time: number;
+		x: number;
+		width: number;
+	}>();
+
 	let label = $state(0);
 
 	const track = (event: PointerEvent & { currentTarget: HTMLElement }) => {
@@ -48,12 +53,19 @@
 	const pad = (value: number) => String(value).padStart(2, "0");
 
 	const clock = (seconds: number) => {
-		const total = Math.floor(Number.isFinite(seconds) ? Math.max(0, seconds) : 0);
+		let total = 0;
+
+		if (Number.isFinite(seconds)) {
+			total = Math.floor(Math.max(0, seconds));
+		}
+
 		const hours = Math.floor(total / 3600);
 
-		return hours
-			? `${hours}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`
-			: `${Math.floor(total / 60)}:${pad(total % 60)}`;
+		if (hours) {
+			return `${hours}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
+		}
+
+		return `${Math.floor(total / 60)}:${pad(total % 60)}`;
 	};
 </script>
 

@@ -6,6 +6,7 @@ import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ params, cookies, locals }) => {
 	const session = cookies.get("sora_session");
+
 	if (!locals.viewer || !session) {
 		error(401, "Not signed in");
 	}
@@ -17,12 +18,17 @@ export const GET: RequestHandler = async ({ params, cookies, locals }) => {
 			},
 		}),
 	);
+
 	if (unreachable) {
 		error(502, "Not available");
 	}
 
+	if (upstream.status === 404) {
+		error(404, "Not available");
+	}
+
 	if (!upstream.ok) {
-		error(upstream.status === 404 ? 404 : 502, "Not available");
+		error(502, "Not available");
 	}
 
 	return new Response(upstream.body, {

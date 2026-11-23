@@ -1,18 +1,12 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { streamProviders } from "../../playback/providers/registry";
-import { parsePayload } from "../payload";
-
-const SyncProviderCatalogsPayloadSchema = z
-	.object({
-		full: z.boolean().optional(),
-	})
-	.nullish();
+import { providers } from "../../playback/providers/registry";
+import { parseInput } from "../payload";
 
 /** The graphile-worker task that mirrors provider catalogues. */
-export const syncProviderCatalogsTask = "sync-provider-catalogs";
+export const syncProvidersTask = "sync-provider-catalogs";
 
 /**
  * Brings up to date the local copies of provider catalogues that series are
@@ -22,10 +16,17 @@ export const syncProviderCatalogsTask = "sync-provider-catalogs";
  * `{ full: true }` to drop what they removed. A failing provider fails the
  * job once the others are synced, so graphile-worker retries it with backoff.
  */
-export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(SyncProviderCatalogsPayloadSchema, rawPayload);
+export const syncProviders: Task = async (rawPayload, helpers) => {
+	const payload = parseInput(
+		z
+			.object({
+				full: z.boolean().optional(),
+			})
+			.nullish(),
+		rawPayload,
+	);
 
-	const outcomes = await inSequence(streamProviders, async (provider) => {
+	const outcomes = await sequence.all(providers, async (provider) => {
 		if (!provider.syncCatalog) {
 			return [];
 		}
@@ -35,13 +36,18 @@ export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
 				full: payload?.full === true,
 			}),
 		);
+
 		if (error) {
 			helpers.logger.warn(`Provider ${provider.id} failed to sync its catalogue: ${error.message}`);
+
 			return [provider.id];
 		}
+
 		helpers.logger.info(data);
+
 		return [];
 	});
+
 	const failed = outcomes.flat();
 
 	if (failed.length > 0) {

@@ -3,7 +3,7 @@
 	import Button from "$lib/components/ui/button.svelte";
 	import Input from "$lib/components/ui/input.svelte";
 	import { mascots } from "$lib/mascots";
-	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 
 	import type { PageProps } from "./$types";
 	import { CategorySearch } from "./search";
@@ -45,8 +45,10 @@
 			})),
 		},
 	]);
+
 	const filtered = $derived.by(() => {
 		const search = new CategorySearch(query);
+
 		return sections
 			.map((section) => ({
 				...section,
@@ -84,7 +86,7 @@
 								variant="item"
 								size="sm"
 								class="whitespace-normal"
-								onclick={() => setBrowse(link.preset)}
+								onclick={() => filterBy(link.preset)}
 							>
 								{link.label}
 							</Button>

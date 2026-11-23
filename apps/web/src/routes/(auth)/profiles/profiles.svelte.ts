@@ -1,3 +1,3 @@
-export const profilesPage = $state({
+export const picker = $state({
 	managing: false,
 });

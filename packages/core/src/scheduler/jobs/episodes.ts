@@ -2,15 +2,11 @@ import { attempt } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { getAnime } from "../../catalog/queries/anime";
-import { AnimeNotFoundError } from "../../errors";
+import { catalog } from "../../catalog/queries/anime";
+import { UnknownAnimeError } from "../../errors";
 import { getProviderUnits } from "../../playback/episodes/episodes";
-import { streamProviders } from "../../playback/providers/registry";
-import { parsePayload } from "../payload";
-
-const LookUpEpisodesPayloadSchema = z.object({
-	anilistId: z.number().int().positive(),
-});
+import { providers } from "../../playback/providers/registry";
+import { parseInput } from "../payload";
 
 /**
  * Looks one AniList entry up on every stream provider and stores their
@@ -21,27 +17,38 @@ const LookUpEpisodesPayloadSchema = z.object({
  * watchers keep the lists current. A failing provider fails the job once
  * the others are stored, so graphile-worker retries it with backoff.
  */
-export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
-	const { anilistId } = parsePayload(LookUpEpisodesPayloadSchema, rawPayload);
+export const lookUp: Task = async (rawPayload, helpers) => {
+	const { anilistId } = parseInput(
+		z.object({
+			anilistId: z.number().int().positive(),
+		}),
+		rawPayload,
+	);
 
-	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(catalog.anime(anilistId), UnknownAnimeError);
+
 	if (error) {
 		helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);
+
 		return;
 	}
 
 	const failures = await Promise.all(
-		streamProviders.map(async (provider) => {
+		providers.map(async (provider) => {
 			const { error: lookupError } = await attempt(getProviderUnits(data, provider));
+
 			if (lookupError) {
 				helpers.logger.warn(
 					`Provider ${provider.id} failed for anime ${anilistId}: ${lookupError.message}`,
 				);
+
 				return [provider.id];
 			}
+
 			return [];
 		}),
 	);
+
 	const failed = failures.flat();
 
 	if (failed.length > 0) {

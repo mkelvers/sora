@@ -1,116 +1,25 @@
 import { describe, expect, test } from "bun:test";
 
-import type { TmdbEpisode, TmdbMovieResult } from "../tmdb/resources";
 import {
-	bestSimilarity,
 	continuesPastLinks,
-	placeAfterInCollection,
+	placeAfterPrequel,
 	placeAsMovie,
 	placeInShow,
-	placeInEpisodeGroups,
+	placeInGroups,
 	titleSimilarity,
 } from "./matching";
-import type { MatchSubject, ShowCandidate } from "./matching";
-
-const addDays = (date: string, days: number) =>
-	new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-
-/** A weekly run of TMDB episodes, numbered from `first`. Dates are `null` when `start` is. */
-const weekly = (
-	season: number,
-	start: string | null,
-	count: number,
-	options: {
-		first?: number;
-		runtime?: number;
-	} = {},
-): TmdbEpisode[] => {
-	const first = options.first ?? 1;
-	return Array.from(
-		{
-			length: count,
-		},
-		(_, index) => ({
-			air_date: start ? addDays(start, index * 7) : null,
-			episode_number: first + index,
-			id: season * 10_000 + first + index,
-			name: null,
-			overview: null,
-			runtime: options.runtime ?? 24,
-			season_number: season,
-			still_path: null,
-		}),
-	);
-};
-
-const special = (episode: number, airDate: string, runtime: number): TmdbEpisode => ({
-	air_date: airDate,
-	episode_number: episode,
-	id: episode,
-	name: null,
-	overview: null,
-	runtime,
-	season_number: 0,
-	still_path: null,
-});
-
-const subject = (overrides: Partial<MatchSubject>): MatchSubject => {
-	const titles = overrides.titles ?? ["Example"];
-	return {
-		airsFrom: null,
-		durationMinutes: 24,
-		endDate: null,
-		episodes: null,
-		format: "TV",
-		primaryTitleCount: titles.length,
-		startDate: null,
-		...overrides,
-		titles,
-	};
-};
-
-const show = (episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
-	isFranchiseShow: false,
-	prequel: null,
-	show: {
-		episodes,
-		id: 1,
-		name: "Example",
-		originalName: "Example",
-	},
-	...overrides,
-});
-
-/** A prequel run through a season up to `episode`, from the season's first episode. */
-const endingAt = (season: number, episode: number) => ({
-	first: {
-		episodeNumber: 1,
-		seasonNumber: season,
-	},
-	last: {
-		episodeNumber: episode,
-		seasonNumber: season,
-	},
-});
-
-const movie = (overrides: Partial<TmdbMovieResult>): TmdbMovieResult => ({
-	id: 1,
-	original_title: "Example",
-	popularity: 1,
-	release_date: null,
-	title: "Example",
-	...overrides,
-});
-
-const range = (placement: ReturnType<typeof placeInShow>) => {
-	if (placement?.mediaType !== "tv") {
-		return null;
-	}
-
-	return placement.episodes.map(
-		(link) => `${link.anilistEpisode}:S${link.seasonNumber}E${link.episodeNumber}`,
-	);
-};
+import {
+	endingAt,
+	haikyu,
+	movie,
+	range,
+	same,
+	show,
+	special,
+	subject,
+	tonikawa,
+	weekly,
+} from "./matching.fixture";
 
 describe("placeInShow", () => {
 	test("matches Saiki K.'s 120 shorts to the 24 compiled playback episodes", () => {
@@ -123,6 +32,7 @@ describe("placeInShow", () => {
 			startDate: "2016-07-04",
 			titles: ["The Disastrous Life of Saiki K."],
 		});
+
 		const candidate = show(weekly(1, "2016-07-11", 24, { runtime: 23 }), {
 			show: {
 				episodes: weekly(1, "2016-07-11", 24, { runtime: 23 }),
@@ -131,11 +41,13 @@ describe("placeInShow", () => {
 				originalName: "斉木楠雄のΨ難",
 			},
 		});
+
 		const placement = placeInShow(shorts, candidate);
 		expect(placement?.method).toBe("compilation");
 		expect(placement?.tmdbId).toBe(67_676);
 		expect(range(placement)).toHaveLength(24);
 		expect(range(placement)?.at(-1)).toBe("24:S1E24");
+
 		for (const invalid of [
 			{ playbackEpisodes: null },
 			{ playbackEpisodes: 12 },
@@ -148,10 +60,28 @@ describe("placeInShow", () => {
 			{ endDate: "2018-12-26" },
 			{ titles: ["A different short adaptation"] },
 		]) {
-			expect(placeInShow({ ...shorts, ...invalid }, candidate)?.method).not.toBe("compilation");
+			expect(
+				placeInShow(
+					{
+						...shorts,
+						...invalid,
+					},
+					candidate,
+				)?.method,
+			).not.toBe("compilation");
 		}
+
 		expect(
-			range(placeInShow({ ...shorts, durationMinutes: 23, format: "TV" }, candidate)),
+			range(
+				placeInShow(
+					{
+						...shorts,
+						durationMinutes: 23,
+						format: "TV",
+					},
+					candidate,
+				),
+			),
 		).toHaveLength(24);
 	});
 	test("maps a streaming batch to its later weekly franchise broadcast", () => {
@@ -161,40 +91,76 @@ describe("placeInShow", () => {
 				...weekly(5, "2022-01-08", 12),
 				...weekly(5, "2022-10-08", 26, { first: 13 }),
 			],
-			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
+			{
+				isFranchiseShow: true,
+				prequel: endingAt(4, 39),
+			},
 		);
+
 		const first = placeInShow(
-			subject({ endDate: "2021-12-01", episodes: 12, format: "ONA", startDate: "2021-12-01" }),
+			subject({
+				endDate: "2021-12-01",
+				episodes: 12,
+				format: "ONA",
+				startDate: "2021-12-01",
+			}),
 			candidate,
 		);
+
 		expect(range(first)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S5E${i + 1}`));
+
 		const second = placeInShow(
-			subject({ endDate: "2022-12-01", episodes: 26, format: "ONA", startDate: "2022-09-01" }),
-			{ ...candidate, prequel: endingAt(5, 12) },
+			subject({
+				endDate: "2022-12-01",
+				episodes: 26,
+				format: "ONA",
+				startDate: "2022-09-01",
+			}),
+			{
+				...candidate,
+				prequel: endingAt(5, 12),
+			},
 		);
+
 		expect(range(second)).toEqual(Array.from({ length: 26 }, (_, i) => `${i + 1}:S5E${i + 13}`));
 	});
 
 	test("matches a complete first season when a preview predates its broadcast", () => {
 		const placement = placeInShow(
-			subject({ endDate: "2013-09-21", episodes: 12, startDate: "2013-06-23" }),
+			subject({
+				endDate: "2013-09-21",
+				episodes: 12,
+				startDate: "2013-06-23",
+			}),
 			show([...weekly(1, "2013-07-06", 12), ...weekly(2, "2015-04-06", 12)]),
 		);
+
 		expect(range(placement)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S1E${i + 1}`));
 	});
 
 	test("matches a complete streaming season broadcast across a year boundary", () => {
 		const placement = placeInShow(
-			subject({ endDate: "2021-11-25", episodes: 11, format: "ONA", startDate: "2021-09-16" }),
+			subject({
+				endDate: "2021-11-25",
+				episodes: 11,
+				format: "ONA",
+				startDate: "2021-09-16",
+			}),
 			show(weekly(1, "2022-01-13", 11)),
 		);
+
 		expect(range(placement)).toHaveLength(11);
 	});
 
 	test("does not use a delayed streaming continuation without a proven prequel", () => {
 		expect(
 			placeInShow(
-				subject({ endDate: "2021-12-01", episodes: 12, format: "ONA", startDate: "2021-12-01" }),
+				subject({
+					endDate: "2021-12-01",
+					episodes: 12,
+					format: "ONA",
+					startDate: "2021-12-01",
+				}),
 				show(weekly(5, "2022-01-08", 38), { isFranchiseShow: true }),
 			),
 		).toBeNull();
@@ -207,23 +173,59 @@ describe("placeInShow", () => {
 				...weekly(5, "2022-01-08", 10),
 				...weekly(6, "2022-04-01", 2),
 			],
-			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
+			{
+				isFranchiseShow: true,
+				prequel: endingAt(4, 39),
+			},
 		);
+
 		const entry = subject({
 			endDate: "2021-12-01",
 			episodes: 12,
 			format: "ONA",
 			startDate: "2021-12-01",
 		});
+
 		expect(placeInShow(entry, candidate)).toBeNull();
-		expect(placeInShow({ ...entry, episodes: 10, startDate: "2021-01-01" }, candidate)).toBeNull();
+		expect(
+			placeInShow(
+				{
+					...entry,
+					episodes: 10,
+					startDate: "2021-01-01",
+				},
+				candidate,
+			),
+		).toBeNull();
 	});
 
 	test("title fallback rejects mismatched runtimes and already-aired upcoming seasons", () => {
 		const candidate = show(weekly(1, "2022-01-13", 11));
-		const entry = subject({ episodes: 11, format: "ONA", startDate: "2021-09-16" });
-		expect(placeInShow({ ...entry, durationMinutes: 3 }, candidate)).toBeNull();
-		expect(placeInShow({ ...entry, airsFrom: "2022-02-01" }, candidate)).toBeNull();
+
+		const entry = subject({
+			episodes: 11,
+			format: "ONA",
+			startDate: "2021-09-16",
+		});
+
+		expect(
+			placeInShow(
+				{
+					...entry,
+					durationMinutes: 3,
+				},
+				candidate,
+			),
+		).toBeNull();
+		expect(
+			placeInShow(
+				{
+					...entry,
+					airsFrom: "2022-02-01",
+				},
+				candidate,
+			),
+		).toBeNull();
 	});
 
 	test("places the second cour of a split season mid-season", () => {
@@ -668,6 +670,7 @@ describe("placeInShow", () => {
 
 	test("prefers the franchise's own show over a same-dated duplicate", () => {
 		const episodes = [special(36, "2023-03-04", 61)];
+
 		const specialSubject = subject({
 			durationMinutes: 61,
 			endDate: "2023-03-04",
@@ -682,6 +685,7 @@ describe("placeInShow", () => {
 				isFranchiseShow: true,
 			}),
 		);
+
 		const duplicate = placeInShow(
 			specialSubject,
 			show([
@@ -702,6 +706,7 @@ describe("placeInShow", () => {
 				first: 15,
 			}),
 		];
+
 		const rerun = subject({
 			endDate: "2009-10-09",
 			episodes: 28,
@@ -709,6 +714,7 @@ describe("placeInShow", () => {
 			startDate: "2009-04-03",
 			titles: ["The Melancholy of Haruhi Suzumiya (2009)"],
 		});
+
 		const candidate = {
 			...show(episodes),
 			show: {
@@ -724,7 +730,15 @@ describe("placeInShow", () => {
 		expect(range(placement)?.[0]).toBe("1:S1E15");
 		expect(range(placement)?.at(-1)).toBe("14:S1E28");
 
-		expect(placeInShow({ ...rerun, playbackEpisodes: 13 }, candidate)).toBeNull();
+		expect(
+			placeInShow(
+				{
+					...rerun,
+					playbackEpisodes: 13,
+				},
+				candidate,
+			),
+		).toBeNull();
 		expect(
 			placeInShow(rerun, {
 				...candidate,
@@ -744,31 +758,6 @@ describe("placeInShow", () => {
 
 		expect(placement).toBeNull();
 	});
-});
-
-// Haikyu!!: TMDB dates Land vs. Air twelve days after AniList, and Lev
-// Appears four months after, beyond the air-date window.
-const named = (episode: number, airDate: string, name: string) => ({
-	...special(episode, airDate, 24),
-	name,
-});
-
-const haikyu = (overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
-	isFranchiseShow: true,
-	prequel: null,
-	show: {
-		episodes: [
-			...weekly(1, "2014-04-06", 3),
-			named(1, "2015-03-04", "Lev Appears!"),
-			named(2, "2020-01-22", "Land vs. Air"),
-			named(3, "2020-01-22", "The Path of the Ball"),
-			named(4, "2020-03-04", "Puppet Theatre"),
-		],
-		id: 60_863,
-		name: "Haikyu!!",
-		originalName: "ハイキュー!!",
-	},
-	...overrides,
 });
 
 describe("placeInShow by special name", () => {
@@ -834,28 +823,6 @@ describe("placeInShow by special name", () => {
 });
 
 describe("placeInShow by the end of a run of specials", () => {
-	// TONIKAWA: AniList has High School Days from 2023-07-12, and TMDB files
-	// its four episodes under specials from 2023-08-02. Both end on 2023-08-23.
-	const tonikawa = (
-		specials: TmdbEpisode[],
-		overrides: Partial<ShowCandidate> = {},
-	): ShowCandidate => ({
-		isFranchiseShow: true,
-		prequel: endingAt(2, 12),
-		show: {
-			episodes: [
-				...weekly(1, "2020-10-03", 12),
-				...weekly(2, "2023-04-08", 12),
-				special(14, "2021-08-18", 24),
-				special(15, "2022-11-22", 22),
-				...specials,
-			],
-			id: 100_049,
-			name: "TONIKAWA: Over The Moon For You",
-			originalName: "トニカクカワイイ",
-		},
-		...overrides,
-	});
 	const highSchoolDays = subject({
 		endDate: "2023-08-23",
 		episodes: 4,
@@ -863,6 +830,7 @@ describe("placeInShow by the end of a run of specials", () => {
 		startDate: "2023-07-12",
 		titles: ["TONIKAWA: Over The Moon For You ~High School Days~"],
 	});
+
 	const fromAugust = [
 		special(16, "2023-08-02", 24),
 		special(17, "2023-08-09", 24),
@@ -963,6 +931,7 @@ describe("placeAsMovie", () => {
 			startDate: "2011-02-26",
 			titles: ["Macross Frontier: Chou Jikuu Gekijou"],
 		});
+
 		const film = {
 			...movie({
 				original_title: "劇場版マクロスF 恋離飛翼～サヨナラノツバサ～",
@@ -993,6 +962,7 @@ describe("placeAsMovie", () => {
 			startDate: "2023-09-02",
 			titles: ["The Quintessential Quintuplets Specials", "Go-toubun no Hanayome∽"],
 		});
+
 		const film = {
 			...movie({
 				id: 1_153_706,
@@ -1007,7 +977,16 @@ describe("placeAsMovie", () => {
 			method: "hint",
 			tmdbId: 1_153_706,
 		});
-		expect(placeAsMovie(specialEntry, { ...film, runtime: 300 }, true)).toBeNull();
+		expect(
+			placeAsMovie(
+				specialEntry,
+				{
+					...film,
+					runtime: 300,
+				},
+				true,
+			),
+		).toBeNull();
 	});
 
 	test("accepts a film that runs as long as a special's episodes together", () => {
@@ -1056,7 +1035,7 @@ describe("placeAsMovie", () => {
 	});
 });
 
-describe("placeAfterInCollection", () => {
+describe("placeAfterPrequel", () => {
 	// Haikyu!! Final Arc Collection: the second film has no release date yet.
 	const parts = [
 		movie({
@@ -1070,6 +1049,7 @@ describe("placeAfterInCollection", () => {
 			title: "HAIKYU!! The Dumpster Battle",
 		}),
 	];
+
 	const littleGiant = subject({
 		format: "MOVIE",
 		startDate: "2027",
@@ -1077,7 +1057,7 @@ describe("placeAfterInCollection", () => {
 	});
 
 	test("takes the film after the prequel's, however unlike the titles", () => {
-		expect(placeAfterInCollection(littleGiant, 1_012_201, parts)).toMatchObject({
+		expect(placeAfterPrequel(littleGiant, 1_012_201, parts)).toMatchObject({
 			mediaType: "movie",
 			method: "continuation",
 			tmdbId: 1_012_199,
@@ -1086,7 +1066,7 @@ describe("placeAfterInCollection", () => {
 
 	test("rejects a next film released in another year", () => {
 		expect(
-			placeAfterInCollection(
+			placeAfterPrequel(
 				subject({
 					format: "MOVIE",
 					startDate: "2025-06-01",
@@ -1104,7 +1084,7 @@ describe("placeAfterInCollection", () => {
 	});
 
 	test("finds nothing after the collection's last film", () => {
-		expect(placeAfterInCollection(littleGiant, 1_012_199, parts)).toBeNull();
+		expect(placeAfterPrequel(littleGiant, 1_012_199, parts)).toBeNull();
 	});
 });
 
@@ -1123,8 +1103,6 @@ describe("titleSimilarity", () => {
 		expect(titleSimilarity("Attack on Titan", "Mushoku Tensei")).toBeLessThan(0.2);
 	});
 });
-
-const same = (a: string, b: string) => bestSimilarity([a], [b], { sameNumbers: true }) > 0;
 
 describe("bestSimilarity with sameNumbers", () => {
 	test("tells roman numerals apart", () => {
@@ -1201,27 +1179,52 @@ describe("continuesPastLinks", () => {
 	});
 });
 
-describe("placeInEpisodeGroups", () => {
-	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({ ...episode, order }));
+describe("placeInGroups", () => {
+	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({
+		...episode,
+		order,
+	}));
+
 	const second = weekly(5, "2022-10-08", 12, { first: 13 }).map((episode, order) => ({
 		...episode,
 		order,
 	}));
+
 	const final = weekly(5, "2023-01-07", 14, { first: 25 }).map((episode, order) => ({
 		...episode,
 		order,
 	}));
+
 	const stage = weekly(6, "2026-03-19", 1, { runtime: 49 }).map((episode, order) => ({
 		...episode,
 		order,
 	}));
+
 	const candidate = show([...first, ...second, ...final, ...stage]).show;
+
 	const groups = [
-		{ episodes: first, name: "JoJo's Bizarre Adventure: STONE OCEAN", order: 1 },
-		{ episodes: second, name: "JoJo's Bizarre Adventure: STONE OCEAN Part 2 ", order: 2 },
-		{ episodes: final, name: "JoJo's Bizarre Adventure: STONE OCEAN Part 3", order: 3 },
-		{ episodes: stage, name: "STEEL BALL RUN JoJo's Bizarre Adventure 1st STAGE", order: 4 },
+		{
+			episodes: first,
+			name: "JoJo's Bizarre Adventure: STONE OCEAN",
+			order: 1,
+		},
+		{
+			episodes: second,
+			name: "JoJo's Bizarre Adventure: STONE OCEAN Part 2 ",
+			order: 2,
+		},
+		{
+			episodes: final,
+			name: "JoJo's Bizarre Adventure: STONE OCEAN Part 3",
+			order: 3,
+		},
+		{
+			episodes: stage,
+			name: "STEEL BALL RUN JoJo's Bizarre Adventure 1st STAGE",
+			order: 4,
+		},
 	];
+
 	const entry = subject({
 		episodes: 12,
 		format: "ONA",
@@ -1230,13 +1233,13 @@ describe("placeInEpisodeGroups", () => {
 	});
 
 	test("uses the named Stone Ocean batch despite its later TV dates", () => {
-		const placed = placeInEpisodeGroups(entry, candidate, [groups]);
+		const placed = placeInGroups(entry, candidate, [groups]);
 		expect(placed?.method).toBe("episode-group");
 		expect(range(placed)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S5E${i + 1}`));
 	});
 
 	test("combines numbered TMDB parts when AniList lists them as one release", () => {
-		const placed = placeInEpisodeGroups(
+		const placed = placeInGroups(
 			{
 				...entry,
 				episodes: 26,
@@ -1246,11 +1249,12 @@ describe("placeInEpisodeGroups", () => {
 			candidate,
 			[groups],
 		);
+
 		expect(range(placed)).toEqual(Array.from({ length: 26 }, (_, i) => `${i + 1}:S5E${i + 13}`));
 	});
 
 	test("keeps Steel Ball Run on its parent show's canonical episode", () => {
-		const placed = placeInEpisodeGroups(
+		const placed = placeInGroups(
 			subject({
 				durationMinutes: 47,
 				episodes: 1,
@@ -1261,27 +1265,62 @@ describe("placeInEpisodeGroups", () => {
 			candidate,
 			[groups],
 		);
+
 		expect(range(placed)).toEqual(["1:S6E1"]);
 	});
 
 	test("rejects conflicting arrangements, wrong counts, and already-aired upcoming releases", () => {
 		expect(
-			placeInEpisodeGroups(entry, candidate, [
+			placeInGroups(entry, candidate, [
 				groups,
-				[{ episodes: second, name: entry.titles[0] ?? "", order: 1 }],
+				[
+					{
+						episodes: second,
+						name: entry.titles[0] ?? "",
+						order: 1,
+					},
+				],
 			]),
 		).toBeNull();
-		expect(placeInEpisodeGroups({ ...entry, episodes: 13 }, candidate, [groups])).toBeNull();
 		expect(
-			placeInEpisodeGroups({ ...entry, airsFrom: "2023-01-01" }, candidate, [groups]),
+			placeInGroups(
+				{
+					...entry,
+					episodes: 13,
+				},
+				candidate,
+				[groups],
+			),
+		).toBeNull();
+		expect(
+			placeInGroups(
+				{
+					...entry,
+					airsFrom: "2023-01-01",
+				},
+				candidate,
+				[groups],
+			),
 		).toBeNull();
 	});
 
 	test("rejects stale group identities and a differently numbered part", () => {
-		expect(placeInEpisodeGroups(entry, { ...candidate, episodes: [] }, [groups])).toBeNull();
 		expect(
-			placeInEpisodeGroups(
-				{ ...entry, titles: ["JoJo's Bizarre Adventure: STONE OCEAN Part 4"] },
+			placeInGroups(
+				entry,
+				{
+					...candidate,
+					episodes: [],
+				},
+				[groups],
+			),
+		).toBeNull();
+		expect(
+			placeInGroups(
+				{
+					...entry,
+					titles: ["JoJo's Bizarre Adventure: STONE OCEAN Part 4"],
+				},
 				candidate,
 				[groups],
 			),

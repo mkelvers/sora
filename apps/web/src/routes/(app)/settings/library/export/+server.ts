@@ -5,6 +5,7 @@ import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const { viewer } = locals;
+
 	if (!viewer?.profile) {
 		error(401, "Choose a profile first");
 	}
@@ -14,6 +15,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			profile_id: viewer.profile.id,
 		},
 	});
+
 	const name = viewer.profile.name.toLowerCase().replaceAll(/[^a-z0-9]+/gu, "-");
 
 	return Response.json(library, {

@@ -8,28 +8,28 @@
  * (Kotlin, Swift). They are part of the public contract: never rename one
  * within `/v1`.
  */
-import { deviceRoute } from "../resources/devices/contract";
-import { notificationRoute } from "../resources/notifications/contract";
-import { nowWatchingRoute } from "../resources/now-watching/contract";
-import { playbackRoute } from "../resources/playback/contract";
-import { profileRoute } from "../resources/profiles/contract";
-import { progressRoute } from "../resources/progress/contract";
-import { seriesRoute } from "../resources/series/contract";
-import { transferRoute } from "../resources/transfer/contract";
-import { watchlistRoute } from "../resources/watchlist/contract";
+import { contract as devices } from "../resources/devices/contract";
+import { contract as notifications } from "../resources/notifications/contract";
+import { contract as nowWatching } from "../resources/now-watching/contract";
+import { contract as playback } from "../resources/playback/contract";
+import { contract as profiles } from "../resources/profiles/contract";
+import { contract as progress } from "../resources/progress/contract";
+import { contract as series } from "../resources/series/contract";
+import { contract as transfer } from "../resources/transfer/contract";
+import { contract as watchlist } from "../resources/watchlist/contract";
 
 /**
  * Every `/v1` route by its operation name, which `@sora/sdk` calls them by.
  * Importing this starts no server and touches no database.
  */
 export const route = {
-	...seriesRoute,
-	...playbackRoute,
-	...deviceRoute,
-	...profileRoute,
-	...transferRoute,
-	...progressRoute,
-	...watchlistRoute,
-	...notificationRoute,
-	...nowWatchingRoute,
+	...series,
+	...playback,
+	...devices,
+	...profiles,
+	...transfer,
+	...progress,
+	...watchlist,
+	...notifications,
+	...nowWatching,
 };

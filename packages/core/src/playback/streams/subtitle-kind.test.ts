@@ -2,30 +2,44 @@ import { describe, expect, test } from "bun:test";
 
 import { classifySubtitle, subtitleKind, subtitleStats } from "./subtitle-kind";
 
-const stamp = (seconds: number) => {
-	const minutes = Math.floor(seconds / 60);
-	return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}.000`;
-};
+/** A WebVTT track of `count` cues, one every `seconds` and each two seconds long. */
+class Track {
+	readonly #seconds: number;
+	readonly #count: number;
+	readonly #text: (index: number) => string;
 
-const track = (cues: { start: number; text: string }[]) =>
-	[
-		"WEBVTT",
-		...cues.map((cue) => `${stamp(cue.start)} --> ${stamp(cue.start + 2)}\n${cue.text}`),
-	].join("\n\n");
+	constructor(seconds: number, count: number, text: (index: number) => string) {
+		this.#seconds = seconds;
+		this.#count = count;
+		this.#text = text;
+	}
 
-const every = (seconds: number, count: number, text: (index: number) => string) =>
-	track(
-		Array.from({ length: count }, (_, index) => ({
-			start: index * seconds,
-			text: text(index),
-		})),
-	);
+	get content() {
+		const cues = Array.from({ length: this.#count }, (_, index) => {
+			const start = index * this.#seconds;
 
-const dialogue = every(4, 360, (index) => `Line ${index}`);
-const signs = every(90, 14, (index) => `<b>Title ${index}</b>`);
-const captions = every(4, 360, (index) =>
-	index % 6 === 0 ? `<b>[door ${index}]</b>` : `Line ${index}`,
-);
+			const [from, to] = [start, start + 2].map(
+				(seconds) =>
+					`${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}.000`,
+			);
+
+			return `${from} --> ${to}\n${this.#text(index)}`;
+		});
+
+		return ["WEBVTT", ...cues].join("\n\n");
+	}
+}
+
+const dialogue = new Track(4, 360, (index) => `Line ${index}`).content;
+const signs = new Track(90, 14, (index) => `<b>Title ${index}</b>`).content;
+
+const captions = new Track(4, 360, (index) => {
+	if (index % 6 === 0) {
+		return `<b>[door ${index}]</b>`;
+	}
+
+	return `Line ${index}`;
+}).content;
 
 describe("classifySubtitle", () => {
 	test("recognizes steady speech as dialogue", () => {
@@ -38,20 +52,36 @@ describe("classifySubtitle", () => {
 
 	test("recognizes sound descriptions and music notes as captions", () => {
 		expect(classifySubtitle(captions)).toBe("captions");
-		expect(classifySubtitle(every(4, 360, (index) => (index % 4 === 0 ? "♪" : "Line")))).toBe(
-			"captions",
-		);
+		expect(
+			classifySubtitle(
+				new Track(4, 360, (index) => {
+					if (index % 4 === 0) {
+						return "♪";
+					}
+
+					return "Line";
+				}).content,
+			),
+		).toBe("captions");
 	});
 
 	test("does not guess for what sits between the kinds", () => {
-		expect(classifySubtitle(every(20, 75, (index) => `Lyric ${index}`))).toBeNull();
+		expect(classifySubtitle(new Track(20, 75, (index) => `Lyric ${index}`).content)).toBeNull();
 		expect(
-			classifySubtitle(every(4, 360, (index) => (index % 25 === 0 ? "[laughs]" : "Line"))),
+			classifySubtitle(
+				new Track(4, 360, (index) => {
+					if (index % 25 === 0) {
+						return "[laughs]";
+					}
+
+					return "Line";
+				}).content,
+			),
 		).toBeNull();
 	});
 
 	test("does not judge a track too short to compare", () => {
-		expect(classifySubtitle(every(2, 20, () => "Line"))).toBeNull();
+		expect(classifySubtitle(new Track(2, 20, () => "Line").content)).toBeNull();
 		expect(classifySubtitle("WEBVTT")).toBeNull();
 	});
 });
@@ -67,12 +97,9 @@ describe("subtitleStats", () => {
 describe("subtitleKind", () => {
 	test("trusts a label that names the kind when the cues agree or are unclear", () => {
 		expect(subtitleKind("English (English Signs [CR])", signs)).toBe("signs");
-		expect(
-			subtitleKind(
-				"English (English Signs [CR])",
-				every(20, 75, () => "x"),
-			),
-		).toBe("signs");
+		expect(subtitleKind("English (English Signs [CR])", new Track(20, 75, () => "x").content)).toBe(
+			"signs",
+		);
 		expect(subtitleKind("English (English Closed Captions [CR])", captions)).toBe("captions");
 		expect(subtitleKind("German (German - (Forced))", null)).toBe("signs");
 	});

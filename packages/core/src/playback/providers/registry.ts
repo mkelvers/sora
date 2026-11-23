@@ -1,17 +1,17 @@
 import { AllmangaProvider, AnimeParadiseProvider, HttpClient, MappingClient } from "anime-sdk";
 
-import { AniKotoStreamProvider } from "./anikoto";
-import { recordingCalls } from "./calls";
-import { MegaPlayStreamProvider } from "./megaplay";
+import { AniKoto } from "./anikoto";
+import { recorded } from "./calls";
+import { MegaPlay } from "./megaplay";
 import type { StreamProvider } from "./provider";
 import { SdkStreamProvider } from "./sdk";
-import { providerTransport } from "./transport";
+import { transport } from "./transport";
 
 /**
  * Shared HTTP client for every scraper, so per-host rate limits and retries
  * apply across all requests from this process.
  */
-export const providerHttp = new HttpClient({
+export const http = new HttpClient({
 	rateLimits: {
 		// AniKoto's API allows 60 requests per server in fixed two-minute windows
 		// (its x-ratelimit-reset falls on even minutes), and sends 429 with a
@@ -34,11 +34,11 @@ export const providerHttp = new HttpClient({
 		},
 	},
 	timeoutMs: 20_000,
-	transport: providerTransport,
+	transport,
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
-const mappingClient = new MappingClient(providerHttp, {
+const mappingClient = new MappingClient(http, {
 	// Anify's API redirects to itself, so every lookup spent about 15s failing
 	// before the mapping fell through to the other sources.
 	disableAnify: true,
@@ -54,6 +54,7 @@ export const servedLocale = "en";
 /** Whether a subtitle track is in {@link servedLocale}, by its BCP 47 tag or its label. */
 export const isServedSubtitle = (track: { language: string; label: string }) => {
 	const language = track.language.trim().toLowerCase();
+
 	return (
 		/^en(?:-|_|$)/u.test(language) ||
 		language.startsWith("english") ||
@@ -62,8 +63,8 @@ export const isServedSubtitle = (track: { language: string; label: string }) => 
 };
 
 /** AniKoto, which playback tries first, and which decides what episodes seasons list. */
-export const aniKoto = recordingCalls(
-	new AniKotoStreamProvider(providerHttp, {
+export const aniKoto = recorded(
+	new AniKoto(http, {
 		listsLanguages: true,
 		locale: "en",
 	}),
@@ -76,22 +77,22 @@ export const aniKoto = recordingCalls(
  * break without notice, so playback falls through the rest in turn, and every
  * call is recorded in `provider_calls` to show when one has broken.
  */
-export const streamProviders: readonly StreamProvider[] = [
+export const providers: readonly StreamProvider[] = [
 	aniKoto,
 	...[
-		new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
+		new SdkStreamProvider(new AnimeParadiseProvider(http), mappingClient, {
 			listsLanguages: true,
 			locale: "en",
 		}),
 		// MegaPlay's lists are made up from AniList's episode count and claim sub
 		// and dub for every episode.
-		new MegaPlayStreamProvider(providerHttp, mappingClient, {
+		new MegaPlay(http, mappingClient, {
 			listsLanguages: false,
 			locale: "en",
 		}),
-		new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
+		new SdkStreamProvider(new AllmangaProvider(http), mappingClient, {
 			listsLanguages: true,
 			locale: "en",
 		}),
-	].map((provider) => recordingCalls(provider)),
+	].map((provider) => recorded(provider)),
 ];

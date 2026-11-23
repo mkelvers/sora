@@ -1,22 +1,22 @@
 import { describe, expect, test } from "bun:test";
 
-import { aboutLength, fuzzyDate, placeholder, plainText, synopsis } from "./text";
+import { aboutLength, fuzzyDate, placeholder, plain, synopsis } from "./text";
 
-describe("plainText", () => {
+describe("plain", () => {
 	test("converts line breaks, strips tags, and decodes entities", () => {
-		expect(plainText("A <i>quiet</i> journey.<br><br>Frieren &amp; Fern&#39;s story.")).toBe(
+		expect(plain("A <i>quiet</i> journey.<br><br>Frieren &amp; Fern&#39;s story.")).toBe(
 			"A quiet journey.\n\nFrieren & Fern's story.",
 		);
 	});
 
 	test("removes a trailing source attribution", () => {
-		expect(plainText("An elf mage outlives her party.\n\n(Source: Crunchyroll)")).toBe(
+		expect(plain("An elf mage outlives her party.\n\n(Source: Crunchyroll)")).toBe(
 			"An elf mage outlives her party.",
 		);
 	});
 
 	test("keeps parenthetical text that is not an attribution", () => {
-		expect(plainText("Season two (final part)")).toBe("Season two (final part)");
+		expect(plain("Season two (final part)")).toBe("Season two (final part)");
 	});
 });
 
@@ -24,6 +24,7 @@ describe("synopsis", () => {
 	test("runs one paragraph of whole sentences up to the length it is given", () => {
 		const text =
 			"Socially inept, Koyuki keeps a wall between herself and other people.\n<BR><BR>\nThen she meets Minato, a boy who keeps closing the distance.\n<BR><BR>\n(Source: Margaret, translated)";
+
 		expect(synopsis(text, aboutLength)).toBe(
 			"Socially inept, Koyuki keeps a wall between herself and other people. Then she meets Minato, a boy who keeps closing the distance.",
 		);
@@ -35,6 +36,7 @@ describe("synopsis", () => {
 	test("keeps a text that already fits", () => {
 		const text =
 			"Corporate worker Mikami Satoru is stabbed by a random killer, and is reborn to an alternate world. But he turns out to be reborn a slime!";
+
 		expect(synopsis(text)).toBe(text);
 	});
 

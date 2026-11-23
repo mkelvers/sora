@@ -1,4 +1,4 @@
-import type { z } from "@hono/zod-openapi";
+import { z } from "@hono/zod-openapi";
 import { attempt } from "@sora/shared";
 
 import { SoraError } from "./error";
@@ -141,29 +141,26 @@ export interface SoraClientOptions {
 	headers?: Record<string, string>;
 }
 
-/** The URL of a route: its path with the parameters filled in, and the query that has a value. */
-const routeUrl = (
-	baseUrl: string,
-	path: string,
-	params: Record<string, unknown> | undefined,
-	query: Record<string, unknown> | undefined,
-) => {
-	const url = new URL(
-		`${baseUrl}/v1${path.replaceAll(/\{(?<name>\w+)\}/gu, (_, name: string) =>
-			encodeURIComponent(String(params?.[name])),
-		)}`,
-	);
-	for (const [name, value] of Object.entries(query ?? {})) {
-		if (value !== undefined && value !== null) {
-			// A list is comma-separated, and a null in one is how the API spells "none".
-			url.searchParams.set(
-				name,
-				Array.isArray(value) ? value.map((item) => item ?? "none").join(",") : String(value),
-			);
-		}
-	}
-	return url;
-};
+/** The URL parameters, query values, and JSON body accepted by the transport. */
+const InputSchema = z.object({
+	body: z.unknown().optional(),
+	params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+	query: z
+		.record(
+			z.string(),
+			z.union([
+				z.string(),
+				z.number(),
+				z.boolean(),
+				z.null(),
+				z.undefined(),
+				z.array(z.union([z.string(), z.number(), z.null()])),
+			]),
+		)
+		.optional(),
+});
+
+type RouteInput = z.output<typeof InputSchema>;
 
 /**
  * A typed client for the Sora API.
@@ -197,6 +194,32 @@ export class SoraClient {
 		};
 	}
 
+	/** The URL of a route: its path with the parameters filled in, and the query that has a value. */
+	#url(path: string, params: RouteInput["params"], query: RouteInput["query"]): URL {
+		const url = new URL(
+			`${this.#options.baseUrl}/v1${path.replaceAll(/\{(?<name>\w+)\}/gu, (_, name: string) =>
+				encodeURIComponent(String(params?.[name])),
+			)}`,
+		);
+
+		for (const [name, value] of Object.entries(query ?? {})) {
+			if (value === undefined || value === null) {
+				continue;
+			}
+
+			// A list is comma-separated, and a null in one is how the API spells "none".
+			let text = String(value);
+
+			if (Array.isArray(value)) {
+				text = value.map((item) => item ?? "none").join(",");
+			}
+
+			url.searchParams.set(name, text);
+		}
+
+		return url;
+	}
+
 	/**
 	 * Calls a route and resolves to the `results` of its response, or to
 	 * nothing for a route that answers with none.
@@ -204,16 +227,18 @@ export class SoraClient {
 	 * @throws {SoraError} when the API answers with an error, or with
 	 *   a body that does not match the contract (code `INVALID_RESPONSE`).
 	 */
-	async request<TRoute extends Route>(
+	request<TRoute extends Route>(
 		route: TRoute,
-		...[input, options]: Args<TRoute>
-	): Promise<RequestResults<TRoute>> {
-		const body = await this.requestWithMeta(route, ...([input, options] as Args<TRoute>));
-		return (
-			body !== undefined && body !== null && typeof body === "object" && "results" in body
-				? body.results
-				: body
-		) as RequestResults<TRoute>;
+		...args: Args<TRoute>
+	): Promise<RequestResults<TRoute>>;
+	async request<TRoute extends Route>(route: TRoute, ...args: Args<TRoute>) {
+		const body = await this.requestWithMeta(route, ...args);
+
+		if (body instanceof Object && "results" in body) {
+			return body.results;
+		}
+
+		return body;
 	}
 
 	/**
@@ -222,19 +247,23 @@ export class SoraClient {
 	 *
 	 * @throws {SoraError} as {@link SoraClient.request} does.
 	 */
-	async requestWithMeta<TRoute extends Route>(
+	requestWithMeta<TRoute extends Route>(
 		route: TRoute,
-		...[input, options]: Args<TRoute>
-	): Promise<RequestBody<TRoute>> {
-		const { params, query, body } = (input ?? {}) as {
-			params?: Record<string, unknown>;
-			query?: Record<string, unknown>;
-			body?: unknown;
-		};
-		const url = routeUrl(this.#options.baseUrl, route.path, params, query);
+		...args: Args<TRoute>
+	): Promise<RequestBody<TRoute>>;
+	async requestWithMeta<TRoute extends Route>(route: TRoute, ...[input, options]: Args<TRoute>) {
+		const { params, query, body } = InputSchema.parse(input ?? {});
+
+		const url = this.#url(route.path, params, query);
+
+		let payload: string | undefined;
+
+		if (body !== undefined) {
+			payload = JSON.stringify(body);
+		}
 
 		const response = await (this.#options.fetch ?? fetch)(url, {
-			body: body === undefined ? undefined : JSON.stringify(body),
+			body: payload,
 			headers: {
 				...this.#options.headers,
 				...options?.headers,
@@ -245,22 +274,16 @@ export class SoraClient {
 			method: route.method.toUpperCase(),
 			signal: options?.signal,
 		});
+
 		if (!response.ok) {
 			throw await SoraError.from(response);
 		}
 
-		const schema = route.responses[response.status]?.content?.["application/json"]?.schema;
-		if (!schema) {
-			return undefined as RequestBody<TRoute>;
-		}
+		const definition = route.responses[response.status];
 
-		const json = await attempt(response.json());
-		const parsed = json.error ? null : schema.safeParse(json.data);
-		if (!parsed?.success) {
+		if (!definition) {
 			throw new SoraError(
-				`The API's answer to ${route.method.toUpperCase()} ${route.path} does not match its contract${
-					parsed ? `: ${parsed.error.message}` : ""
-				}`,
+				`The API answered ${response.status}, which ${route.method.toUpperCase()} ${route.path} does not declare`,
 				{
 					code: "INVALID_RESPONSE",
 					retryAfterSeconds: null,
@@ -269,7 +292,13 @@ export class SoraClient {
 			);
 		}
 
-		return parsed.data as RequestBody<TRoute>;
+		const schema = definition.content?.["application/json"]?.schema;
+
+		if (!schema) {
+			return;
+		}
+
+		return await SoraClient.#body(response, schema, `${route.method.toUpperCase()} ${route.path}`);
 	}
 
 	/**
@@ -280,10 +309,19 @@ export class SoraClient {
 	 */
 	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
 		const response = await this.#auth("sign-in/username", credentials, options);
-		const signedIn = (await response.json()) as {
-			token: string;
-			user: Session["account"];
-		};
+
+		const signedIn = await SoraClient.#body(
+			response,
+			z.object({
+				token: z.string(),
+				user: z.object({
+					id: z.string(),
+					name: z.string(),
+					username: z.string(),
+				}),
+			}),
+			"POST /auth/sign-in/username",
+		);
 
 		return {
 			account: {
@@ -314,9 +352,14 @@ export class SoraClient {
 			},
 			options,
 		);
-		const changed = (await response.json()) as {
-			token: string;
-		};
+
+		const changed = await SoraClient.#body(
+			response,
+			z.object({
+				token: z.string(),
+			}),
+			"POST /auth/change-password",
+		);
 
 		return {
 			token: changed.token,
@@ -328,12 +371,45 @@ export class SoraClient {
 		await this.#auth("sign-out", {}, options);
 	}
 
+	static async #body<TData>(
+		response: Response,
+		schema: z.ZodType<TData>,
+		request: string,
+	): Promise<TData> {
+		const json = await attempt(response.json());
+		let parsed: ReturnType<typeof schema.safeParse> | null = null;
+
+		if (!json.error) {
+			parsed = schema.safeParse(json.data);
+		}
+
+		if (!parsed?.success) {
+			let detail = "";
+
+			if (parsed) {
+				detail = `: ${parsed.error.message}`;
+			}
+
+			throw new SoraError(`The API's answer to ${request} does not match its contract${detail}`, {
+				code: "INVALID_RESPONSE",
+				retryAfterSeconds: null,
+				status: response.status,
+			});
+		}
+
+		return parsed.data;
+	}
+
 	/**
 	 * Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope.
 	 *
 	 * @throws {SoraError} when the endpoint answers with an error.
 	 */
-	async #auth(path: string, body: object, options: RequestOptions | undefined): Promise<Response> {
+	async #auth(
+		path: string,
+		body: SignIn | (ChangePassword & { revokeOtherSessions: boolean }) | Record<string, never>,
+		options: RequestOptions | undefined,
+	): Promise<Response> {
 		const response = await (this.#options.fetch ?? fetch)(
 			`${this.#options.baseUrl}/v1/auth/${path}`,
 			{

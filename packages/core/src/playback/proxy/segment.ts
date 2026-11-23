@@ -1,4 +1,3 @@
-const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 /** The `IEND` chunk type and its fixed CRC, which end every PNG file. */
 const pngEnd = Uint8Array.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 const tsPacketSize = 188;
@@ -9,9 +8,12 @@ const tsSyncByte = 0x47;
  * CDNs among them) prepend to MPEG-TS segments to disguise them as images.
  * Only the first bytes are needed.
  */
-export const isDisguisedSegment = (head: Uint8Array) => {
+export const isDisguised = (head: Uint8Array) => {
+	const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
 	const png = pngSignature.every((byte, index) => head[index] === byte);
 	const jpeg = head[0] === 0xff && head[1] === 0xd8;
+
 	return png || jpeg;
 };
 
@@ -24,20 +26,20 @@ export const isDisguisedSegment = (head: Uint8Array) => {
  *
  * @returns the segment unchanged when no transport stream is found.
  */
-export const unwrapDisguisedSegment = <Backing extends ArrayBufferLike>(
-	bytes: Uint8Array<Backing>,
-) => {
+export const unwrapDisguised = <Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) => {
 	const end = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).indexOf(pngEnd);
+
 	if (end !== -1) {
 		return bytes.subarray(end + pngEnd.length);
 	}
 
 	for (let offset = 0; offset + 2 * tsPacketSize < bytes.length; offset += 1) {
-		if (
+		const synced =
 			bytes[offset] === tsSyncByte &&
 			bytes[offset + tsPacketSize] === tsSyncByte &&
-			bytes[offset + 2 * tsPacketSize] === tsSyncByte
-		) {
+			bytes[offset + 2 * tsPacketSize] === tsSyncByte;
+
+		if (synced) {
 			return bytes.subarray(offset);
 		}
 	}
@@ -51,12 +53,13 @@ export const unwrapDisguisedSegment = <Backing extends ArrayBufferLike>(
  * disguised transport stream.
  */
 export const isBareImage = <Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) => {
-	if (isDisguisedSegment(bytes)) {
-		return unwrapDisguisedSegment(bytes)[0] !== tsSyncByte;
+	if (isDisguised(bytes)) {
+		return unwrapDisguised(bytes)[0] !== tsSyncByte;
 	}
 
 	const ascii = (start: number, end: number) => String.fromCodePoint(...bytes.subarray(start, end));
 	const webp = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
 	const gif = ascii(0, 4) === "GIF8";
+
 	return webp || gif;
 };

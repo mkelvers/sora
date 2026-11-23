@@ -8,10 +8,13 @@ export class CategorySearch {
 
 	matches(label: string): boolean {
 		const text = label.toLocaleLowerCase();
+
 		return this.#words.every((word) => {
 			let position = 0;
+
 			for (const character of word) {
 				const found = text.indexOf(character, position);
+
 				if (found === -1) {
 					return false;
 				}

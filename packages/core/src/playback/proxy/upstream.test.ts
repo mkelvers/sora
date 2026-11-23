@@ -1,20 +1,13 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import http from "node:http";
 
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
+import { readBounded } from "./hops";
 import { canFetchStream } from "./proxy";
-import { fetchUpstream, fetchUpstreamBytes, readBounded, StreamUpstreamError } from "./upstream";
+import { fetchTarget, readTarget } from "./upstream";
+import { StreamUpstreamError } from "./upstream-error";
 
-const target = (url: string) => ({
-	accountId: "account",
-	expiresAt: Math.floor(Date.now() / 1000) + 60,
-	headers: {},
-	kind: "file" as const,
-	mirrors: [],
-	url,
-});
-
-describe("fetchUpstream", () => {
+describe("fetchTarget", () => {
 	test.each([
 		"http://localhost/x",
 		"http://127.0.0.1/x",
@@ -29,70 +22,130 @@ describe("fetchUpstream", () => {
 		"http://[::ffff:127.0.0.1]/x",
 		"ftp://example.com/x",
 	])("refuses %s without fetching it", async (url) => {
-		await expect(fetchUpstream(target(url), null)).rejects.toBeInstanceOf(InvalidStreamTokenError);
+		const target = {
+			accountId: "account",
+			expiresAt: Math.floor(Date.now() / 1000) + 60,
+			headers: {},
+			kind: "file" as const,
+			mirrors: [],
+			url,
+		};
+
+		await expect(fetchTarget(target, null)).rejects.toBeInstanceOf(StreamTokenError);
 	});
 });
 
-const realRequest = http.request;
-let server: ReturnType<typeof Bun.serve> | undefined;
+/** The local server that stands in for the public hosts. */
+interface FakeHosts {
+	server: ReturnType<typeof Bun.serve> | undefined;
+}
+
+const fake: FakeHosts = {
+	server: undefined,
+};
 
 afterEach(async () => {
-	await server?.stop(true);
-	server = undefined;
-	(http.request as unknown as { mockRestore?: () => void }).mockRestore?.();
+	await fake.server?.stop(true);
+	fake.server = undefined;
+	mock.restore();
 });
 
 /**
- * Serves every request to a public-looking host from a local server that
- * answers with `statuses` in turn, the last one from then on. The upstream
- * refuses private addresses, so its requests are sent to the local server
- * without that check.
+ * A public-looking host served by a local server that answers with `statuses`
+ * in turn, the last one from then on. The upstream refuses private addresses,
+ * so its requests are sent to the local server without that check.
  */
-const throttlingHost = (statuses: { status: number; retryAfter?: string }[]) => {
-	let requests = 0;
-	server = Bun.serve({
-		fetch: () => {
-			const answer = statuses[Math.min(requests, statuses.length - 1)];
-			requests += 1;
-			return new Response(answer?.status === 200 ? "#EXTM3U\n" : "Too many requests", {
-				headers: answer?.retryAfter
-					? {
-							"Retry-After": answer.retryAfter,
-						}
-					: {},
-				status: answer?.status,
-			});
-		},
-		port: 0,
-	});
-	const local = server.url;
-	spyOn(http, "request").mockImplementation(((
-		url: URL,
-		options: http.RequestOptions,
-		onResponse: (response: http.IncomingMessage) => void,
-	) =>
-		realRequest(
-			new URL(`${url.pathname}${url.search}`, local),
-			{
-				...options,
-				lookup: undefined,
-			},
-			onResponse,
-		)) as unknown as typeof http.request);
+class ThrottlingHost {
+	readonly #statuses: {
+		status: number;
+		retryAfter?: string;
+	}[];
 
-	return {
-		requests: () => requests,
-	};
-};
+	#requests = 0;
+
+	constructor(
+		statuses: {
+			status: number;
+			retryAfter?: string;
+		}[],
+	) {
+		this.#statuses = statuses;
+	}
+
+	/** How many requests reached the host. */
+	get requests() {
+		return this.#requests;
+	}
+
+	/** Starts serving every request to a public-looking host. */
+	start() {
+		const realRequest = http.request;
+
+		fake.server = Bun.serve({
+			fetch: () => this.#answer(),
+			port: 0,
+		});
+		const local = fake.server.url;
+		spyOn(http, "request").mockImplementation(
+			(
+				url: string | URL | http.RequestOptions,
+				options?: http.RequestOptions | ((response: http.IncomingMessage) => void),
+				onResponse?: (response: http.IncomingMessage) => void,
+			) => {
+				if (!(url instanceof URL)) {
+					throw new TypeError("The stream request must pass a URL");
+				}
+
+				if (!options || !("headers" in options)) {
+					throw new TypeError("The stream request must pass options with headers");
+				}
+
+				return realRequest(
+					new URL(`${url.pathname}${url.search}`, local),
+					{
+						...options,
+						lookup: undefined,
+					},
+					onResponse,
+				);
+			},
+		);
+	}
+
+	#answer() {
+		const answer = this.#statuses[Math.min(this.#requests, this.#statuses.length - 1)];
+		this.#requests += 1;
+
+		const headers = new Headers();
+		let body = "Too many requests";
+
+		if (answer?.retryAfter) {
+			headers.set("Retry-After", answer.retryAfter);
+		}
+
+		if (answer?.status === 200) {
+			body = "#EXTM3U\n";
+		}
+
+		return new Response(body, {
+			headers,
+			status: answer?.status,
+		});
+	}
+}
 
 const playlist = {
-	...target("http://cdn.example.com/master.m3u8"),
+	accountId: "account",
+	expiresAt: Math.floor(Date.now() / 1000) + 60,
+	headers: {},
 	kind: "playlist" as const,
+	mirrors: [],
+	url: "http://cdn.example.com/master.m3u8",
 };
 
 describe("a host that rate-limits", () => {
 	test("is asked again once its Retry-After has passed", async () => {
-		const host = throttlingHost([
+		const host = new ThrottlingHost([
 			{
 				retryAfter: "1",
 				status: 429,
@@ -102,14 +155,16 @@ describe("a host that rate-limits", () => {
 			},
 		]);
 
+		host.start();
+
 		// As short as the check that a video host can be reached.
-		const upstream = await fetchUpstream(playlist, null, AbortSignal.timeout(3000));
+		const upstream = await fetchTarget(playlist, null, AbortSignal.timeout(3000));
 		expect(await upstream.response.text()).toBe("#EXTM3U\n");
-		expect(host.requests()).toBe(2);
+		expect(host.requests).toBe(2);
 	});
 
 	test("is asked again when a playlist is read whole", async () => {
-		const host = throttlingHost([
+		const host = new ThrottlingHost([
 			{
 				retryAfter: "1",
 				status: 429,
@@ -119,52 +174,66 @@ describe("a host that rate-limits", () => {
 			},
 		]);
 
-		const upstream = await fetchUpstreamBytes(playlist);
+		host.start();
+
+		const upstream = await readTarget(playlist);
 		expect(new TextDecoder().decode(upstream.bytes)).toBe("#EXTM3U\n");
-		expect(host.requests()).toBe(2);
+		expect(host.requests).toBe(2);
 	});
 
 	test("fails at once when Retry-After asks for longer than playback waits", async () => {
-		const host = throttlingHost([
+		const host = new ThrottlingHost([
 			{
 				retryAfter: "120",
 				status: 429,
 			},
 		]);
 
+		host.start();
+
 		const started = Date.now();
-		const failure = await fetchUpstream(playlist, null).catch((error: unknown) => error);
+		const failure = await fetchTarget(playlist, null).catch((error: Error) => error);
 		expect(failure).toBeInstanceOf(StreamUpstreamError);
-		expect((failure as StreamUpstreamError).status).toBe(429);
+		expect(failure).toMatchObject({
+			status: 429,
+		});
 		expect(Date.now() - started).toBeLessThan(1000);
-		expect(host.requests()).toBe(1);
+		expect(host.requests).toBe(1);
 	});
 
 	test("fails when the caller stops waiting before Retry-After passes", async () => {
-		throttlingHost([
+		const host = new ThrottlingHost([
 			{
 				retryAfter: "2",
 				status: 429,
 			},
 		]);
 
+		host.start();
+
 		const started = Date.now();
-		const failure = await fetchUpstream(playlist, null, AbortSignal.timeout(500)).catch(
-			(error: unknown) => error,
+
+		const failure = await fetchTarget(playlist, null, AbortSignal.timeout(500)).catch(
+			(error: Error) => error,
 		);
-		expect((failure as StreamUpstreamError).status).toBe(429);
+
+		expect(failure).toMatchObject({
+			status: 429,
+		});
 		expect(Date.now() - started).toBeLessThan(1500);
 	});
 
 	test.each(["10", "2"])(
 		"counts as reachable while it throttles with Retry-After %s",
 		async (retryAfter) => {
-			throttlingHost([
+			const host = new ThrottlingHost([
 				{
 					retryAfter,
 					status: 429,
 				},
 			]);
+
+			host.start();
 
 			expect(await canFetchStream(playlist.url, {}, [], AbortSignal.timeout(500))).toBe(true);
 		},
@@ -188,6 +257,7 @@ describe("readBounded", () => {
 				"Content-Length": "5",
 			},
 		});
+
 		await expect(readBounded(response, 4)).rejects.toBeInstanceOf(StreamUpstreamError);
 	});
 
@@ -200,22 +270,27 @@ describe("readBounded", () => {
 				controller.close();
 			},
 		});
+
 		let arrivals = 0;
+
 		const bytes = await readBounded(new Response(body), 64, () => {
 			arrivals += 1;
 		});
+
 		expect(bytes.byteLength).toBe(12);
 		expect(arrivals).toBe(3);
 	});
 
 	test("stops reading a body that passes the limit without announcing it", async () => {
 		let sent = 0;
+
 		const body = new ReadableStream<Uint8Array>({
 			pull(controller) {
 				sent += 1;
 				controller.enqueue(new Uint8Array(1024));
 			},
 		});
+
 		await expect(readBounded(new Response(body), 4096)).rejects.toBeInstanceOf(StreamUpstreamError);
 		expect(sent).toBeLessThan(20);
 	});

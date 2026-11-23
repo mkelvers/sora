@@ -1,4 +1,15 @@
-/** An error class, such as `RangeError` or `AnimeNotFoundError`. */
+/** A value as `JSON.parse` returns it. */
+export type Json =
+	| string
+	| number
+	| boolean
+	| null
+	| Json[]
+	| {
+			[key: string]: Json;
+	  };
+
+/** An error class, such as `RangeError` or `UnknownAnimeError`. */
 type ErrorClass = abstract new (...args: never[]) => Error;
 
 /** The errors `attempt` hands back: the expected classes, or any `Error` when none are named. */
@@ -21,31 +32,65 @@ export type Attempt<TData, TError extends Error = Error> =
 			data: null;
 			error: TError;
 	  };
-const settle = <TData, TExpected extends ErrorClass[]>(
-	work: PromiseLike<TData> | (() => TData),
+
+/**
+ * Settles a promise into an {@link Attempt} instead of rejecting.
+ *
+ * Name the error classes the caller handles and `error` is typed as them;
+ * any other error still rejects. Name none and every error is handed back,
+ * a thrown non-`Error` wrapped in one with the value as its `cause`.
+ *
+ * @example
+ * ```ts
+ * const { data, error } = await attempt(catalog.anime(id), UnknownAnimeError);
+ * if (error) {
+ *   return null;
+ * }
+ * ```
+ */
+export function attempt<TData, TExpected extends ErrorClass[] = []>(
+	work: PromiseLike<TData>,
 	...expected: TExpected
-): Attempt<TData, Caught<TExpected>> | Promise<Attempt<TData, Caught<TExpected>>> => {
-	const failed = (thrown: unknown) => {
-		const error =
-			thrown instanceof Error
-				? thrown
-				: new Error(String(thrown), {
-						cause: thrown,
-					});
-		if (expected.length > 0 && !expected.some((type) => error instanceof type)) {
-			throw thrown;
+): Promise<Attempt<TData, Caught<TExpected>>>;
+/**
+ * Calls synchronous `work`, such as `JSON.parse`, and returns its result as an
+ * {@link Attempt} instead of throwing, as the promise form does. Asynchronous
+ * work is passed as its promise instead.
+ */
+export function attempt<TData, TExpected extends ErrorClass[] = []>(
+	work: () => TData extends PromiseLike<unknown> ? never : TData,
+	...expected: TExpected
+): Attempt<TData, Caught<TExpected>>;
+
+export function attempt<TData>(
+	work: PromiseLike<TData> | (() => TData),
+	...expected: ErrorClass[]
+): Attempt<TData> | Promise<Attempt<TData>> {
+	const failed = (cause: unknown) => {
+		let error = new Error(String(cause), {
+			cause,
+		});
+
+		if (cause instanceof Error) {
+			error = cause;
 		}
+
+		if (expected.length > 0 && !expected.some((type) => error instanceof type)) {
+			throw cause;
+		}
+
 		return {
 			data: null,
-			error: error as Caught<TExpected>,
+			error,
 		};
 	};
+
 	const succeeded = (data: TData) => ({
 		data,
 		error: null,
 	});
 
-	if (typeof work !== "function") {
+	if ("then" in work) {
 		return Promise.resolve(work).then(succeeded, failed);
 	}
 
@@ -54,40 +99,7 @@ const settle = <TData, TExpected extends ErrorClass[]>(
 	} catch (error) {
 		return failed(error);
 	}
-};
-
-interface Settle {
-	/**
-	 * Settles a promise into an {@link Attempt} instead of rejecting.
-	 *
-	 * Name the error classes the caller handles and `error` is typed as them;
-	 * any other error still rejects. Name none and every error is handed back,
-	 * a thrown non-`Error` wrapped in one with the value as its `cause`.
-	 *
-	 * @example
-	 * ```ts
-	 * const { data, error } = await attempt(getAnime(id), AnimeNotFoundError);
-	 * if (error) {
-	 *   return null;
-	 * }
-	 * ```
-	 */
-	<TData, TExpected extends ErrorClass[] = []>(
-		work: PromiseLike<TData>,
-		...expected: TExpected
-	): Promise<Attempt<TData, Caught<TExpected>>>;
-	/**
-	 * Calls synchronous `work`, such as `JSON.parse`, and returns its result as an
-	 * {@link Attempt} instead of throwing, as the promise form does. Asynchronous
-	 * work is passed as its promise instead.
-	 */
-	<TData, TExpected extends ErrorClass[] = []>(
-		work: () => TData extends PromiseLike<unknown> ? never : TData,
-		...expected: TExpected
-	): Attempt<TData, Caught<TExpected>>;
 }
-
-export const attempt = settle as Settle;
 
 /**
  * The value, narrowed to exclude `null` and `undefined`, or an error when it
@@ -98,8 +110,10 @@ export const defined = <TValue>(value: TValue | null | undefined): TValue => {
 	if (value === null || value === undefined) {
 		throw new TypeError("Expected a value, found none");
 	}
+
 	return value;
 };
 
 export * from "./sequence";
+
 export * from "./time";

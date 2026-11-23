@@ -6,7 +6,7 @@
 	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
 	import type { FranchisePart, Series, SeriesProgress } from "@sora/sdk";
@@ -32,19 +32,36 @@
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
 
-	const seasonNumber = (part: FranchisePart) =>
-		NUMBERED_SEASON.test(part.title) ? ` ${part.title.replace(NUMBERED_SEASON, "S")}` : "";
+	const seasonNumber = (part: FranchisePart) => {
+		if (NUMBERED_SEASON.test(part.title)) {
+			return ` ${part.title.replace(NUMBERED_SEASON, "S")}`;
+		}
+
+		return "";
+	};
 
 	const laterLabel = (part: FranchisePart, started: number | undefined) => {
 		const movie = part.format === "MOVIE";
-		const which = seasonNumber(part) || (movie ? " Next Movie" : " Next Season");
-		return `${started ? "Continue" : "Start"} Watching${which}${movie ? "" : ` E${started ?? 1}`}`;
-	};
+		let fallback = " Next Season";
 
-	const ownSeason = $derived.by(() => {
-		const current = series.seasons.find((part) => part.series_id === series.id);
-		return current?.role === "season" && series.seasons[0] !== current ? seasonNumber(current) : "";
-	});
+		if (movie) {
+			fallback = " Next Movie";
+		}
+
+		let verb = "Start";
+
+		if (started) {
+			verb = "Continue";
+		}
+
+		const title = `${verb} Watching${seasonNumber(part) || fallback}`;
+
+		if (movie) {
+			return title;
+		}
+
+		return `${title} E${started ?? 1}`;
+	};
 
 	const done = $derived(
 		!!progress?.finished ||
@@ -58,36 +75,54 @@
 	);
 
 	const play = $derived.by(() => {
-		const later = done
-			? following.find(
-					(part) =>
-						part.role === "season" &&
-						part.episode_count > 0 &&
-						library.status.get(part.series_id) !== "completed",
-				)
-			: undefined;
+		let later: FranchisePart | undefined;
+
+		if (done) {
+			later = following.find(
+				(part) =>
+					part.role === "season" &&
+					part.episode_count > 0 &&
+					library.status.get(part.series_id) !== "completed",
+			);
+		}
+
 		if (later) {
 			const started = library.resume.get(later.series_id)?.episode;
+
 			return {
 				href: `/series/${later.series_id}/watch/${started ?? 1}`,
 				label: laterLabel(later, started),
 				rewatch: false,
 			};
 		}
+
 		const resume = progress?.next?.episode;
+
 		if (!resume && !series.episode_count) {
 			return null;
 		}
 
 		const episode = resume ?? 1;
-		const suffix = `${ownSeason}${series.format === "MOVIE" ? "" : ` E${episode}`}`;
+		const current = series.seasons.find((part) => part.series_id === series.id);
+		let suffix = "";
+
+		if (current?.role === "season" && series.seasons[0] !== current) {
+			suffix = seasonNumber(current);
+		}
+
+		if (series.format !== "MOVIE") {
+			suffix = `${suffix} E${episode}`;
+		}
+
 		const rewatch = !resume && (done || !!progress?.episodes.length);
 		let label = `Start Watching${suffix}`;
+
 		if (resume) {
 			label = `Continue Watching${suffix}`;
 		} else if (rewatch) {
 			label = "Rewatch";
 		}
+
 		return {
 			href: `/series/${series.id}/watch/${episode}`,
 			label,
@@ -95,11 +130,13 @@
 		};
 	});
 
-	const announced = $derived(
-		play?.rewatch || !play
-			? following.findLast((part) => part.role === "season" && part.episode_count === 0)
-			: undefined,
-	);
+	const announced = $derived.by(() => {
+		if (play && !play.rewatch) {
+			return;
+		}
+
+		return following.findLast((part) => part.role === "season" && part.episode_count === 0);
+	});
 
 	const next = $derived.by(() => {
 		if (!series.next_episode) {
@@ -108,22 +145,30 @@
 
 		const airing = new Date(series.next_episode.airing_at);
 		const aired = airing <= new Date();
+
 		const day = airing.toLocaleDateString("en-US", {
 			day: "numeric",
 			month: "long",
 		});
+
 		const time = airing.toLocaleTimeString("en-GB", {
 			hour: "2-digit",
 			minute: "2-digit",
 		});
 
 		if (series.next_episode.number === 1) {
-			return aired ? "Premiere available soon" : `Series premiere starts ${day}`;
+			if (aired) {
+				return "Premiere available soon";
+			}
+
+			return `Series premiere starts ${day}`;
 		}
 
-		return aired
-			? `Next episode aired ${day} at ${time}, available soon`
-			: `Next episode airs ${day} at ${time}`;
+		if (aired) {
+			return `Next episode aired ${day} at ${time}, available soon`;
+		}
+
+		return `Next episode airs ${day} at ${time}`;
 	});
 
 	const rewatch = async (event: MouseEvent) => {
@@ -250,7 +295,7 @@
 							<a
 								href="/browse"
 								onclick={() =>
-									setBrowse({
+									filterBy({
 										genres: [genre],
 									})}
 								class="underline underline-offset-2 transition-colors hover:text-foreground"

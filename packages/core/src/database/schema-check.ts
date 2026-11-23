@@ -9,13 +9,17 @@ export interface ColumnName {
 }
 
 /** Every column the tables among `modules`' exports define. */
-export const definedColumns = (modules: Record<string, unknown>[]): ColumnName[] =>
+export const definedColumns = <TModule extends Record<string, unknown>>(
+	modules: TModule[],
+): ColumnName[] =>
 	modules.flatMap((module) =>
 		Object.values(module).flatMap((value) => {
 			if (!is(value, PgTable)) {
 				return [];
 			}
+
 			const { columns, name, schema = "public" } = getTableConfig(value);
+
 			return columns.map((column) => ({
 				column: column.name,
 				schema,
@@ -35,17 +39,22 @@ export const definedColumns = (modules: Record<string, unknown>[]): ColumnName[]
  */
 export const missingSchema = (defined: ColumnName[], live: ColumnName[]): string[] => {
 	const liveTables = new Set(live.map(({ schema, table }) => `${schema}.${table}`));
+
 	const liveColumns = new Set(
 		live.map(({ column, schema, table }) => `${schema}.${table}.${column}`),
 	);
+
 	const missing = new Set<string>();
+
 	for (const { column, schema, table } of defined) {
 		const tableName = `${schema}.${table}`;
+
 		if (!liveTables.has(tableName)) {
 			missing.add(`table ${tableName}`);
 		} else if (!liveColumns.has(`${tableName}.${column}`)) {
 			missing.add(`column ${tableName}.${column}`);
 		}
 	}
+
 	return [...missing];
 };

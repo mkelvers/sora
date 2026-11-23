@@ -18,9 +18,11 @@ export const storyContinuation = (
 ): StoryPart | undefined => {
 	const parts = [...series.seasons, ...series.specials];
 	const current = parts.find((part) => part.series_id === series.id);
+
 	if (!current?.next_series_id) {
 		return undefined;
 	}
+
 	return parts.find((part) => part.series_id === current.next_series_id && part.episode_count > 0);
 };
 
@@ -44,14 +46,19 @@ export const nextEpisodeAddress = (
 			seriesId: series.id,
 		};
 	}
+
 	if (episode !== series.episode_count) {
 		return undefined;
 	}
+
 	const next = storyContinuation(series);
-	return next
-		? {
-				episode: "1",
-				seriesId: next.series_id,
-			}
-		: undefined;
+
+	if (next) {
+		return {
+			episode: "1",
+			seriesId: next.series_id,
+		};
+	}
+
+	return undefined;
 };

@@ -1,8 +1,9 @@
-import { hour, inSequence, chunked } from "@sora/shared";
+import { hour, chunked, sequence } from "@sora/shared";
 
 import { anilist } from "../../anilist/client";
 import { EpisodeAiringsDocument } from "../../anilist/graphql.generated";
-import { anilistEpisodeKey } from "../../series/episodes";
+import { zEpisodeAiringsQuery } from "../../anilist/validation.generated";
+import { anilistKey } from "../../series/episodes";
 
 /** One AniList episode broadcast. */
 export interface AiringBroadcast {
@@ -11,9 +12,6 @@ export interface AiringBroadcast {
 	/** ISO 8601 timestamp. */
 	airingAt: string;
 }
-
-/** Entries {@link fetchEpisodeAirings} asks AniList about per request. */
-const airingsBatchSize = 50;
 
 /**
  * When each scheduled episode of the given AniList entries airs or aired, as
@@ -26,14 +24,18 @@ const airingsBatchSize = 50;
  * Entries AniList has no schedule for, as for most older anime, have no
  * episodes in the result.
  *
- * @returns Broadcast times keyed by {@link anilistEpisodeKey}.
+ * @returns Broadcast times keyed by {@link anilistKey}.
  * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 export const fetchEpisodeAirings = async (
 	anilistIds: readonly number[],
 ): Promise<Map<string, Date>> => {
+	/** Entries {@link fetchEpisodeAirings} asks AniList about per request. */
+	const airingsBatchSize = 50;
+
 	const ids = [...new Set(anilistIds)];
 	const airings = new Map<string, Date>();
+
 	const readPage = async (batch: number[], page: number): Promise<void> => {
 		const { Page } = await anilist(
 			EpisodeAiringsDocument,
@@ -41,6 +43,7 @@ export const fetchEpisodeAirings = async (
 				ids: batch,
 				page,
 			},
+			zEpisodeAiringsQuery,
 			{
 				maxAgeMs: hour,
 			},
@@ -48,10 +51,7 @@ export const fetchEpisodeAirings = async (
 
 		for (const entry of Page?.airingSchedules ?? []) {
 			if (entry) {
-				airings.set(
-					anilistEpisodeKey(entry.mediaId, entry.episode),
-					new Date(entry.airingAt * 1000),
-				);
+				airings.set(anilistKey(entry.mediaId, entry.episode), new Date(entry.airingAt * 1000));
 			}
 		}
 
@@ -59,7 +59,8 @@ export const fetchEpisodeAirings = async (
 			await readPage(batch, page + 1);
 		}
 	};
-	await inSequence(chunked(ids, airingsBatchSize), (batch) => readPage(batch, 1));
+
+	await sequence.all(chunked(ids, airingsBatchSize), (batch) => readPage(batch, 1));
 
 	return airings;
 };

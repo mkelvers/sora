@@ -1,5 +1,5 @@
 {
-	"$schema": "https://v2-11-10.turborepo.dev/schema.json",
+	"$schema": "https://v2-11-13.turborepo.dev/schema.json",
 	"agentGuidance": false,
 	"ui": "stream",
 	"futureFlags": {
@@ -20,7 +20,10 @@
 			"outputLogs": "errors-only"
 		},
 		"test": {
-			"inputs": ["$TURBO_DEFAULT$", ".env", "../../.env.test"]
+			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env.test"]
+		},
+		"test:integration": {
+			"cache": false
 		},
 		"db:migrate": {
 			"cache": false

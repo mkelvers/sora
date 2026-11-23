@@ -1,65 +1,80 @@
 import { beforeEach, expect, test } from "bun:test";
 
-import { aniListPriority, createAniListClient } from "./client";
+import { z } from "zod";
+
+import { aniListPriority, connect } from "./client";
 import { TypedDocumentString } from "./graphql.generated";
 
 type Pages = Record<string, number[] | number | boolean>;
 
 /** The variables of each request AniList received, in the order they were sent. */
 const sent: Pages[] = [];
-/** IDs AniList knows nothing about. */
-const unknown = new Set([404]);
-let failNext = false;
-let rateLimitNext = false;
-const respond = (_input: string, init: RequestInit) => {
-	const { variables } = JSON.parse(String(init.body)) as {
-		variables: Pages;
-	};
-	sent.push(variables);
-	if (rateLimitNext) {
-		rateLimitNext = false;
-		return Promise.resolve(
-			Response.json(
-				{
-					errors: [
-						{
-							message: "Too Many Requests.",
-							status: 429,
-						},
-					],
-				},
-				{
-					headers: {
-						"Retry-After": "1",
+
+/** How the fake AniList answers its next request. */
+const fake = {
+	failNext: false,
+	rateLimitNext: false,
+};
+
+const { anilist, loadMedia } = connect({
+	fetch: (_input: string, init: RequestInit) => {
+		const { variables } = z
+			.object({
+				variables: z.record(z.string(), z.union([z.array(z.number()), z.number(), z.boolean()])),
+			})
+			.parse(JSON.parse(String(init.body)));
+
+		sent.push(variables);
+
+		/** IDs AniList knows nothing about. */
+		const unknown = new Set([404]);
+
+		if (fake.rateLimitNext) {
+			fake.rateLimitNext = false;
+
+			return Promise.resolve(
+				Response.json(
+					{
+						errors: [
+							{
+								message: "Too Many Requests.",
+								status: 429,
+							},
+						],
 					},
-					status: 429,
-				},
-			),
-		);
-	}
-
-	if (failNext) {
-		failNext = false;
-		return Promise.resolve(
-			Response.json(
-				{
-					errors: [
-						{
-							message: "Internal error",
+					{
+						headers: {
+							"Retry-After": "1",
 						},
-					],
-				},
-				{
-					status: 500,
-				},
-			),
-		);
-	}
+						status: 429,
+					},
+				),
+			);
+		}
 
-	const data = Object.fromEntries(
-		Object.entries(variables).flatMap(([name, ids]) =>
-			Array.isArray(ids)
-				? [
+		if (fake.failNext) {
+			fake.failNext = false;
+
+			return Promise.resolve(
+				Response.json(
+					{
+						errors: [
+							{
+								message: "Internal error",
+							},
+						],
+					},
+					{
+						status: 500,
+					},
+				),
+			);
+		}
+
+		const data = Object.fromEntries(
+			Object.entries(variables).flatMap(([name, ids]) => {
+				if (Array.isArray(ids)) {
+					return [
 						[
 							name.replace("ids", "page"),
 							{
@@ -70,27 +85,27 @@ const respond = (_input: string, init: RequestInit) => {
 									})),
 							},
 						],
-					]
-				: [],
-		),
-	);
-	return Promise.resolve(
-		Response.json(
-			{
-				data,
-			},
-			{
-				headers: {
-					"x-ratelimit-limit": "90",
-					"x-ratelimit-remaining": "80",
-				},
-			},
-		),
-	);
-};
+					];
+				}
 
-const { anilist, loadMediaById } = createAniListClient({
-	fetch: respond,
+				return [];
+			}),
+		);
+
+		return Promise.resolve(
+			Response.json(
+				{
+					data,
+				},
+				{
+					headers: {
+						"x-ratelimit-limit": "90",
+						"x-ratelimit-remaining": "80",
+					},
+				},
+			),
+		);
+	},
 	store: {
 		find: async () => {},
 		save: async () => {},
@@ -104,6 +119,7 @@ beforeEach(() => {
 interface Media {
 	id: number;
 }
+
 type Result = Record<
 	string,
 	| {
@@ -112,34 +128,46 @@ type Result = Record<
 	| undefined
 >;
 
-const document = new TypedDocumentString<Result, Pages>(
-	"query Media($ids0: [Int!]!) { page0: Page { media(id_in: $ids0) { id } } }",
-);
+/** A media operation of `pages` pages, its variables named as the operations name theirs. */
+class Operation {
+	readonly load: (ids: Iterable<number>) => Promise<Map<number, Media>>;
 
-/** A loader of `pages` pages, its variables named as the operations name theirs. */
-const loader = (pages: number) =>
-	loadMediaById({
-		document,
-		media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
-		pages,
-		variables: (split) =>
-			Object.fromEntries(
-				Array.from(
-					{
-						length: pages,
-					},
-					(_, page) => [
-						[`ids${page}`, split[page] ?? []],
-						...(page > 0 ? [[`with${page}`, (split[page]?.length ?? 0) > 0]] : []),
-					],
-				).flat(),
+	constructor(pages: number) {
+		this.load = loadMedia({
+			document: new TypedDocumentString<Result, Pages>(
+				"query Media($ids0: [Int!]!) { page0: Page { media(id_in: $ids0) { id } } }",
 			),
-	});
+			media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
+			pages,
+			schema: z.record(
+				z.string(),
+				z.object({ media: z.array(z.object({ id: z.number() })) }).optional(),
+			),
+			variables: (split) =>
+				Object.fromEntries(
+					Array.from(
+						{
+							length: pages,
+						},
+						(_, page) => {
+							const entries: [string, number[] | boolean][] = [[`ids${page}`, split[page] ?? []]];
+
+							if (page > 0) {
+								entries.push([`with${page}`, (split[page]?.length ?? 0) > 0]);
+							}
+
+							return entries;
+						},
+					).flat(),
+				),
+		});
+	}
+}
 
 const background = 10;
 
 test("sends the IDs asked for at once in one request", async () => {
-	const load = loader(2);
+	const { load } = new Operation(2);
 
 	const [left, right] = await Promise.all([load([3, 1]), load([2])]);
 
@@ -155,7 +183,7 @@ test("sends the IDs asked for at once in one request", async () => {
 });
 
 test("gathers the IDs asked for while a request waits its turn", async () => {
-	const load = loader(1);
+	const { load } = new Operation(1);
 	await aniListPriority.run(background, () => load([10]));
 
 	// Asked for one after another while the next background request waits out its spacing.
@@ -168,7 +196,8 @@ test("gathers the IDs asked for while a request waits its turn", async () => {
 }, 10_000);
 
 test("splits a request over pages of 50, and fills a request before starting another", async () => {
-	const load = loader(2);
+	const { load } = new Operation(2);
+
 	const ids = Array.from(
 		{
 			length: 130,
@@ -181,8 +210,8 @@ test("splits a request over pages of 50, and fills a request before starting ano
 	expect(loaded.size).toBe(130);
 	expect(
 		sent.map((variables) => [
-			(variables.ids0 as number[]).length,
-			(variables.ids1 as number[]).length,
+			z.array(z.number()).parse(variables.ids0).length,
+			z.array(z.number()).parse(variables.ids1).length,
 			variables.with1,
 		]),
 	).toEqual([
@@ -192,23 +221,27 @@ test("splits a request over pages of 50, and fills a request before starting ano
 }, 10_000);
 
 test("sends a batch a viewer joins ahead of background work queued before it", async () => {
-	const load = loader(1);
+	const { load } = new Operation(1);
+
 	const other = new TypedDocumentString<unknown, { id: number }>(
 		"query Other($id: Int!) { Media(id: $id) { id } }",
 	);
 
 	await aniListPriority.run(background, () => load([20]));
+
 	const queuedBefore = aniListPriority.run(background, () =>
 		anilist(
 			other,
 			{
 				id: 21,
 			},
+			z.unknown(),
 			{
 				maxAgeMs: 0,
 			},
 		),
 	);
+
 	await Bun.sleep(5);
 	const shared = aniListPriority.run(background, () => load([22]));
 	// The same ID, asked for by a search while the background batch still waits its turn.
@@ -220,7 +253,7 @@ test("sends a batch a viewer joins ahead of background work queued before it", a
 }, 15_000);
 
 test("asks for an ID once while it is queued, and leaves out IDs AniList does not have", async () => {
-	const load = loader(1);
+	const { load } = new Operation(1);
 
 	const [left, right] = await Promise.all([load([30, 404]), load([30])]);
 
@@ -236,8 +269,8 @@ test("asks for an ID once while it is queued, and leaves out IDs AniList does no
 });
 
 test("fails every caller of a request AniList fails, and asks again on the next call", async () => {
-	const load = loader(1);
-	failNext = true;
+	const { load } = new Operation(1);
+	fake.failNext = true;
 
 	const results = await Promise.allSettled([load([40]), load([41])]);
 
@@ -250,8 +283,8 @@ test("fails every caller of a request AniList fails, and asks again on the next 
 }, 10_000);
 
 test("waits out a 429 and asks again, rather than failing its callers", async () => {
-	const load = loader(1);
-	rateLimitNext = true;
+	const { load } = new Operation(1);
+	fake.rateLimitNext = true;
 
 	const [left, right] = await Promise.all([load([50]), load([51])]);
 

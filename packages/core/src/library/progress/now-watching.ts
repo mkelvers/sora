@@ -2,8 +2,8 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
-import { series, seriesEpisode } from "../../database/schema/series";
-import { getContinueWatching } from "./progress";
+import { series, titleEpisode } from "../../database/schema/series";
+import { progress } from "./progress";
 
 /**
  * Titles from the profile's active viewing, played within 30 days and not
@@ -32,9 +32,13 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
 		)
 		.groupBy(episodeProgress.seriesId)
 		.as("activity");
+
 	const [rows, continueWatching] = await Promise.all([
 		db
-			.select({ id: series.id, title: series.title })
+			.select({
+				id: series.id,
+				title: series.title,
+			})
 			.from(activity)
 			.innerJoin(series, eq(series.id, activity.seriesId))
 			.leftJoin(
@@ -45,15 +49,15 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
       ${activity.watchedAt} >= now() - interval '30 days'
       and (${seriesState.status} is distinct from 'completed' or ${seriesState.rewatchStartedAt} is not null)
       and not (
-        exists (select 1 from ${seriesEpisode} where ${seriesEpisode.seriesId} = ${series.id})
+        exists (select 1 from ${titleEpisode} where ${titleEpisode.seriesId} = ${series.id})
         and not exists (
-          select 1 from ${seriesEpisode}
-          where ${seriesEpisode.seriesId} = ${series.id}
+          select 1 from ${titleEpisode}
+          where ${titleEpisode.seriesId} = ${series.id}
           and not exists (
             select 1 from ${episodeProgress}
             where ${episodeProgress.seriesId} = ${series.id}
               and ${episodeProgress.userId} = ${profileId}
-              and ${episodeProgress.episode} = ${seriesEpisode.number}
+              and ${episodeProgress.episode} = ${titleEpisode.number}
               and ${episodeProgress.rewatch} = (${seriesState.rewatchStartedAt} is not null)
               and ${episodeProgress.finished}
           )
@@ -61,11 +65,13 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
       )
     `)
 			.orderBy(desc(activity.watchedAt), series.id),
-		getContinueWatching(profileId),
+		progress.continueWatching(profileId),
 	]);
-	const onList = new Set(continueWatching.map((entry) => entry.series.id));
+
+	const watching = new Set(continueWatching.map((entry) => entry.series.id));
+
 	return rows
-		.filter((row) => onList.has(row.id))
+		.filter((row) => watching.has(row.id))
 		.slice(0, 3)
 		.map((row) => row.title);
 };

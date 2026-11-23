@@ -53,7 +53,7 @@ export const tmdbMapping = pgTable(
  * A hint is only a candidate: matching still decides from air dates and
  * episode counts whether, and where, the entry sits in it. Hints find the
  * TMDB title a title search misses, as when AniList and TMDB name a show
- * differently. The scheduler keeps them current; see `syncTmdbHints`.
+ * differently. The scheduler keeps them current; see `hints.sync`.
  */
 export const tmdbHint = pgTable("tmdb_hint", {
 	anilistId: integer("anilist_id").primaryKey(),
@@ -61,7 +61,7 @@ export const tmdbHint = pgTable("tmdb_hint", {
 	showId: integer("show_id"),
 });
 
-export const seriesKind = pgEnum("series_kind", ["tv", "movie", "standalone"]);
+export const kind = pgEnum("series_kind", ["tv", "movie", "standalone"]);
 
 /** An artwork override meaning the series shows no image of that kind. */
 export const noArtwork = "";
@@ -70,7 +70,7 @@ export const noArtwork = "";
  * One title as clients see it: one AniList entry, such as a season of a
  * show, a film, or an OVA. Entries of one franchise are titles of their own,
  * told apart by their titles and found from one another as
- * {@link seriesRelated} links them.
+ * {@link titleRelation} links them.
  *
  * `id` is Sora's own ID and the only one clients ever see. It belongs to
  * `anilistId` for good and never changes when the series is laid out again.
@@ -89,7 +89,7 @@ export const series = pgTable(
 		 * Seasons of one show share it.
 		 */
 		key: text("key").notNull(),
-		kind: seriesKind("kind").notNull(),
+		kind: kind("kind").notNull(),
 		/** When the episodes were last laid out. */
 		laidOutAt: timestamptz("laid_out_at").notNull(),
 		logoUrl: text("logo_url"),
@@ -159,7 +159,7 @@ export interface TitleAward {
  * title, keyed by the `SeriesKey` its series share, as {@link titleArtwork}
  * is: the title's US certification, what ratings and keywords say it shows,
  * and the awards it won or was nominated for. Kept by the scheduler and
- * fetched again after a month; see `storeTitleFacts`.
+ * fetched again after a month; see `facts.store`.
  */
 export const titleFacts = pgTable("title_facts", {
 	awards: jsonb("awards").$type<TitleAward[]>().notNull(),
@@ -189,7 +189,7 @@ export const titleFacts = pgTable("title_facts", {
  * episodes, from 1. Its details come from the TMDB episode it was matched
  * to, when there is one.
  */
-export const seriesEpisode = pgTable(
+export const titleEpisode = pgTable(
 	"series_episode",
 	{
 		/** `YYYY-MM-DD`, in the calendar of the country it aired in, as TMDB lists it. */
@@ -223,7 +223,7 @@ export const seriesEpisode = pgTable(
 /**
  * The still chosen for a TMDB episode among those TMDB lists for it: the
  * best-voted one that has no language, no black bars, and no text a model
- * can read, else the best-voted one there is (see `chooseStill`). A null
+ * can read, else the best-voted one there is (see `stills.choose`). A null
  * `path` records that TMDB lists none, so the series' backdrop stands in; it
  * is asked again once the episode's recheck falls due.
  *
@@ -260,7 +260,7 @@ export const titleImage = pgTable(
 	"title_image",
 	{
 		height: integer("height").notNull(),
-		/** Whether the image is a collage of panels rather than one picture; null until it was looked at (see `isCollage`). */
+		/** Whether the image is a collage of panels rather than one picture; null until it was looked at (see `collage.test`). */
 		isCollage: boolean("is_collage"),
 		key: text("key")
 			.notNull()
@@ -292,7 +292,7 @@ export type UpscaleStatus = "pending" | "done" | "failed";
  * A backdrop of a TMDB title, upscaled so it stays sharp at the largest size
  * it is shown at: the original is `sourceUrl` of {@link titleImage}, the
  * upscaled picture is kept here as `image`. It is made by the scheduler once
- * someone asks (see `requestBackdropUpscale`) and chosen as the title's
+ * someone asks (see `upscales.request`) and chosen as the title's
  * backdrop (see {@link titleArtwork}) when it is ready.
  */
 export const titleBackdropUpscale = pgTable(
@@ -321,7 +321,7 @@ export const titleBackdropUpscale = pgTable(
 /**
  * The average colour down an image's left and right edges, keyed by its URL,
  * so a page can fill the space beside a backdrop shown whole with colours
- * that continue it. Measured once per URL; see `storeImageEdges`.
+ * that continue it. Measured once per URL; see `edges.store`.
  */
 export const imageEdge = pgTable("image_edge", {
 	/** `#rrggbb`. */
@@ -340,7 +340,7 @@ export const imageEdge = pgTable("image_edge", {
  * A related entry is recorded by its AniList ID rather than by its series
  * ID, because it may not be stored yet.
  */
-export const seriesRelated = pgTable(
+export const titleRelation = pgTable(
 	"series_related",
 	{
 		anilistId: integer("anilist_id").notNull(),

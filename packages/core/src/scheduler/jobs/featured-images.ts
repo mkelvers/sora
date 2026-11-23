@@ -1,19 +1,16 @@
-import { attempt, inSequence } from "@sora/shared";
+import { attempt, sequence } from "@sora/shared";
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series, titleArtwork, titleImage } from "../../database/schema/series";
-import { isFeaturedEntry, minBackdropSize } from "../../library/featured/featured";
-import { listSeriesImages } from "../../series/artwork";
-import { isCollage } from "../../series/collage";
+import { worthFeaturing, minBackdropSize } from "../../library/featured/featured";
+import { artwork } from "../../series/artwork";
+import { collage } from "../../series/collage";
 
 /** The graphile-worker task that stores the images of titles the home page may feature. */
-export const storeFeaturedImagesTask = "store-featured-images";
-
-/** Titles stored per run; each takes a few TMDB requests. */
-const titlesPerRun = 10;
+export const storeImagesTask = "store-featured-images";
 
 /**
  * Stores the TMDB images of every current, well-liked, popular title that has
@@ -22,7 +19,10 @@ const titlesPerRun = 10;
  * its shown backdrop is among its textless 4K ones, which it can tell only
  * from the stored images. Chooses no backdrop.
  */
-export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
+export const storeImages: Task = async (_payload, helpers) => {
+	/** Titles stored per run; each takes a few TMDB requests. */
+	const titlesPerRun = 10;
+
 	const rows = await db
 		.select({
 			id: series.id,
@@ -44,16 +44,18 @@ export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
 							and ${titleImage.isCollage} is null
 					)`,
 				),
-				isFeaturedEntry(new Date()),
+				worthFeaturing(new Date()),
 			),
 		)
 		.orderBy(desc(animeSearch.popularity))
 		.limit(titlesPerRun);
 
-	await inSequence(rows, async ({ id }) => {
-		const { data, error } = await attempt(listSeriesImages(id));
+	await sequence.all(rows, async ({ id }) => {
+		const { data, error } = await attempt(artwork.images(id));
+
 		if (error) {
 			helpers.logger.warn(`Storing the images of ${id} failed: ${error.message}`);
+
 			return;
 		}
 
@@ -65,12 +67,16 @@ export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
 				image.width >= minBackdropSize.width &&
 				image.height >= minBackdropSize.height,
 		);
-		await inSequence(clean, async (image) => {
-			const looked = await attempt(isCollage(image.url));
+
+		await sequence.all(clean, async (image) => {
+			const looked = await attempt(collage.test(image.url));
+
 			if (looked.error) {
 				helpers.logger.warn(`Looking at ${image.url} failed: ${looked.error.message}`);
+
 				return;
 			}
+
 			await db
 				.update(titleImage)
 				.set({

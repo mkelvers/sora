@@ -1,37 +1,34 @@
-import { inSequence } from "@sora/shared";
+import { sequence } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import { consoleLogFactory, Logger } from "graphile-worker";
 import type { Runner } from "graphile-worker";
 
-import { hasSearchIndex } from "../catalog/queries/search";
-import { syncProviderCatalogsTask } from "./jobs/catalogs";
-import { syncDubScheduleTask } from "./jobs/dubs";
-import { syncSearchIndexTask } from "./jobs/search";
-import { syncTimetablesTask } from "./jobs/timetables";
-
-const logger = new Logger(consoleLogFactory).scope({
-	label: "first-start",
-});
+import { animeIndex } from "../catalog/queries/search";
+import { syncProvidersTask } from "./jobs/catalogs";
+import { syncScheduleTask } from "./jobs/dubs";
+import { syncIndexTask } from "./jobs/search";
+import { syncWeeksTask } from "./jobs/timetables";
 
 /**
  * What a fresh catalogue needs first: the search index and provider
  * catalogues read whole, and the release timetable. Full syncs, so a sync cut
  * short by a restart starts over instead of only catching up on changes.
  */
-const firstJobs: [task: string, payload: Record<string, unknown> | null][] = [
+const firstJobs: [task: string, payload: Record<string, Json> | null][] = [
 	[
-		syncSearchIndexTask,
+		syncIndexTask,
 		{
 			full: true,
 		},
 	],
 	[
-		syncProviderCatalogsTask,
+		syncProvidersTask,
 		{
 			full: true,
 		},
 	],
-	[syncTimetablesTask, null],
-	[syncDubScheduleTask, null],
+	[syncWeeksTask, null],
+	[syncScheduleTask, null],
 ];
 
 /**
@@ -46,17 +43,22 @@ const firstJobs: [task: string, payload: Record<string, unknown> | null][] = [
  * but a job still queued or running keeps its key, so none runs twice.
  */
 export const fillEmptyCatalog = async (runner: Runner) => {
-	if (await hasSearchIndex()) {
+	if (await animeIndex.complete()) {
 		return;
 	}
 
-	await inSequence(firstJobs, async ([task, payload]) => {
+	await sequence.all(firstJobs, async ([task, payload]) => {
 		await runner.addJob(task, payload, {
 			jobKey: `first-start:${task}`,
 			jobKeyMode: "unsafe_dedupe",
 			priority: -1,
 		});
 	});
+
+	const logger = new Logger(consoleLogFactory).scope({
+		label: "first-start",
+	});
+
 	logger.info(
 		`The catalogue was never filled; queued ${firstJobs.map(([task]) => task).join(", ")}`,
 	);

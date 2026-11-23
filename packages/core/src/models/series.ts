@@ -32,7 +32,7 @@ export const SourceSchema = z.enum([
 	"WEB_NOVEL",
 ]);
 
-export const SeriesCardSchema = z
+export const CardSchema = z
 	.object({
 		audio: z.array(LanguageSchema).meta({
 			description:
@@ -106,7 +106,7 @@ export const AnimeTagSchema = z.object({
 
 /** One title of a franchise as a series page lists it. */
 export const FranchisePartSchema = z.object({
-	card: SeriesCardSchema.meta({
+	card: CardSchema.meta({
 		description:
 			"The full title and metadata used by catalog posters, including artwork, audio, rating, and synopsis.",
 	}),
@@ -133,7 +133,7 @@ export const FranchisePartSchema = z.object({
 	}),
 });
 
-export const SeriesSchema = SeriesCardSchema.extend({
+export const DetailSchema = CardSchema.extend({
 	audio_languages: z.array(z.string()).meta({
 		description:
 			"The languages `audio` is in, by English name: the original's for a sub or raw, then English for a dub.",
@@ -247,7 +247,7 @@ export const SeriesSchema = SeriesCardSchema.extend({
 
 export const ImageTypeSchema = z.enum(["poster", "backdrop", "logo"]);
 
-export const SeriesImageSchema = z
+export const ImageSchema = z
 	.object({
 		height: z.number().int().meta({
 			example: 2160,
@@ -302,13 +302,13 @@ export const UpscaleBackdropSchema = z
 		id: "UpscaleBackdrop",
 	});
 
-export const UpcomingSeriesSchema = z
+export const UpcomingSchema = z
 	.object({
 		returning: z.boolean().meta({
 			description:
 				"Whether what starts belongs to a franchise with something out already, such as a new season of a show, rather than being a new title. `series` is then the earliest title of the franchise that is out, the one to start catching up on.",
 		}),
-		series: SeriesCardSchema,
+		series: CardSchema,
 		start_date: z.string().meta({
 			description: "When it starts, as `YYYY-MM-DD`.",
 			example: "2026-10-03",
@@ -357,7 +357,7 @@ export const ScheduledEpisodeSchema = z
 		episode: z.number().int().meta({
 			description: "The episode's number in the series, from 1.",
 		}),
-		series: SeriesCardSchema,
+		series: CardSchema,
 	})
 	.meta({
 		id: "ScheduledEpisode",
@@ -371,7 +371,7 @@ export const CalendarReleaseSchema = z.object({
 		description: "The episodes coming out, as runs of numbers.",
 		example: "Episodes 3–5, 7",
 	}),
-	series: SeriesCardSchema,
+	series: CardSchema,
 });
 
 export const CalendarSlotSchema = z.object({
@@ -492,7 +492,7 @@ export const ReleaseSchema = z
 				"When the episode came out: when it aired, or its air date's midnight UTC when AniList has no airing time.",
 			example: "2026-09-27T15:00:00.000Z",
 		}),
-		series: SeriesCardSchema,
+		series: CardSchema,
 	})
 	.meta({
 		id: "Release",
@@ -521,7 +521,9 @@ export const PreparingTitleSchema = z
 	});
 
 export type ContentLanguage = z.infer<typeof LanguageSchema>;
+
 export type AnimeTag = z.infer<typeof AnimeTagSchema>;
+
 /**
  * The hosts artwork may be chosen from, which are those the catalogue's own
  * images come from: any other would let whoever picks artwork, which everyone
@@ -543,19 +545,6 @@ const artworkImage = z.union([
 
 /** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
 const ArtworkUrlSchema = artworkImage.nullable().optional();
-
-/**
- * Where the web app serves an upscaled backdrop (see `upscaledBackdropUrl`),
- * which a title may choose too, if the title has it.
- */
-const upscaledBackdropPattern =
-	/^\/api\/backdrops\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-
-/** {@link ArtworkUrlSchema}, or an upscaled backdrop. */
-const BackdropUrlSchema = z
-	.union([artworkImage, z.string().regex(upscaledBackdropPattern)])
-	.nullable()
-	.optional();
 
 /** Shared bounds for artwork validation and the client's logo placement controls. */
 export const logoPlacement = {
@@ -583,7 +572,22 @@ const LogoOffsetSchema = z
  */
 export const ArtworkChangesSchema = z
 	.object({
-		backdrop_url: BackdropUrlSchema,
+		/**
+		 * {@link ArtworkUrlSchema}, or where the web app serves an upscaled
+		 * backdrop (see `upscaledBackdropUrl`), which a title may choose too, if
+		 * the title has it.
+		 */
+		backdrop_url: z
+			.union([
+				artworkImage,
+				z
+					.string()
+					.regex(
+						/^\/api\/backdrops\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+					),
+			])
+			.nullable()
+			.optional(),
 		logo_offset_x: LogoOffsetSchema.meta({
 			description: `How far right to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
 		}),
@@ -610,18 +614,25 @@ export const ArtworkChangesSchema = z
 	});
 
 export type ArtworkChanges = z.input<typeof ArtworkChangesSchema>;
-export type SeriesCard = z.infer<typeof SeriesCardSchema>;
+
+export type SeriesCard = z.infer<typeof CardSchema>;
+
 export type FeaturedCard = z.infer<typeof FeaturedCardSchema>;
+
 export type FranchisePart = z.infer<typeof FranchisePartSchema>;
-export type Series = z.infer<typeof SeriesSchema>;
+
+export type Series = z.infer<typeof DetailSchema>;
+
 export type ImageType = z.infer<typeof ImageTypeSchema>;
-export type SeriesImage = z.infer<typeof SeriesImageSchema>;
+
+export type SeriesImage = z.infer<typeof ImageSchema>;
+
 export const RecommendationRowSchema = z
 	.object({
 		id: z.string().meta({
 			description: "Names the row, such as `highly-rated`; stable for the same reason.",
 		}),
-		series: z.array(SeriesCardSchema),
+		series: z.array(CardSchema),
 		title: z.string().meta({
 			description: "What the row is, as a heading: why its titles are listed.",
 			example: "Because you watched Frieren",
@@ -631,19 +642,27 @@ export const RecommendationRowSchema = z
 		id: "RecommendationRow",
 	});
 
-export type UpcomingSeries = z.infer<typeof UpcomingSeriesSchema>;
+export type UpcomingSeries = z.infer<typeof UpcomingSchema>;
+
 export type Episode = z.infer<typeof EpisodeSchema>;
+
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
+
 export type Calendar = z.infer<typeof CalendarSchema>;
+
 export type Tag = z.infer<typeof TagSchema>;
+
 export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
+
 export type Release = z.infer<typeof ReleaseSchema>;
+
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 
 export type RecommendationRow = z.infer<typeof RecommendationRowSchema>;
+
 export type Recommendations = RecommendationRow[];
 
-export const FeaturedCardSchema = SeriesCardSchema.extend({
+export const FeaturedCardSchema = CardSchema.extend({
 	start_id: z.string().meta({
 		description:
 			"The season to open for the profile: the first one released of the show that the profile has not completed, or the title itself when it has completed them all.",

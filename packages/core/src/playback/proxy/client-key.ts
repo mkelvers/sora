@@ -9,8 +9,9 @@ import { config } from "../../config";
  * reachable through the web app and nothing else, however many accounts
  * exist.
  */
-export const isWebClientKey = (supplied: string | undefined) => {
+export const isWebKey = (supplied: string | undefined) => {
 	const given = Buffer.from(supplied ?? "");
 	const expected = Buffer.from(config.webClientKey);
+
 	return given.length === expected.length && timingSafeEqual(given, expected);
 };

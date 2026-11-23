@@ -8,7 +8,7 @@ export default defineConfig({
 		...ultracite.ignorePatterns,
 		"bun.lock",
 		"packages/core/drizzle/**",
-		"vendor/**",
+		"vendor/oxlint/anti-slop/**",
 		"**/*.generated.ts",
 		"**/*.generated.json",
 	],

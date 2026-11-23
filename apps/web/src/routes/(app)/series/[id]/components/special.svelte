@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getEpisodes, getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
+	import { getEpisodes, getTitleProgress } from "$routes/(app)/series/[id]/series.remote";
 	import type { FranchisePart } from "@sora/sdk";
 
 	import Episode from "./episode.svelte";
@@ -22,9 +22,14 @@
 			offset: 0,
 		}),
 	);
-	const progress = $derived(getSeriesProgress(part.series_id));
+
 	const played = $derived(
-		new Map((progress.current?.episodes ?? []).map((entry) => [entry.episode, entry])),
+		new Map(
+			(getTitleProgress(part.series_id).current?.episodes ?? []).map((entry) => [
+				entry.episode,
+				entry,
+			]),
+		),
 	);
 </script>
 

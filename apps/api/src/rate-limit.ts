@@ -5,9 +5,6 @@ import { createMiddleware } from "hono/factory";
 import { sendProblem } from "./errors";
 import type { V1Env } from "./errors";
 
-/** The most counters one limiter keeps before it sweeps the expired ones. */
-const sweepAbove = 10_000;
-
 interface RateLimitOptions {
 	/** How many requests one key may make in a window. */
 	limit: number;
@@ -26,6 +23,9 @@ interface RateLimitOptions {
  * `Retry-After` says how many seconds remain in the window.
  */
 export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
+	/** The most counters one limiter keeps before it sweeps the expired ones. */
+	const sweepAbove = 10_000;
+
 	const windows = new Map<
 		string,
 		{
@@ -36,6 +36,7 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 
 	return createMiddleware<V1Env>(async (c: Context<V1Env>, proceed) => {
 		const now = Date.now();
+
 		if (windows.size > sweepAbove) {
 			for (const [counted, window] of windows) {
 				if (window.resetAt <= now) {
@@ -44,8 +45,14 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 			}
 		}
 
-		const counted = key ? await key(c) : c.get("accountId");
+		let counted = c.get("accountId");
+
+		if (key) {
+			counted = await key(c);
+		}
+
 		let window = windows.get(counted);
+
 		if (!window || window.resetAt <= now) {
 			window = {
 				count: 0,
@@ -55,6 +62,7 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 		}
 
 		window.count += 1;
+
 		if (window.count > limit) {
 			const response = sendProblem(
 				c,
@@ -62,7 +70,9 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 				"TOO_MANY_REQUESTS",
 				"Too many requests; try again shortly",
 			);
+
 			response.headers.set("Retry-After", formatRetryAfter(window.resetAt - now));
+
 			return response;
 		}
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from "$app/env";
+
 	import type { PageProps } from "./$types";
 	import Player from "./components/player.svelte";
 	import { getEpisode, getPlayback, getPlaybackPreferences, getProgress } from "./watch.remote";
@@ -9,12 +11,22 @@
 		episode: params.episode,
 		seriesId: params.id,
 	});
-	const [{ series, episode }, preferences, progress] = $derived(
+
+	const [{ series, episode }, preferences, { profileId, progress }] = $derived(
 		await Promise.all([getEpisode(address), getPlaybackPreferences(), getProgress(address)]),
 	);
-	const playback = $derived(getPlayback(address));
+
+	// A non-awaited SSR query can still be pending at hydration, which would
+	// make the browser resolve playback again and bypass the first Retry-After.
+	const playbackQuery = $derived.by(() => {
+		if (!browser) {
+			return;
+		}
+
+		return getPlayback(address);
+	});
 </script>
 
 <main id="main-content" tabindex="-1">
-	<Player {series} {episode} playback={playback.current} {preferences} {progress} />
+	<Player {series} {episode} {playbackQuery} {preferences} {profileId} {progress} />
 </main>

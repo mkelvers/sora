@@ -16,6 +16,7 @@
 
 	$effect(() => {
 		const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 		if (data.timeZone !== zone) {
 			untrack(() => {
 				attempt(setTimeZone(zone).then(() => invalidate("sora:time-zone")));

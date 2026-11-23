@@ -20,11 +20,20 @@
 
 	const label = (item: ContinueWatching, where: string) => {
 		const started = item.position_seconds > 0;
+
 		if (!where) {
-			return started ? "Continue Watching" : "Up Next";
+			if (started) {
+				return "Continue Watching";
+			}
+
+			return "Up Next";
 		}
 
-		return started ? `Continue with ${where}` : `Up next with ${where}`;
+		if (started) {
+			return `Continue with ${where}`;
+		}
+
+		return `Up next with ${where}`;
 	};
 
 	const remove = (seriesId: string) =>

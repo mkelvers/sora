@@ -13,7 +13,7 @@
 		saveProgress,
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
-	import { choosePlayback } from "@sora/sdk";
+	import { chooseVersion } from "@sora/sdk";
 	import type {
 		Episode,
 		PlaybackPreferences,
@@ -21,51 +21,88 @@
 		Progress,
 		Series,
 	} from "@sora/sdk";
-	import { attempt } from "@sora/shared";
+	import { attempt, second } from "@sora/shared";
 	import { CaretLeftIcon, CircleNotchIcon } from "phosphor-svelte";
 	import { onDestroy, untrack } from "svelte";
 
 	import Controls from "./controls.svelte";
+	import { ProgressReports } from "./progress-reports";
+	import type { ProgressAddress, ProgressSnapshot } from "./progress-reports";
 	import Settings from "./settings.svelte";
 
 	let {
 		series,
 		episode,
-		playback,
+		playbackQuery,
 		preferences,
+		profileId,
 		progress,
 	}: {
 		series: Series;
 		episode: Episode;
-		playback?: Awaited<ReturnType<typeof getPlayback>>;
+		playbackQuery?: ReturnType<typeof getPlayback>;
 		preferences: PlaybackPreferences;
+		profileId: string;
 		progress?: Progress | null;
 	} = $props();
 
+	const playback = $derived(playbackQuery?.current);
 	const cueTags = new Set(["b", "i", "u", "ruby", "rt"]);
-	const key = $derived(`${series.id}/${episode.number}`);
+
+	const address = $derived<ProgressAddress>({
+		episode: episode.number,
+		profileId,
+		seriesId: series.id,
+	});
+
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
 	const label = $derived(`E${episode.number}`);
+
 	const heading = $derived.by(() => {
 		if (series.format === "MOVIE") {
 			return title;
 		}
-		return episode.title ? `${label} – ${episode.title}` : label;
-	});
-	const back = $derived(`/series/${series.id}`);
-	const previous = $derived(
-		playback?.previous ? `/series/${series.id}/watch/${playback.previous}` : undefined,
-	);
-	const nextAddress = $derived(
-		playback && playback.media.length > 0
-			? nextEpisodeAddress(series, episode.number, playback.next)
-			: undefined,
-	);
-	const next = $derived(
-		nextAddress ? `/series/${nextAddress.seriesId}/watch/${nextAddress.episode}` : undefined,
-	);
 
-	const start = $derived(progress && !progress.finished ? progress.position_seconds : 0);
+		if (episode.title) {
+			return `${label} – ${episode.title}`;
+		}
+
+		return label;
+	});
+
+	const back = $derived(`/series/${series.id}`);
+
+	const previous = $derived.by(() => {
+		if (!playback?.previous) {
+			return;
+		}
+
+		return `/series/${series.id}/watch/${playback.previous}`;
+	});
+
+	const nextAddress = $derived.by(() => {
+		if (!playback) {
+			return;
+		}
+
+		return nextEpisodeAddress(series, episode.number, playback.next);
+	});
+
+	const next = $derived.by(() => {
+		if (!nextAddress) {
+			return;
+		}
+
+		return `/series/${nextAddress.seriesId}/watch/${nextAddress.episode}`;
+	});
+
+	const start = $derived.by(() => {
+		if (progress && !progress.finished) {
+			return progress.position_seconds;
+		}
+
+		return 0;
+	});
 
 	const player = new Player(
 		untrack(() => start),
@@ -81,18 +118,6 @@
 	let failure = $state("");
 	let nearing = $state(false);
 	let skipped = new Set<number>();
-	let current = untrack(() => key);
-
-	$effect.pre(() => {
-		if (key === current) {
-			return;
-		}
-
-		current = key;
-		nearing = false;
-		skipped = new Set();
-		player.load(start);
-	});
 
 	$effect(() => {
 		if (player.duration > 0 && player.duration - player.time <= 60) {
@@ -100,7 +125,13 @@
 		}
 	});
 
-	const upcoming = $derived(nearing ? nextAddress : undefined);
+	const upcoming = $derived.by(() => {
+		if (!nearing) {
+			return;
+		}
+
+		return nextAddress;
+	});
 
 	$effect(() => {
 		if (upcoming) {
@@ -110,37 +141,202 @@
 		}
 	});
 
-	const chosen = $derived(choosePlayback(playback?.media ?? [], preferences));
+	const media = $derived.by(() => {
+		if (playback?.status === "ready") {
+			return playback.media;
+		}
+
+		return [];
+	});
+
+	const chosen = $derived(chooseVersion(media, preferences));
 	const selected = $derived(chosen.media);
 	const subtitle = $derived(chosen.subtitle?.url);
-	const isAtTop = (cue: VTTCue) =>
-		typeof cue.line === "number" && (cue.snapToLines ? cue.line >= 0 : cue.line < 50);
+
+	const playbackMessage = $derived.by(() => {
+		if (selected) {
+			return;
+		}
+
+		if (playbackQuery?.error || playback?.status === "failed") {
+			return "Playback couldn’t be loaded.";
+		}
+
+		if (playback?.status === "unavailable") {
+			return "This episode is unavailable to watch.";
+		}
+
+		if (playback?.status === "temporary") {
+			return "Playback is temporarily unavailable.";
+		}
+	});
+
+	const canRetry = $derived(!!playbackQuery?.error || playback?.status !== "unavailable");
+
+	const retryAt = $derived.by(() => {
+		if (!playbackQuery?.error && playback?.status === "temporary") {
+			return playback.retryAt;
+		}
+
+		return null;
+	});
+
+	const retrying = $derived(!!playbackMessage && playbackQuery?.loading === true);
+
+	const loading = $derived.by(() => {
+		if (selected) {
+			return player.buffering;
+		}
+
+		return (playbackQuery?.loading ?? true) && !retrying;
+	});
+
+	let now = $state(Date.now());
+	const retryDelayId = $props.id();
+
+	const retryWait = $derived.by(() => {
+		if (retryAt === null) {
+			return 0;
+		}
+
+		return Math.max(0, Math.ceil((retryAt - now) / second));
+	});
+
+	$effect(() => {
+		const deadline = retryAt;
+		now = Date.now();
+
+		if (deadline === null || deadline <= Date.now()) {
+			return;
+		}
+
+		const interval = setInterval(() => {
+			const time = Date.now();
+			now = time;
+
+			if (time >= deadline) {
+				clearInterval(interval);
+			}
+		}, second);
+
+		return () => clearInterval(interval);
+	});
+
+	const retryPlayback = async () => {
+		const busy =
+			!playbackQuery || playbackQuery.loading || (retryAt !== null && Date.now() < retryAt);
+
+		if (busy) {
+			return;
+		}
+
+		await attempt(playbackQuery.refresh());
+	};
+
+	const isAtTop = (cue: VTTCue) => {
+		if (cue.line === "auto") {
+			return false;
+		}
+
+		if (cue.snapToLines) {
+			return cue.line >= 0;
+		}
+
+		return cue.line < 50;
+	};
+
 	const topCues = $derived(player.cues.filter((cue) => isAtTop(cue)));
 	const bottomCues = $derived(player.cues.filter((cue) => !isAtTop(cue)));
-	const loading = $derived(!playback || (selected !== undefined && player.buffering));
 
 	const segment = $derived(
 		selected?.skip_segments.find((skip) => player.time >= skip.start && player.time < skip.end),
 	);
 
-	const report = async (ended = false, leaving = false) => {
-		if (!(player.duration >= 1) || player.time <= 0) {
+	const ending = $derived(
+		selected?.skip_segments.find((candidate) => candidate.kind === "ending")?.start,
+	);
+
+	const progressError = "Your progress couldn’t be saved.";
+
+	interface Session {
+		address: ProgressAddress;
+		ending?: number;
+		lastSnapshot?: ProgressSnapshot;
+	}
+
+	let session: Session = untrack(() => ({
+		address,
+		ending,
+	}));
+
+	let destroyed = false;
+
+	const reports = new ProgressReports(saveProgress, (saved, failed) => {
+		if (destroyed || saved !== session.address) {
 			return;
 		}
 
-		const credits = selected?.skip_segments.find((candidate) => candidate.kind === "ending");
-		const { error } = await attempt(
-			saveProgress({
-				duration_seconds: Math.floor(player.duration),
-				episode: episode.number,
-				finished: ended || (!!credits && player.time >= credits.start),
+		if (failed || failure === progressError) {
+			let message = "";
+
+			if (failed) {
+				message = progressError;
+			}
+
+			failure = message;
+		}
+	});
+
+	const report = (ended = false, leaving = false) => {
+		const { duration, time } = player;
+
+		const measurable =
+			Number.isFinite(duration) && duration >= 1 && Number.isFinite(time) && time >= 0;
+
+		if (measurable) {
+			session.lastSnapshot = undefined;
+
+			if (time > 0 || ended) {
+				session.lastSnapshot = {
+					duration_seconds: Math.floor(duration),
+					finished: ended || (session.ending !== undefined && time >= session.ending),
+					position_seconds: Math.floor(time),
+				};
+			}
+		} else if (!leaving) {
+			return;
+		}
+
+		if (session.lastSnapshot) {
+			reports.enqueue(session.address, {
+				...session.lastSnapshot,
 				leaving,
-				position_seconds: Math.floor(player.time),
-				seriesId: series.id,
-			}),
-		);
-		failure = error ? "Your progress couldn’t be saved." : "";
+			});
+		}
 	};
+
+	$effect.pre(() => {
+		const moved =
+			address.seriesId !== session.address.seriesId ||
+			address.episode !== session.address.episode ||
+			address.profileId !== session.address.profileId;
+
+		if (moved) {
+			// Capture the old episode and its credits before resetting the player.
+			untrack(() => report(false, true));
+			session = { address };
+
+			if (failure === progressError) {
+				failure = "";
+			}
+
+			nearing = false;
+			skipped = new Set();
+			player.load(start);
+		}
+
+		session.ending = ending;
+	});
 
 	const remember = async (changes: PlaybackPreferencesUpdate) => {
 		const { error } = await attempt(
@@ -159,7 +355,14 @@
 				})),
 			),
 		);
-		failure = error ? "Your player settings couldn’t be saved." : "";
+
+		let message = "";
+
+		if (error) {
+			message = "Your player settings couldn’t be saved.";
+		}
+
+		failure = message;
 	};
 
 	$effect(() => {
@@ -173,7 +376,9 @@
 	});
 
 	$effect(() => {
-		if (!preferences.auto_skip || !segment || skipped.has(segment.start)) {
+		const stay = !preferences.auto_skip || !segment || skipped.has(segment.start);
+
+		if (stay) {
 			return;
 		}
 
@@ -183,7 +388,10 @@
 
 	$effect(() => player.remember());
 
-	onDestroy(() => report(false, true));
+	onDestroy(() => {
+		destroyed = true;
+		report(false, true);
+	});
 </script>
 
 {#snippet cueNodes(nodes: Iterable<Node>)}
@@ -204,7 +412,14 @@
 
 <StatusBanner message={failure} tone="error" ondismiss={() => (failure = "")} />
 
-<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
+<svelte:window
+	onkeydown={(event) => {
+		if (selected || event.key === "N" || event.key === "P") {
+			player.onkeydown(event);
+		}
+	}}
+	onpointermove={player.wake}
+/>
 <svelte:document
 	onvisibilitychange={() => {
 		if (document.hidden) {
@@ -218,9 +433,8 @@
 	tabindex="-1"
 	class={[
 		"grid h-dvh grid-cols-1 grid-rows-1 overflow-hidden bg-black text-white outline-none *:[grid-area:1/1]",
-		player.idle && !player.paused && "idle cursor-none",
+		selected && player.idle && !player.paused && "idle cursor-none",
 	]}
-	aria-busy={loading}
 	bind:this={player.root}
 	{@attach (node) => node.focus({ preventScroll: true })}
 >
@@ -232,7 +446,8 @@
 		bind:muted={player.muted}
 		bind:playbackRate={player.speed}
 		bind:readyState={player.readyState}
-		class="size-full object-cover"
+		class={["size-full object-cover", !selected && "pointer-events-none"]}
+		aria-busy={loading}
 		crossorigin="anonymous"
 		autoplay
 		playsinline
@@ -256,7 +471,7 @@
 			});
 		}}
 		{@attach player.stream(selected?.sources[0])}
-		{@attach player.playback}
+		{@attach selected ? player.playback : undefined}
 	>
 		{#each selected?.subtitles ?? [] as track (track.url)}
 			<track
@@ -277,6 +492,48 @@
 			aria-hidden="true"
 		/>
 	{/if}
+
+	<div class="pointer-events-none z-1 mx-4 place-self-center text-center">
+		<p role="status" class={playbackMessage ? "text-lg font-semibold" : "sr-only"}>
+			{#if retrying}
+				Retrying playback…
+			{:else if playbackMessage}
+				{playbackMessage}
+			{:else if loading}
+				Loading playback…
+			{/if}
+		</p>
+		{#if playbackMessage}
+			{#if retryWait > 0}
+				<p id={retryDelayId} class="mt-2 text-sm text-foreground/80">
+					Try again in {retryWait}
+					{retryWait === 1 ? "second" : "seconds"}.
+				</p>
+			{/if}
+			{#if canRetry}
+				<Button
+					variant="primary"
+					class="pointer-events-auto mt-4"
+					aria-disabled={retrying || retryWait > 0}
+					aria-describedby={retryWait > 0 ? retryDelayId : undefined}
+					onclick={retryPlayback}
+				>
+					Retry playback
+				</Button>
+			{/if}
+			<nav aria-label="Episode navigation" class="mt-3 flex flex-wrap justify-center gap-x-4">
+				{#if previous}
+					<Button href={previous} variant="plain" class="pointer-events-auto">
+						Previous episode
+					</Button>
+				{/if}
+				<Button href={back} variant="plain" class="pointer-events-auto">Back to series</Button>
+				{#if next}
+					<Button href={next} variant="plain" class="pointer-events-auto">Next episode</Button>
+				{/if}
+			</nav>
+		{/if}
+	</div>
 
 	{#if segment}
 		<div
@@ -333,18 +590,13 @@
 		</h1>
 	</header>
 
-	<footer
-		class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
-	>
-		<Controls {player} {previous} {next}>
-			<Settings
-				media={playback?.media ?? []}
-				{selected}
-				{subtitle}
-				{preferences}
-				{player}
-				onpreferences={remember}
-			/>
-		</Controls>
-	</footer>
+	{#if selected}
+		<footer
+			class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
+		>
+			<Controls {player} {previous} {next}>
+				<Settings {media} {selected} {subtitle} {preferences} {player} onpreferences={remember} />
+			</Controls>
+		</footer>
+	{/if}
 </section>

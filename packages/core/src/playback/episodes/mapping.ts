@@ -6,19 +6,6 @@ import { db } from "../../database/client";
 import { providerMapping } from "../../database/schema/playback";
 import type { StreamProvider } from "../providers/provider";
 
-/** A confirmed match is reused for a month before being re-verified. */
-const matchedMappingLifetimeMs = 30 * day;
-/**
- * A failed match is retried daily, since providers add titles over time. So
- * is one made by title or as a continuation of a prequel: the provider may
- * have added a series of the anime's own since, as AniKoto does for a new
- * cour it first files under the previous one.
- */
-const provisionalMappingLifetimeMs = day;
-
-/** Methods whose match a provider's own entry for the anime replaces. */
-const provisionalMethods = new Set(["title", "continuation"]);
-
 /** Where an anime's episodes are in a provider's catalogue. */
 export interface ProviderMedia {
 	/** The provider's raw media ID. */
@@ -29,14 +16,6 @@ export interface ProviderMedia {
 	 */
 	episodeOffset: number;
 }
-
-const toProviderMedia = (mapping: { providerMediaId: string | null; episodeOffset: number }) =>
-	mapping.providerMediaId
-		? {
-				episodeOffset: mapping.episodeOffset,
-				mediaId: mapping.providerMediaId,
-			}
-		: null;
 
 /**
  * Resolves where an anime is in a provider's catalogue, using the stored
@@ -53,23 +32,51 @@ export const getProviderMedia = async (
 		retryUnmatched: boolean;
 	},
 ): Promise<ProviderMedia | null> => {
+	/**
+	 * A failed match is retried daily, since providers add titles over time. So
+	 * is one made by title or as a continuation of a prequel: the provider may
+	 * have added a series of the anime's own since, as AniKoto does for a new
+	 * cour it first files under the previous one.
+	 */
+	const provisionalMs = day;
+
+	/** A confirmed match is reused for a month before being re-verified. */
+	const matchedMs = 30 * day;
+
 	const [stored] = await db
 		.select()
 		.from(providerMapping)
 		.where(and(eq(providerMapping.anilistId, anime.id), eq(providerMapping.provider, provider.id)))
 		.limit(1);
 
-	if (stored && (stored.providerMediaId || !options.retryUnmatched)) {
-		const lifetime =
-			stored.providerMediaId && !provisionalMethods.has(stored.method ?? "")
-				? matchedMappingLifetimeMs
-				: provisionalMappingLifetimeMs;
-		if (stored.resolvedAt.getTime() + lifetime > Date.now()) {
-			return toProviderMedia(stored);
+	const reusable = stored && (stored.providerMediaId || !options.retryUnmatched);
+
+	if (reusable) {
+		// A match made by title or as a continuation is replaced by a provider's
+		// own entry for the anime.
+		const provisional = stored.method === "title" || stored.method === "continuation";
+		let lifetime = provisionalMs;
+
+		if (stored.providerMediaId && !provisional) {
+			lifetime = matchedMs;
+		}
+
+		const fresh = stored.resolvedAt.getTime() + lifetime > Date.now();
+
+		if (fresh && !stored.providerMediaId) {
+			return null;
+		}
+
+		if (fresh && stored.providerMediaId) {
+			return {
+				episodeOffset: stored.episodeOffset,
+				mediaId: stored.providerMediaId,
+			};
 		}
 	}
 
 	const match = await provider.findMedia(anime);
+
 	const values = {
 		episodeOffset: match?.episodeOffset ?? 0,
 		matchedTitle: match?.matchedTitle ?? null,
@@ -90,5 +97,12 @@ export const getProviderMedia = async (
 			target: [providerMapping.anilistId, providerMapping.provider],
 		});
 
-	return toProviderMedia(values);
+	if (!values.providerMediaId) {
+		return null;
+	}
+
+	return {
+		episodeOffset: values.episodeOffset,
+		mediaId: values.providerMediaId,
+	};
 };

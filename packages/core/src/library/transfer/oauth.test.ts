@@ -1,12 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
+import type { Json } from "@sora/shared";
+
 import { InvalidInputError, UpstreamUnavailableError } from "../../errors";
-import {
-	authorizationUrl,
-	importOptions,
-	readAniListAccount,
-	readMyAnimeListAccount,
-} from "./oauth";
+import { authorizationUrl, importOptions, readAnilistAccount, readMalAccount } from "./oauth";
 import type { Clients, Fetcher } from "./oauth";
 
 const clients: Clients = {
@@ -19,10 +16,12 @@ const clients: Clients = {
 		clientSecret: "mal-secret",
 	},
 };
+
 const none: Clients = {
 	aniListOAuth: null,
 	myAnimeListOAuth: null,
 };
+
 const authorization = {
 	code: "the-code",
 	code_verifier: "v".repeat(64),
@@ -34,37 +33,43 @@ interface Call {
 	init: RequestInit | undefined;
 }
 
-/** A fetcher that answers each call in turn and records what it was sent. */
-const answering = (...responses: Response[]): { calls: Call[]; fetcher: Fetcher } => {
-	const calls: Call[] = [];
-	return {
-		calls,
-		fetcher: (url, init) => {
-			calls.push({ init, url });
-			return Promise.resolve(responses[calls.length - 1] ?? new Response("", { status: 500 }));
-		},
+/** A fake fetcher answering with `responses` in turn, and the calls it got. */
+class Answering {
+	readonly calls: Call[] = [];
+	readonly #responses: Response[];
+
+	constructor(...responses: Response[]) {
+		this.#responses = responses;
+	}
+
+	readonly fetcher: Fetcher = (url, init) => {
+		this.calls.push({
+			init,
+			url,
+		});
+
+		return Promise.resolve(
+			this.#responses[this.calls.length - 1] ?? new Response("", { status: 500 }),
+		);
 	};
-};
-
-const json = (body: unknown, status = 200) => Response.json(body, { status });
-
-const unreachable: Fetcher = () => Promise.reject(new Error("offline"));
-
-const item = (
-	id: number,
-	status: string,
-	watched: number,
-	dates: { start_date?: string; finish_date?: string; updated_at?: string } = {},
-) => ({
-	list_status: { num_episodes_watched: watched, status, ...dates },
-	node: { id, title: `Title ${id}` },
-});
+}
 
 describe("importOptions", () => {
 	test("offers only the accounts whose client is configured", () => {
-		expect(importOptions(clients)).toEqual({ anilist_account: true, myanimelist_account: true });
-		expect(importOptions(none)).toEqual({ anilist_account: false, myanimelist_account: false });
-		expect(importOptions({ ...none, myAnimeListOAuth: clients.myAnimeListOAuth })).toEqual({
+		expect(importOptions(clients)).toEqual({
+			anilist_account: true,
+			myanimelist_account: true,
+		});
+		expect(importOptions(none)).toEqual({
+			anilist_account: false,
+			myanimelist_account: false,
+		});
+		expect(
+			importOptions({
+				...none,
+				myAnimeListOAuth: clients.myAnimeListOAuth,
+			}),
+		).toEqual({
 			anilist_account: false,
 			myanimelist_account: true,
 		});
@@ -105,33 +110,45 @@ describe("authorizationUrl", () => {
 	});
 });
 
-describe("readAniListAccount", () => {
-	const list = {
+describe("readAnilistAccount", () => {
+	const list: Json = {
 		data: {
 			MediaListCollection: {
 				lists: [
 					{
 						entries: [
 							{
+								completedAt: null,
 								createdAt: 1_617_970_746,
 								media: { id: 1 },
 								progress: 4,
+								startedAt: null,
 								status: "CURRENT",
 								updatedAt: 1_622_412_501,
 							},
 							{
-								completedAt: { day: 3, month: 2, year: 2020 },
+								completedAt: {
+									day: 3,
+									month: 2,
+									year: 2020,
+								},
 								createdAt: 0,
 								media: { id: 2 },
 								progress: 12,
-								startedAt: { day: null, month: null, year: 2020 },
+								startedAt: {
+									day: null,
+									month: null,
+									year: 2020,
+								},
 								status: "COMPLETED",
 								updatedAt: 0,
 							},
 							{
+								completedAt: null,
 								createdAt: 0,
 								media: { id: 3 },
 								progress: 0,
+								startedAt: null,
 								status: "PLANNING",
 								updatedAt: 0,
 							},
@@ -143,13 +160,13 @@ describe("readAniListAccount", () => {
 	};
 
 	test("trades the code, then reads the list of the person it belongs to", async () => {
-		const { calls, fetcher } = answering(
-			json({ access_token: "tok" }),
-			json({ data: { Viewer: { name: "someone" } } }),
-			json(list),
+		const { calls, fetcher } = new Answering(
+			Response.json({ access_token: "tok" }),
+			Response.json({ data: { Viewer: { name: "someone" } } }),
+			Response.json(list),
 		);
 
-		const { account, entries } = await readAniListAccount(authorization, fetcher, clients);
+		const { account, entries } = await readAnilistAccount(authorization, fetcher, clients);
 
 		expect(account).toBe("someone");
 
@@ -191,54 +208,103 @@ describe("readAniListAccount", () => {
 		expect(JSON.parse(String(calls[2]?.init?.body)).variables).toEqual({ userName: "someone" });
 	});
 
-	test("says the connection expired when AniList refuses the code", async () => {
-		const { fetcher } = answering(json({ error: "invalid_grant" }, 400));
+	test("rejects account responses whose selected fields have the wrong types", async () => {
+		const { fetcher } = new Answering(
+			Response.json({ access_token: "tok" }),
+			Response.json({ data: { Viewer: { name: 123 } } }),
+		);
 
-		await expect(readAniListAccount(authorization, fetcher, clients)).rejects.toBeInstanceOf(
+		await expect(readAnilistAccount(authorization, fetcher, clients)).rejects.toBeInstanceOf(
+			UpstreamUnavailableError,
+		);
+	});
+
+	test("says the connection expired when AniList refuses the code", async () => {
+		const { fetcher } = new Answering(Response.json({ error: "invalid_grant" }, { status: 400 }));
+
+		await expect(readAnilistAccount(authorization, fetcher, clients)).rejects.toBeInstanceOf(
 			InvalidInputError,
 		);
 	});
 
 	test("says AniList is unreachable when it fails or cannot be reached", async () => {
-		const down = answering(new Response("", { status: 503 }));
-		await expect(readAniListAccount(authorization, down.fetcher, clients)).rejects.toBeInstanceOf(
+		const down = new Answering(new Response("", { status: 503 }));
+		await expect(readAnilistAccount(authorization, down.fetcher, clients)).rejects.toBeInstanceOf(
 			UpstreamUnavailableError,
 		);
 
-		await expect(readAniListAccount(authorization, unreachable, clients)).rejects.toBeInstanceOf(
-			UpstreamUnavailableError,
-		);
+		await expect(
+			readAnilistAccount(authorization, () => Promise.reject(new Error("offline")), clients),
+		).rejects.toBeInstanceOf(UpstreamUnavailableError);
 	});
 
 	test("does nothing when AniList is not set up", async () => {
-		await expect(readAniListAccount(authorization, fetch, none)).rejects.toBeInstanceOf(
+		await expect(readAnilistAccount(authorization, fetch, none)).rejects.toBeInstanceOf(
 			InvalidInputError,
 		);
 	});
 });
 
-describe("readMyAnimeListAccount", () => {
+describe("readMalAccount", () => {
 	test("trades the code with the verifier, then reads every page", async () => {
-		const { calls, fetcher } = answering(
-			json({ access_token: "tok" }),
-			json({ name: "someone" }),
-			json({
-				data: [item(10, "watching", 3), item(11, "on_hold", 5)],
+		const { calls, fetcher } = new Answering(
+			Response.json({ access_token: "tok" }),
+			Response.json({ name: "someone" }),
+			Response.json({
+				data: [
+					{
+						list_status: {
+							num_episodes_watched: 3,
+							status: "watching",
+						},
+						node: {
+							id: 10,
+							title: "Title 10",
+						},
+					},
+					{
+						list_status: {
+							num_episodes_watched: 5,
+							status: "on_hold",
+						},
+						node: {
+							id: 11,
+							title: "Title 11",
+						},
+					},
+				],
 				paging: { next: "https://api.myanimelist.net/v2/users/@me/animelist?offset=1000" },
 			}),
-			json({
+			Response.json({
 				data: [
-					item(12, "completed", 24, {
-						finish_date: "2020-05",
-						start_date: "2020-04-02",
-						updated_at: "2020-06-01T10:00:00+00:00",
-					}),
-					item(13, "plan_to_watch", 0),
+					{
+						list_status: {
+							finish_date: "2020-05",
+							num_episodes_watched: 24,
+							start_date: "2020-04-02",
+							status: "completed",
+							updated_at: "2020-06-01T10:00:00+00:00",
+						},
+						node: {
+							id: 12,
+							title: "Title 12",
+						},
+					},
+					{
+						list_status: {
+							num_episodes_watched: 0,
+							status: "plan_to_watch",
+						},
+						node: {
+							id: 13,
+							title: "Title 13",
+						},
+					},
 				],
 			}),
 		);
 
-		const { account, entries } = await readMyAnimeListAccount(authorization, fetcher, clients);
+		const { account, entries } = await readMalAccount(authorization, fetcher, clients);
 
 		expect(account).toBe("someone");
 
@@ -267,44 +333,48 @@ describe("readMyAnimeListAccount", () => {
 	});
 
 	test("leaves the secret out when the client has none", async () => {
-		const { calls, fetcher } = answering(
-			json({ access_token: "tok" }),
-			json({ name: "someone" }),
-			json({ data: [] }),
+		const { calls, fetcher } = new Answering(
+			Response.json({ access_token: "tok" }),
+			Response.json({ name: "someone" }),
+			Response.json({ data: [] }),
 		);
 
-		await readMyAnimeListAccount(authorization, fetcher, {
+		await readMalAccount(authorization, fetcher, {
 			...clients,
-			myAnimeListOAuth: { clientId: "mal-id", clientSecret: null },
+			myAnimeListOAuth: {
+				clientId: "mal-id",
+				clientSecret: null,
+			},
 		});
 
 		expect(new URLSearchParams(String(calls[0]?.init?.body)).has("client_secret")).toBe(false);
 	});
 
 	test("says the connection expired when the token is refused or no longer valid", async () => {
-		const refused = answering(json({ error: "invalid_grant" }, 400));
-		await expect(
-			readMyAnimeListAccount(authorization, refused.fetcher, clients),
-		).rejects.toBeInstanceOf(InvalidInputError);
+		const refused = new Answering(Response.json({ error: "invalid_grant" }, { status: 400 }));
+		await expect(readMalAccount(authorization, refused.fetcher, clients)).rejects.toBeInstanceOf(
+			InvalidInputError,
+		);
 
-		const invalid = answering(
-			json({ access_token: "tok" }),
-			json({ name: "someone" }),
+		const invalid = new Answering(
+			Response.json({ access_token: "tok" }),
+			Response.json({ name: "someone" }),
 			new Response("", { status: 401 }),
 		);
-		await expect(
-			readMyAnimeListAccount(authorization, invalid.fetcher, clients),
-		).rejects.toBeInstanceOf(InvalidInputError);
+
+		await expect(readMalAccount(authorization, invalid.fetcher, clients)).rejects.toBeInstanceOf(
+			InvalidInputError,
+		);
 	});
 
 	test("stops at an answer it does not understand", async () => {
-		const { fetcher } = answering(
-			json({ access_token: "tok" }),
-			json({ name: "someone" }),
-			json({ unexpected: true }),
+		const { fetcher } = new Answering(
+			Response.json({ access_token: "tok" }),
+			Response.json({ name: "someone" }),
+			Response.json({ unexpected: true }),
 		);
 
-		await expect(readMyAnimeListAccount(authorization, fetcher, clients)).rejects.toBeInstanceOf(
+		await expect(readMalAccount(authorization, fetcher, clients)).rejects.toBeInstanceOf(
 			UpstreamUnavailableError,
 		);
 	});

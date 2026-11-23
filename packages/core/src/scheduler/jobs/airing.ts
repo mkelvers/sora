@@ -1,139 +1,22 @@
-import { attempt, minute, inSequence } from "@sora/shared";
-import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
+import { attempt, minute } from "@sora/shared";
+import { sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import type { Anime } from "../../catalog/models/anime";
-import { fetchLatestAiring, getAnime, refreshAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import {
-	animeScheduleRelease,
-	animeScheduleShow,
-	providerMapping,
-} from "../../database/schema/playback";
-import { AnimeNotFoundError } from "../../errors";
-import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
-import { aniKoto, streamProviders } from "../../playback/providers/registry";
-import { parsePayload } from "../payload";
+import { UnknownAnimeError } from "../../errors";
+import { parseInput } from "../payload";
 import {
 	airingCheckPriority,
 	scheduleAiringCheck,
-	scheduleAniKotoPoll,
-	scheduleStoredSeriesRefresh,
+	schedulePoll,
+	scheduleRefresh,
 	trackAiringTask,
 } from "../queue";
-import { extendThroughReleased, planNextCheck } from "./airing-plan";
+import { planNextCheck } from "./airing-plan";
 import type { AiringState } from "./airing-plan";
-
-const TrackAiringPayloadSchema = z.object({
-	anilistId: z.number().int().positive(),
-	attempt: z.number().int().nonnegative(),
-	awaitedEpisode: z.number().nullable(),
-});
-
-/**
- * Reads what AniKoto has of an anime from its stored mapping and episode
- * list, without asking AniKoto.
- *
- * Seasons list only the episodes AniKoto carries (see `isEpisodeAvailable`),
- * so its list alone says whether an aired episode is out. Other providers'
- * lists do not count: MegaPlay's are made up from AniList's episode count,
- * and list a whole season before it premieres.
- */
-const readAniKotoEpisodes = async (anilistId: number) => {
-	const [[mapping], stored] = await Promise.all([
-		db
-			.select({
-				anikotoId: providerMapping.providerMediaId,
-			})
-			.from(providerMapping)
-			.where(
-				and(eq(providerMapping.anilistId, anilistId), eq(providerMapping.provider, aniKoto.id)),
-			)
-			.limit(1),
-		getStoredUnits([anilistId]),
-	]);
-
-	return {
-		/** Whether AniKoto has the anime in its catalogue, with episodes or not yet. */
-		carried: Boolean(mapping?.anikotoId),
-		/** The latest episode AniKoto carries, or `null` when it carries none. */
-		latest: stored.find((entry) => entry.provider === aniKoto.id)?.units.at(-1)?.number ?? null,
-	};
-};
-
-/**
- * Re-fetches every provider's episode list and stores it. Every provider is
- * refreshed, not just AniKoto, because playback falls back through all of
- * them. A failing provider is logged and skipped, and keeps its stored list.
- */
-const refreshProviderEpisodes = async (anime: Anime, logger: Parameters<Task>[1]["logger"]) => {
-	await inSequence(streamProviders, async (provider) => {
-		const { error } = await attempt(
-			refreshProviderUnits(anime, provider, {
-				retryUnmatched: true,
-			}),
-		);
-		if (error) {
-			logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${error.message}`);
-		}
-	});
-};
-
-/**
- * What a layout reads of an anime: everything but its score, popularity,
- * tags, and recommendations, which change daily and which cards read from
- * the stored anime itself.
- */
-const layoutInputs = ({
-	score: _score,
-	popularity: _popularity,
-	tags: _tags,
-	recommendations: _recommendations,
-	...inputs
-}: Anime) => inputs;
-
-/**
- * The latest episode AniList says has aired, or `null` when unknown or none.
- *
- * Its airing schedule decides when it records the episode: an entry whose
- * broadcast AniList moved can have no next episode announced while the one
- * it moved has not reached providers yet. AnimeSchedule's timetable adds
- * the episodes that came out with it, such as a double-episode premiere,
- * which AniList records as the last one only, or half an hour or a week
- * apart; see {@link extendThroughReleased}.
- */
-const latestAiredEpisode = async (anime: Anime): Promise<AiringState["latestAiredEpisode"]> => {
-	const fromNext =
-		anime.nextEpisode && anime.nextEpisode.number > 1 ? anime.nextEpisode.number - 1 : null;
-	const fromStatus = anime.status === "FINISHED" ? anime.episodes : null;
-	const latestAiring = await fetchLatestAiring(anime.id);
-	const scheduled = latestAiring?.episode ?? null;
-	const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
-	if (known.length === 0) {
-		return null;
-	}
-
-	const latest = Math.max(...known);
-	const released = await db
-		.selectDistinct({
-			episode: animeScheduleRelease.episode,
-		})
-		.from(animeScheduleRelease)
-		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
-		.where(
-			and(
-				eq(animeScheduleShow.anilistId, anime.id),
-				inArray(animeScheduleRelease.airType, ["raw", "sub"]),
-				gt(animeScheduleRelease.episode, latest),
-				lte(animeScheduleRelease.airsAt, new Date()),
-			),
-		);
-	return extendThroughReleased(
-		latest,
-		released.map((release) => release.episode),
-	);
-};
+import { Tracked } from "./tracked";
 
 /**
  * Follows one anime while it airs.
@@ -149,39 +32,64 @@ const latestAiredEpisode = async (anime: Anime): Promise<AiringState["latestAire
  * Throwing lets graphile-worker retry the run with backoff, which is how an
  * AniList outage is handled.
  */
-export const trackAiring: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(TrackAiringPayloadSchema, rawPayload);
+export const track: Task = async (rawPayload, helpers) => {
+	const payload = parseInput(
+		z.object({
+			anilistId: z.number().int().positive(),
+			attempt: z.number().int().nonnegative(),
+			awaitedEpisode: z.number().nullable(),
+		}),
+		rawPayload,
+	);
 
-	const before = await attempt(getAnime(payload.anilistId), AnimeNotFoundError);
+	const before = await attempt(catalog.anime(payload.anilistId), UnknownAnimeError);
+
 	if (before.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
+
 		return;
 	}
 
-	const anime = await attempt(refreshAnime(payload.anilistId), AnimeNotFoundError);
+	const anime = await attempt(catalog.refresh(payload.anilistId), UnknownAnimeError);
+
 	if (anime.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
+
 		return;
 	}
 
-	const episodesBefore = await readAniKotoEpisodes(anime.data.id);
+	const tracked = new Tracked(anime.data);
+	const episodesBefore = await tracked.aniKoto();
 	const releasedBefore = episodesBefore.latest;
-	await refreshProviderEpisodes(anime.data, helpers.logger);
-	const onAniKoto = await readAniKotoEpisodes(anime.data.id);
-	if (
+	await tracked.refresh(helpers.logger);
+	const onAniKoto = await tracked.aniKoto();
+
+	const isChanged =
 		onAniKoto.latest !== releasedBefore ||
-		JSON.stringify(layoutInputs(anime.data)) !== JSON.stringify(layoutInputs(before.data))
-	) {
-		await scheduleStoredSeriesRefresh(anime.data.id);
+		JSON.stringify(tracked.layout) !== JSON.stringify(new Tracked(before.data).layout);
+
+	if (isChanged) {
+		await scheduleRefresh(anime.data.id);
+	}
+
+	let latestAired: AiringState["latestAiredEpisode"] = null;
+	let nextAt: Date | null = null;
+
+	// An anime AniKoto does not carry has no episode to wait for; the
+	// half-hourly look picks it up once AniKoto adds it.
+	if (onAniKoto.carried) {
+		latestAired = await tracked.latestAired();
+	}
+
+	if (anime.data.nextEpisode) {
+		nextAt = new Date(anime.data.nextEpisode.airingAt);
 	}
 
 	const plan = planNextCheck(
 		{
-			// An anime AniKoto does not carry has no episode to wait for; the
-			// half-hourly look picks it up once AniKoto adds it.
-			latestAiredEpisode: onAniKoto.carried ? await latestAiredEpisode(anime.data) : null,
+			latestAiredEpisode: latestAired,
 			latestReleasedEpisode: onAniKoto.latest,
-			nextAiringAt: anime.data.nextEpisode ? new Date(anime.data.nextEpisode.airingAt) : null,
+			nextAt,
 			startDate: anime.data.startDate,
 			status: anime.data.status,
 		},
@@ -191,13 +99,14 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 
 	if (plan.done) {
 		helpers.logger.info(`Anime ${anime.data.id} has finished airing; no longer tracking it`);
+
 		return;
 	}
 
 	// A newly aired episode is watched for on AniKoto from five minutes on,
 	// between the tracker's own checks.
 	if (plan.awaitedEpisode !== null && plan.attempt === 0) {
-		await scheduleAniKotoPoll(
+		await schedulePoll(
 			{
 				anilistId: anime.data.id,
 				attempt: 0,
@@ -219,7 +128,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 };
 
 /** The graphile-worker task that restarts tracking for airing anime that lost their check. */
-export const reviveAiringChecksTask = "revive-airing-checks";
+export const reviveChecksTask = "revive-airing-checks";
 
 /**
  * Restarts tracking for every stored anime that is not finished but has no
@@ -228,7 +137,7 @@ export const reviveAiringChecksTask = "revive-airing-checks";
  *
  * Runs periodically as a safety net; normally each check schedules the next.
  */
-export const reviveAiringChecks: Task = async (_payload, helpers) => {
+export const reviveChecks: Task = async (_payload, helpers) => {
 	const revived = await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${trackAiringTask},

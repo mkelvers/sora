@@ -3,19 +3,21 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { defined } from "@sora/shared";
 
 import { anime } from "../../catalog/models/anime.fixture";
-import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
+import { UnknownEpisodeError, PlaybackUnavailableError } from "../../errors";
 import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { EpisodeVersion } from "../episodes/versions";
-import type { ProviderStream, StreamProvider } from "../providers/provider";
-import { masterPlaylist } from "../proxy/playlist.fixture";
-import { StreamUpstreamError } from "../proxy/upstream";
-import { skipDetectionKey } from "../skips/store";
+import type { ProviderStream, ProviderVideo, StreamProvider } from "../providers/provider";
+import { master } from "../proxy/playlist.fixture";
+import { StreamUpstreamError } from "../proxy/upstream-error";
+import { videoKey } from "../skips/store";
 import type { StoredSkipDetection } from "../skips/store";
 import type { getRefinement } from "../subtitles/store";
 import { refinementKey } from "../subtitles/store";
-import { resolvePlayback } from "./resolve";
+import { Encode } from "./align.fixture";
+import { streams } from "./resolve";
 import type { PlaybackDependencies } from "./resolve";
+import { dub, sub } from "./resolve.fixture";
 
 /** A provider stand-in that lists episode 3 and streams the languages it has. */
 interface FakeProvider {
@@ -44,89 +46,14 @@ interface FakeProvider {
 	sharedPlaylist?: boolean;
 }
 
-/** The providers resolving asks, filled in place by {@link useProviders}. */
-const providers: StreamProvider[] = [];
 const units = new Map<string, ContentLanguage[]>();
+
 /** The audio languages each playlist lists, by playlist URL; none named when missing. */
 const audioLanguages = new Map<string, string[]>();
+
 /** The playlists `readPlaylist` was asked for. */
 const read: string[] = [];
 const resolved: string[] = [];
-/** The versions the stored episode lists offer, for `getEpisodeVersions`. */
-let offered: EpisodeVersion[] = [];
-
-const useProviders = (list: FakeProvider[]) => {
-	units.clear();
-	audioLanguages.clear();
-	providers.splice(
-		0,
-		providers.length,
-		...list.map((fake) => {
-			units.set(fake.id, fake.languages);
-			if (fake.dubAudio) {
-				audioLanguages.set(
-					`https://${fake.id}.example/${fake.sharedPlaylist ? "master" : "dub"}.m3u8`,
-					fake.dubAudio,
-				);
-			}
-			return {
-				findMedia: () => Promise.resolve(null),
-				id: fake.id,
-				listEpisodes: () => Promise.resolve([]),
-				listsLanguages: true,
-				locale: fake.locale,
-				resolveStream: async (
-					episodeId: string,
-					language: ContentLanguage,
-				): Promise<ProviderStream> => {
-					resolved.push(`${episodeId}/${language}`);
-					await Bun.sleep(fake.delayMs ?? 0);
-					if (fake.fails) {
-						throw new Error(`${fake.id} is down`);
-					}
-					if (!(fake.streams ?? fake.languages).includes(language)) {
-						throw new Error(`${fake.id} has no ${language} source`);
-					}
-					return {
-						skipSegments: fake.skipSegments?.[language] ?? [],
-						videos: [
-							{
-								format: "hls",
-								headers: {},
-								quality: "auto",
-								subtitles: [
-									...(fake.noSubtitles
-										? []
-										: [
-												{
-													format: "vtt" as const,
-													label: "English",
-													language: "en",
-													url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
-												},
-												{
-													format: null,
-													label: "Portuguese",
-													language: "pt",
-													url: `https://${fake.id}.example/pt.vtt`,
-												},
-											]),
-									...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
-										format: "vtt" as const,
-										label,
-										language: "en",
-										url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
-									})),
-								],
-								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${fake.sharedPlaylist ? "master" : language}.m3u8`,
-							},
-						],
-					};
-				},
-			};
-		}),
-	);
-};
 
 /** Segment start times `streamTimeline` hands out, by playlist URL. */
 const timelines = new Map<string, number[]>();
@@ -143,102 +70,226 @@ const detectionRequests: number[] = [];
 /** What `getRefinement` finds, by the key of a pair of encodes. */
 const refinements = new Map<string, Awaited<ReturnType<typeof getRefinement>>>();
 
-const dependencies: PlaybackDependencies = {
-	canFetchStream: (url) => Promise.resolve(!url.includes(".unreachable.")),
-	createStreamToken: (url, _kind, _headers, options) => {
-		const token = options?.shifts
-			? `token:${url}@${JSON.stringify(options.shifts)}${options.refinement ? `#${options.refinement}` : ""}`
-			: `token:${url}`;
-		return options?.audio ? `${token}~${options.audio}` : token;
-	},
-	getAnime: (id) => Promise.resolve(anime(id)),
-	getEpisodeVersions: () => Promise.resolve(offered),
-	getProviderUnits: (_anime, provider) =>
-		Promise.resolve([
-			{
-				id: `${provider.id}:3`,
-				isFiller: null,
-				languages: units.get(provider.id) ?? null,
-				number: 3,
-				title: "Episode 3",
-			},
-		]),
-	getRefinement: (key) => Promise.resolve(refinements.get(key) ?? null),
-	getSkipDetections: (keys) =>
-		Promise.resolve(
-			new Map(
-				keys.flatMap((key) => (detections.has(key) ? [[key, defined(detections.get(key))]] : [])),
-			),
-		),
-	locateEpisode: (seriesId) =>
-		Promise.resolve({
-			anilistId: 154_587,
-			number: 3,
-			seriesId,
-		}),
-	providers,
-	readPlaylist: (url) => {
-		read.push(url);
-		return url.includes(".unreachable.")
-			? Promise.reject(new StreamUpstreamError("Upstream could not be reached", null))
-			: Promise.resolve({
-					content: masterPlaylist(audioLanguages.get(url) ?? []),
-					url,
-				});
-	},
-	recordSubtitleLanguages: async () => {},
-	requestRefinement: async () => {},
-	requestSkipDetection: (payload) => {
-		detectionRequests.push(payload.episode);
-		return Promise.resolve();
-	},
-	streamTimeline: (url) =>
-		Promise.resolve({
-			duration: durations.get(url) ?? null,
-			starts: timelines.get(url) ?? [],
-		}),
-	warmStream: () => Promise.resolve(),
-};
-
 const request = {
 	episode: 3,
 	seriesId: "series",
 };
+
 const options = {
 	accountId: "account",
 	streamBaseUrl: "https://sora.example/v1/streams/",
 };
 
-const sub = (locale = "en"): EpisodeVersion => ({
-	language: "sub",
-	locale,
-});
-const dub = (locale = "en"): EpisodeVersion => ({
-	language: "dub",
-	locale,
-});
+/** The fake providers and stored lists resolving asks, and the dependencies that reach them. */
+class Fake {
+	/** The versions the stored episode lists offer, for `watchable`. */
+	offered: EpisodeVersion[] = [];
 
-/** Each resolved version as `language/locale@provider`. */
-const resolvedVersions = async () => {
-	const playback = await resolvePlayback(request, options, dependencies);
-	return playback.media.map((version) => `${version.audio}/${version.locale}@${version.provider}`);
-};
+	/** The providers resolving asks, filled in place by {@link Fake.use}. */
+	readonly providers: StreamProvider[] = [];
 
-/** Segment boundaries of a made-up encode: irregular, as scene cuts are. */
-const boundaries = (seed: number) => {
-	const times = [0];
-	let state = seed;
-	for (let index = 1; index < 300; index += 1) {
-		state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
-		times.push(defined(times.at(-1)) + 1 + (state % 9000) / 1000);
+	readonly dependencies: PlaybackDependencies = {
+		canFetchStream: (url) => Promise.resolve(!url.includes(".unreachable.")),
+		createStreamToken: (url, _kind, _headers, signed) => {
+			let token = `token:${url}`;
+
+			if (signed?.shifts) {
+				token = `${token}@${JSON.stringify(signed.shifts)}`;
+			}
+
+			if (signed?.shifts && signed.refinement) {
+				token = `${token}#${signed.refinement}`;
+			}
+
+			if (signed?.audio) {
+				return `${token}~${signed.audio}`;
+			}
+
+			return token;
+		},
+		getAnime: (id) => Promise.resolve(anime(id)),
+		getProviderUnits: (_anime, provider) =>
+			Promise.resolve([
+				{
+					id: `${provider.id}:3`,
+					isFiller: null,
+					languages: units.get(provider.id) ?? null,
+					number: 3,
+					title: "Episode 3",
+				},
+			]),
+		getRefinement: (key) => Promise.resolve(refinements.get(key) ?? null),
+		getSkipDetections: (keys) =>
+			Promise.resolve(
+				new Map(
+					keys.flatMap((key) => {
+						if (detections.has(key)) {
+							return [[key, defined(detections.get(key))]];
+						}
+
+						return [];
+					}),
+				),
+			),
+		locateEpisode: (seriesId) =>
+			Promise.resolve({
+				anilistId: 154_587,
+				number: 3,
+				seriesId,
+			}),
+		providers: this.providers,
+		readPlaylist: (url) => {
+			read.push(url);
+
+			if (url.includes(".unreachable.")) {
+				return Promise.reject(new StreamUpstreamError("Upstream could not be reached", null));
+			}
+
+			return Promise.resolve({
+				content: master(audioLanguages.get(url) ?? []),
+				url,
+			});
+		},
+		recordSubtitleLanguages: async () => {},
+		requestRefinement: async () => {},
+		requestSkipDetection: (payload) => {
+			detectionRequests.push(payload.episode);
+
+			return Promise.resolve();
+		},
+		streamTimeline: (url) =>
+			Promise.resolve({
+				duration: durations.get(url) ?? null,
+				starts: timelines.get(url) ?? [],
+			}),
+		warmStream: () => Promise.resolve(),
+		watchable: () => Promise.resolve(this.offered),
+	};
+
+	/** Makes `list` the providers resolving asks. */
+	use(list: FakeProvider[]) {
+		units.clear();
+		audioLanguages.clear();
+		this.providers.splice(
+			0,
+			this.providers.length,
+			...list.map((provider) => {
+				units.set(provider.id, provider.languages);
+
+				let dubPlaylist = "dub";
+
+				if (provider.sharedPlaylist) {
+					dubPlaylist = "master";
+				}
+
+				if (provider.dubAudio) {
+					audioLanguages.set(
+						`https://${provider.id}.example/${dubPlaylist}.m3u8`,
+						provider.dubAudio,
+					);
+				}
+
+				return {
+					findMedia: () => Promise.resolve(null),
+					id: provider.id,
+					listEpisodes: () => Promise.resolve([]),
+					listsLanguages: true,
+					locale: provider.locale,
+					resolveStream: async (
+						episodeId: string,
+						language: ContentLanguage,
+					): Promise<ProviderStream> => {
+						resolved.push(`${episodeId}/${language}`);
+						await Bun.sleep(provider.delayMs ?? 0);
+
+						if (provider.fails) {
+							throw new Error(`${provider.id} is down`);
+						}
+
+						if (!(provider.streams ?? provider.languages).includes(language)) {
+							throw new Error(`${provider.id} has no ${language} source`);
+						}
+
+						const subtitles: ProviderVideo["subtitles"] = [];
+
+						if (!provider.noSubtitles) {
+							let englishHost = `${provider.id}.example`;
+
+							if (provider.unreachableSubtitles) {
+								englishHost = `${provider.id}.unreachable.example`;
+							}
+
+							subtitles.push(
+								{
+									format: "vtt",
+									label: "English",
+									language: "en",
+									url: `https://${englishHost}/en.vtt`,
+								},
+								{
+									format: null,
+									label: "Portuguese",
+									language: "pt",
+									url: `https://${provider.id}.example/pt.vtt`,
+								},
+							);
+						}
+
+						for (const label of provider.extraSubtitles?.[language] ?? []) {
+							subtitles.push({
+								format: "vtt",
+								label,
+								language: "en",
+								url: `https://${provider.id}.example/${encodeURIComponent(label)}.vtt`,
+							});
+						}
+
+						let videoHost = `${provider.id}.example`;
+						let playlist: string = language;
+
+						if (provider.unreachableVideo) {
+							videoHost = `${provider.id}.unreachable.example`;
+						}
+
+						if (provider.sharedPlaylist) {
+							playlist = "master";
+						}
+
+						return {
+							skipSegments: provider.skipSegments?.[language] ?? [],
+							videos: [
+								{
+									format: "hls",
+									headers: {},
+									quality: "auto",
+									subtitles,
+									url: `https://${videoHost}/${playlist}.m3u8`,
+								},
+							],
+						};
+					},
+				};
+			}),
+		);
 	}
-	return times;
-};
+
+	/** Each resolved version as `language/locale@provider`. */
+	async versions() {
+		const playback = await streams.resolve(request, options, this.dependencies);
+
+		return playback.media.map(
+			(version) => `${version.audio}/${version.locale}@${version.provider}`,
+		);
+	}
+}
+
+const fake = new Fake();
+const { dependencies } = fake;
 
 beforeEach(() => {
 	resolved.length = 0;
 	read.length = 0;
-	offered = [];
+	fake.offered = [];
 	timelines.clear();
 	durations.clear();
 	detections.clear();
@@ -246,9 +297,9 @@ beforeEach(() => {
 	refinements.clear();
 });
 
-describe("resolvePlayback", () => {
+describe("streams.resolve", () => {
 	test("serves English dub and sub together, never another locale", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "brazilian",
 				languages: ["dub"],
@@ -260,34 +311,34 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), dub("pt-BR"), sub()];
+		fake.offered = [dub(), dub("pt-BR"), sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
-		await expect(resolvePlayback(request, options, dependencies)).resolves.toMatchObject({
+		expect(await fake.versions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
+		await expect(streams.resolve(request, options, dependencies)).resolves.toMatchObject({
 			episode: 3,
 			seriesId: "series",
 		});
 	});
 
 	test("says when its stream URLs expire", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		const before = Date.now();
-		const { expiresAt } = await resolvePlayback(request, options, dependencies);
+		const { expiresAt } = await streams.resolve(request, options, dependencies);
 		expect(Date.parse(expiresAt) - before).toBeGreaterThanOrEqual(6 * 60 * 60 * 1000);
 		expect(Date.parse(expiresAt) - Date.now()).toBeLessThanOrEqual(6 * 60 * 60 * 1000);
 	});
 
 	test("gives each version the skip segments of its own stream", async () => {
 		// Attack on Titan episode 1: the dub's opening starts 16 seconds later.
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
@@ -310,9 +361,9 @@ describe("resolvePlayback", () => {
 				},
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(playback.media.map((media) => [media.audio, media.skip_segments[0]?.start])).toEqual([
 			["dub", 154],
 			["sub", 138],
@@ -334,7 +385,7 @@ describe("resolvePlayback", () => {
 		];
 
 		const dubbedSkipSegments = async (dubOffset: number | null, dubSpans = spans) => {
-			useProviders([
+			fake.use([
 				{
 					id: "anikoto",
 					languages: ["sub", "dub"],
@@ -345,16 +396,20 @@ describe("resolvePlayback", () => {
 					},
 				},
 			]);
-			offered = [dub(), sub()];
-			const subTimeline = boundaries(1);
-			timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
-			timelines.set(
-				"https://anikoto.example/dub.m3u8",
-				dubOffset === null ? boundaries(2) : subTimeline.map((time) => time + dubOffset),
-			);
+			fake.offered = [dub(), sub()];
+			const subTimeline = new Encode(1).boundaries;
+			let dubTimeline = new Encode(2).boundaries;
 
-			const playback = await resolvePlayback(request, options, dependencies);
+			if (dubOffset !== null) {
+				dubTimeline = subTimeline.map((time) => time + dubOffset);
+			}
+
+			timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
+			timelines.set("https://anikoto.example/dub.m3u8", dubTimeline);
+
+			const playback = await streams.resolve(request, options, dependencies);
 			const [dubbed, subbed] = playback.media;
+
 			return [dubbed?.skip_segments, subbed?.skip_segments];
 		};
 
@@ -383,6 +438,7 @@ describe("resolvePlayback", () => {
 					start: 214,
 				},
 			];
+
 			const segments = await dubbedSkipSegments(-1, own);
 
 			expect(segments[0]).toEqual(own);
@@ -397,6 +453,7 @@ describe("resolvePlayback", () => {
 
 	describe("skip segments and the video they came with", () => {
 		const subUrl = "https://anikoto.example/sub.m3u8";
+
 		const provided = [
 			{
 				end: 108,
@@ -411,7 +468,7 @@ describe("resolvePlayback", () => {
 		];
 
 		const subSkipSegments = async (segments: SkipSegment[] = provided) => {
-			useProviders([
+			fake.use([
 				{
 					id: "anikoto",
 					languages: ["sub"],
@@ -421,8 +478,9 @@ describe("resolvePlayback", () => {
 					},
 				},
 			]);
-			offered = [sub()];
-			const playback = await resolvePlayback(request, options, dependencies);
+			fake.offered = [sub()];
+			const playback = await streams.resolve(request, options, dependencies);
+
 			return playback.media[0]?.skip_segments;
 		};
 
@@ -449,7 +507,7 @@ describe("resolvePlayback", () => {
 		});
 
 		test("puts the theme songs found in the video in place of the provider's segments", async () => {
-			detections.set(skipDetectionKey(subUrl), {
+			detections.set(videoKey(subUrl), {
 				checkedAt: new Date(),
 				detection: {
 					ending: null,
@@ -476,7 +534,7 @@ describe("resolvePlayback", () => {
 		});
 
 		test("gives no opening when its song plays only late in the video", async () => {
-			detections.set(skipDetectionKey(subUrl), {
+			detections.set(videoKey(subUrl), {
 				checkedAt: new Date(),
 				detection: {
 					ending: null,
@@ -490,7 +548,7 @@ describe("resolvePlayback", () => {
 		});
 
 		test("plays with the provider's segments when stored detections cannot be read", async () => {
-			const playback = await resolvePlayback(request, options, {
+			const playback = await streams.resolve(request, options, {
 				...dependencies,
 				getSkipDetections: () => Promise.reject(new Error("relation does not exist")),
 			});
@@ -505,7 +563,7 @@ describe("resolvePlayback", () => {
 		});
 
 		test("asks only for the next episode once this one has been looked at", async () => {
-			detections.set(skipDetectionKey(subUrl), {
+			detections.set(videoKey(subUrl), {
 				checkedAt: new Date(),
 				detection: {
 					ending: null,
@@ -520,30 +578,30 @@ describe("resolvePlayback", () => {
 	});
 
 	test("gives no skip segments for a stream whose player reports none", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "animeparadise",
 				languages: ["sub"],
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(playback.media[0]?.skip_segments).toEqual([]);
 	});
 
 	test("hands out proxy URLs a player can fetch as is", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		const [version] = playback.media;
 		expect(version?.sources.map((source) => source.url)).toEqual([
 			`https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/sub.m3u8")}`,
@@ -555,7 +613,7 @@ describe("resolvePlayback", () => {
 	});
 
 	test("tries dub and sub in English when no provider says which languages the episode has", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "megaplay",
 				languages: ["sub", "dub"],
@@ -563,25 +621,25 @@ describe("resolvePlayback", () => {
 			},
 		]);
 
-		expect(await resolvedVersions()).toEqual(["dub/en@megaplay", "sub/en@megaplay"]);
+		expect(await fake.versions()).toEqual(["dub/en@megaplay", "sub/en@megaplay"]);
 	});
 
 	test("leaves out a version no provider can stream right now", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["sub/en@anikoto"]);
 		expect(resolved.toSorted()).toEqual(["anikoto:3/dub", "anikoto:3/sub"]);
 	});
 
 	test("asks for a dub a provider's stored list leaves out, as for Banished from the Hero's Party episode 1", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
@@ -595,13 +653,13 @@ describe("resolvePlayback", () => {
 				streams: ["sub"],
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 	});
 
 	test("asks providers whose list has the version before those whose list leaves it out", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
@@ -614,14 +672,14 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@animeparadise", "sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["dub/en@animeparadise", "sub/en@anikoto"]);
 		expect(resolved.filter((call) => call.endsWith("/dub"))).toEqual(["animeparadise:3/dub"]);
 	});
 
 	test("does not ask providers whose list leaves the version out when one that lists it streams it", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
@@ -634,14 +692,14 @@ describe("resolvePlayback", () => {
 				streams: ["sub", "dub"],
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 		expect(resolved.filter((call) => call.endsWith("/dub"))).toEqual(["anikoto:3/dub"]);
 	});
 
 	test("asks every provider whose list leaves the version out at once, not in turn", async () => {
-		useProviders(
+		fake.use(
 			["anikoto", "animeparadise", "megaplay", "allmanga"].map((id) => ({
 				delayMs: 40,
 				id,
@@ -649,17 +707,17 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			})),
 		);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		const started = performance.now();
-		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["sub/en@anikoto"]);
 		// In turn, the four dub requests would take 160 ms.
 		expect(performance.now() - started).toBeLessThan(120);
 		expect(resolved.filter((call) => call.endsWith("/dub"))).toHaveLength(4);
 	});
 
 	test("serves an unlisted version from the first provider in priority order, not the fastest", async () => {
-		useProviders([
+		fake.use([
 			{
 				delayMs: 30,
 				id: "anikoto",
@@ -674,13 +732,13 @@ describe("resolvePlayback", () => {
 				streams: ["sub", "dub"],
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 	});
 
 	test("asks for dub and sub even when no stored list offers either", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["raw"],
@@ -688,22 +746,18 @@ describe("resolvePlayback", () => {
 				streams: ["raw", "sub", "dub"],
 			},
 		]);
-		offered = [
+		fake.offered = [
 			{
 				language: "raw",
 				locale: null,
 			},
 		];
 
-		expect(await resolvedVersions()).toEqual([
-			"dub/en@anikoto",
-			"sub/en@anikoto",
-			"raw/null@anikoto",
-		]);
+		expect(await fake.versions()).toEqual(["dub/en@anikoto", "sub/en@anikoto", "raw/null@anikoto"]);
 	});
 
 	test("never serves a version from a provider in another locale", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "brazilian",
 				languages: ["sub", "dub"],
@@ -715,37 +769,37 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["sub/en@anikoto"]);
 	});
 
 	test("gives a dub no subtitles, since the sub's do not match its audio", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["dub"],
 				locale: "en",
 			},
 		]);
-		offered = [dub()];
+		fake.offered = [dub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(playback.media[0]?.subtitles).toEqual([]);
 		expect(playback.media[0]?.hardsub).toBe(false);
 	});
 
 	test("keeps every subtitle language, English first, named by its tag", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(playback.media[0]?.subtitles.map((track) => [track.language, track.label])).toEqual([
 			["en", "English"],
 			["pt", "Portuguese"],
@@ -753,7 +807,7 @@ describe("resolvePlayback", () => {
 	});
 
 	test("names distinct files with the same subtitle label as selectable alternates", async () => {
-		useProviders([
+		fake.use([
 			{
 				extraSubtitles: { sub: ["English 2", "English 3"] },
 				id: "anikoto",
@@ -761,9 +815,9 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		const tracks = playback.media[0]?.subtitles ?? [];
 		expect(tracks.map((track) => track.label)).toEqual([
 			"English",
@@ -775,7 +829,7 @@ describe("resolvePlayback", () => {
 	});
 
 	test("prefers a later provider's subtitle tracks to burned-in subtitles", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
@@ -788,15 +842,15 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
-		expect(await resolvedVersions()).toEqual(["sub/en@allmanga"]);
-		const playback = await resolvePlayback(request, options, dependencies);
+		expect(await fake.versions()).toEqual(["sub/en@allmanga"]);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(playback.media[0]?.hardsub).toBe(false);
 	});
 
 	test("skips a sub whose English subtitles cannot be fetched", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
@@ -809,13 +863,13 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@allmanga"]);
+		expect(await fake.versions()).toEqual(["dub/en@anikoto", "sub/en@allmanga"]);
 	});
 
 	test("skips a provider whose video host cannot be reached", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
@@ -828,13 +882,13 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@allmanga"]);
+		expect(await fake.versions()).toEqual(["dub/en@allmanga", "sub/en@allmanga"]);
 	});
 
 	test("passes over a dub whose playlist has no English audio yet", async () => {
-		useProviders([
+		fake.use([
 			{
 				dubAudio: ["ja"],
 				id: "anikoto",
@@ -848,13 +902,13 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["dub/en@allmanga", "sub/en@anikoto"]);
 	});
 
 	test("offers no dub when no provider's dub has English audio", async () => {
-		useProviders([
+		fake.use([
 			{
 				dubAudio: ["ja"],
 				id: "anikoto",
@@ -862,13 +916,13 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
+		expect(await fake.versions()).toEqual(["sub/en@anikoto"]);
 	});
 
 	test("plays a dub sharing the sub's playlist with English audio, probing the playlist once, as for Overgeared episode 8", async () => {
-		useProviders([
+		fake.use([
 			{
 				dubAudio: ["ja", "en", "ar"],
 				id: "anikoto",
@@ -877,9 +931,9 @@ describe("resolvePlayback", () => {
 				sharedPlaylist: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 
 		expect(
 			playback.media.map((version) => [version.audio, version.sources.map((source) => source.url)]),
@@ -901,7 +955,7 @@ describe("resolvePlayback", () => {
 	});
 
 	test("reads a playlist once for the probe, the warm-up, aligning the dub, and checking skip segments", async () => {
-		useProviders([
+		fake.use([
 			{
 				dubAudio: ["ja", "en"],
 				id: "anikoto",
@@ -910,13 +964,14 @@ describe("resolvePlayback", () => {
 				sharedPlaylist: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 		const warmed = Promise.withResolvers<undefined>();
 
-		await resolvePlayback(request, options, {
+		await streams.resolve(request, options, {
 			...dependencies,
 			streamTimeline: async (url, headers, readPlaylist) => {
 				await defined(readPlaylist)(url, headers);
+
 				return {
 					duration: null,
 					starts: [],
@@ -933,31 +988,35 @@ describe("resolvePlayback", () => {
 	});
 
 	test("reads a playlist again after a read of it failed", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub"],
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 		let failures = 1;
 
-		const playback = await resolvePlayback(request, options, {
+		const playback = await streams.resolve(request, options, {
 			...dependencies,
 			readPlaylist: (url) => {
 				read.push(url);
+
 				if (failures > 0) {
 					failures -= 1;
+
 					return Promise.reject(new StreamUpstreamError("Upstream throttles", 429));
 				}
+
 				return Promise.resolve({
-					content: masterPlaylist([]),
+					content: master([]),
 					url,
 				});
 			},
 			streamTimeline: async (url, headers, readPlaylist) => {
 				await defined(readPlaylist)(url, headers);
+
 				return {
 					duration: null,
 					starts: [],
@@ -970,22 +1029,22 @@ describe("resolvePlayback", () => {
 	});
 
 	test("gives a dub the sub's subtitles, retimed to the dub's encode", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
-		const subTimeline = boundaries(1);
+		fake.offered = [dub(), sub()];
+		const subTimeline = new Encode(1).boundaries;
 		timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
 		timelines.set(
 			"https://anikoto.example/dub.m3u8",
 			subTimeline.map((time) => time + 2),
 		);
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		const [dubbed] = playback.media;
 		expect(dubbed?.audio).toBe("dub");
 		expect(dubbed?.subtitles.map((track) => decodeURIComponent(track.url))).toEqual([
@@ -994,7 +1053,7 @@ describe("resolvePlayback", () => {
 	});
 
 	test("adds the dub's own captions, shown from the start, and signs, but not its dialogue, to the sub's retimed dialogue", async () => {
-		useProviders([
+		fake.use([
 			{
 				extraSubtitles: {
 					dub: [
@@ -1008,15 +1067,15 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
-		const subTimeline = boundaries(1);
+		fake.offered = [dub(), sub()];
+		const subTimeline = new Encode(1).boundaries;
 		timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
 		timelines.set(
 			"https://anikoto.example/dub.m3u8",
 			subTimeline.map((time) => time + 2),
 		);
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		const [dubbed, subbed] = playback.media;
 		expect(dubbed?.subtitles.map((track) => [track.label, track.kind, track.default])).toEqual([
 			["English (CC)", "captions", true],
@@ -1030,36 +1089,38 @@ describe("resolvePlayback", () => {
 	});
 
 	test("gives a dub no subtitles when its encode does not align with the sub's", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
-		timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
-		timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
+		fake.offered = [dub(), sub()];
+		timelines.set("https://anikoto.example/sub.m3u8", new Encode(1).boundaries);
+		timelines.set("https://anikoto.example/dub.m3u8", new Encode(2).boundaries);
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(playback.media[0]?.subtitles).toEqual([]);
 	});
 
 	test("times a dub's subtitles to its speech once it was listened to, even when its encode does not align with the sub's", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
-		timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
-		timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
+		fake.offered = [dub(), sub()];
+		timelines.set("https://anikoto.example/sub.m3u8", new Encode(1).boundaries);
+		timelines.set("https://anikoto.example/dub.m3u8", new Encode(2).boundaries);
+
 		const key = refinementKey(
 			"https://anikoto.example/sub.m3u8",
 			"https://anikoto.example/dub.m3u8",
 		);
+
 		refinements.set(key, {
 			attemptedAt: new Date(),
 			refinement: {
@@ -1073,14 +1134,14 @@ describe("resolvePlayback", () => {
 			},
 		});
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(playback.media[0]?.subtitles.map((track) => decodeURIComponent(track.url))).toEqual([
 			`https://sora.example/v1/streams/token:https://anikoto.example/en.vtt@[{"from":0,"offset":0.5}]#${key}`,
 		]);
 	});
 
 	test("serves burned-in subtitles marked hardsub when no provider has tracks", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "anikoto",
 				languages: ["sub", "dub"],
@@ -1088,9 +1149,9 @@ describe("resolvePlayback", () => {
 				noSubtitles: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(
 			playback.media.map((version) => [
 				version.audio,
@@ -1105,7 +1166,7 @@ describe("resolvePlayback", () => {
 	});
 
 	test("gives a dub its own captions, shown from the start, and signs when the sub's subtitles are burned in, as for As a Reincarnated Aristocrat episode 1", async () => {
-		useProviders([
+		fake.use([
 			{
 				extraSubtitles: {
 					dub: ["English (English Signs)", "English (English cc)"],
@@ -1116,9 +1177,9 @@ describe("resolvePlayback", () => {
 				noSubtitles: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		const playback = await resolvePlayback(request, options, dependencies);
+		const playback = await streams.resolve(request, options, dependencies);
 		expect(
 			playback.media.map((version) => [
 				version.audio,
@@ -1139,7 +1200,7 @@ describe("resolvePlayback", () => {
 	});
 
 	test("serves raw from an English provider and reports no locale", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "brazilian",
 				languages: ["raw"],
@@ -1151,18 +1212,18 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [
+		fake.offered = [
 			{
 				language: "raw",
 				locale: null,
 			},
 		];
 
-		expect(await resolvedVersions()).toEqual(["raw/null@allmanga"]);
+		expect(await fake.versions()).toEqual(["raw/null@allmanga"]);
 	});
 
 	test("falls through a failing provider to the next in the same locale", async () => {
-		useProviders([
+		fake.use([
 			{
 				fails: true,
 				id: "anikoto",
@@ -1175,13 +1236,13 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub()];
+		fake.offered = [dub()];
 
-		expect(await resolvedVersions()).toEqual(["dub/en@allmanga"]);
+		expect(await fake.versions()).toEqual(["dub/en@allmanga"]);
 	});
 
 	test("reports playback unavailable when providers list the episode but none can stream it", async () => {
-		useProviders([
+		fake.use([
 			{
 				fails: true,
 				id: "anikoto",
@@ -1189,15 +1250,15 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
-		await expect(resolvePlayback(request, options, dependencies)).rejects.toBeInstanceOf(
+		await expect(streams.resolve(request, options, dependencies)).rejects.toBeInstanceOf(
 			PlaybackUnavailableError,
 		);
 	});
 
 	test("reports the episode missing when no provider in a wanted locale lists it", async () => {
-		useProviders([
+		fake.use([
 			{
 				id: "brazilian",
 				languages: ["dub"],
@@ -1205,15 +1266,15 @@ describe("resolvePlayback", () => {
 			},
 		]);
 
-		await expect(resolvePlayback(request, options, dependencies)).rejects.toBeInstanceOf(
-			EpisodeNotFoundError,
+		await expect(streams.resolve(request, options, dependencies)).rejects.toBeInstanceOf(
+			UnknownEpisodeError,
 		);
 	});
 });
 
-describe("resolvePlayback deadline", () => {
+describe("streams.resolve deadline", () => {
 	test("serves the versions that answered and gives up on the one that hangs", async () => {
-		useProviders([
+		fake.use([
 			{
 				delayMs: 0,
 				id: "anikoto",
@@ -1227,9 +1288,9 @@ describe("resolvePlayback deadline", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub(), dub()];
+		fake.offered = [sub(), dub()];
 
-		const playback = await resolvePlayback(
+		const playback = await streams.resolve(
 			request,
 			{
 				...options,
@@ -1237,11 +1298,12 @@ describe("resolvePlayback deadline", () => {
 			},
 			dependencies,
 		);
+
 		expect(playback.media.map((version) => version.audio)).toEqual(["sub"]);
 	});
 
 	test("says playback is unavailable, not that the episode is missing, when nothing answers", async () => {
-		useProviders([
+		fake.use([
 			{
 				delayMs: 400,
 				id: "slow",
@@ -1249,19 +1311,25 @@ describe("resolvePlayback deadline", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub(), dub()];
+		fake.offered = [sub(), dub()];
 
-		const failure = await resolvePlayback(
-			request,
-			{
-				...options,
-				deadlineMs: 100,
-			},
-			dependencies,
-		).catch((error: unknown) => error);
+		const failure = await streams
+			.resolve(
+				request,
+				{
+					...options,
+					deadlineMs: 100,
+				},
+				dependencies,
+			)
+			.catch((error: Error) => error);
+
 		expect(failure).toBeInstanceOf(PlaybackUnavailableError);
-		expect(
-			failure instanceof PlaybackUnavailableError ? failure.attempts[0]?.reason : null,
-		).toContain("no answer within");
+
+		if (!(failure instanceof PlaybackUnavailableError)) {
+			throw new TypeError("Resolving must fail as unavailable");
+		}
+
+		expect(failure.attempts[0]?.reason).toContain("no answer within");
 	});
 });

@@ -5,24 +5,54 @@ import { db } from "../../database/client";
 import { seriesSubtitles } from "../../database/schema/playback";
 import type { ProviderVideo } from "../providers/provider";
 
-const languageNames = {
-	dialect: new Intl.DisplayNames(["en"], { type: "language" }),
-	standard: new Intl.DisplayNames(["en"], { languageDisplay: "standard", type: "language" }),
-};
+/** A BCP 47 language tag, such as `pt-BR`. */
+export class LanguageTag {
+	static readonly #dialectNames = new Intl.DisplayNames(["en"], {
+		type: "language",
+	});
 
-/**
- * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
- * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`;
- * `null` for a tag that names no language.
- * The standard form puts the language first, as in `Portuguese (Brazil)`.
- */
-export const languageName = (tag: string, form: keyof typeof languageNames = "dialect") => {
-	const { data, error } = attempt(() => languageNames[form].of(tag), RangeError);
-	if (error) {
+	static readonly #standardNames = new Intl.DisplayNames(["en"], {
+		languageDisplay: "standard",
+		type: "language",
+	});
+
+	readonly #tag: string;
+
+	constructor(tag: string) {
+		this.#tag = tag;
+	}
+
+	/**
+	 * The language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
+	 * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`;
+	 * `null` for a tag that names no language.
+	 */
+	get name() {
+		return this.#nameIn(LanguageTag.#dialectNames);
+	}
+
+	/**
+	 * Like {@link LanguageTag.name}, but with the language first, as in
+	 * `Portuguese (Brazil)`.
+	 */
+	get standardName() {
+		return this.#nameIn(LanguageTag.#standardNames);
+	}
+
+	#nameIn(names: Intl.DisplayNames) {
+		const { data, error } = attempt(() => names.of(this.#tag), RangeError);
+
+		if (error) {
+			return null;
+		}
+
+		if (data && data !== this.#tag) {
+			return data;
+		}
+
 		return null;
 	}
-	return data && data !== tag ? data : null;
-};
+}
 
 /** What resolving a version found, as far as its subtitle languages go. */
 interface ResolvedVersion {
@@ -38,14 +68,21 @@ interface ResolvedVersion {
  */
 export const subtitleLanguagesOf = (results: readonly ResolvedVersion[]) => [
 	...new Set(
-		results.flatMap(({ version, videos }) =>
-			version
-				? [
-						...(version.hardsub ? ["en"] : []),
-						...(videos ?? []).flatMap((video) => video.subtitles.map((track) => track.language)),
-					]
-				: [],
-		),
+		results.flatMap(({ version, videos }) => {
+			if (!version) {
+				return [];
+			}
+
+			const languages = (videos ?? []).flatMap((video) =>
+				video.subtitles.map((track) => track.language),
+			);
+
+			if (version.hardsub) {
+				return ["en", ...languages];
+			}
+
+			return languages;
+		}),
 	),
 ];
 

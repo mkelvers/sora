@@ -69,30 +69,36 @@
 			tabindex="-1"
 			onpointerdown={(event) => event.preventDefault()}
 		>
-			<svelte:boundary onerror={(_, reset) => (search.retry = reset)}>
-				<Suggestions
-					term={search.term}
-					text={search.text}
-					active={search.active}
-					typing={search.typing}
-				/>
-
-				{#snippet pending()}
-					{#each { length: 4 }, index (index)}
-						<div class="flex items-center gap-3.5 px-4 py-2" aria-hidden="true">
-							<Skeleton class="aspect-2/3 w-10" />
-							<div class="grid flex-1 gap-2">
-								<Skeleton class="h-3.5 w-7/10" />
-								<Skeleton class="h-3 w-3/10" />
-							</div>
+			{#snippet loading()}
+				<span class="sr-only" role="status">Searching</span>
+				{#each { length: 4 }, index (index)}
+					<div class="flex items-center gap-3.5 px-4 py-2" aria-hidden="true">
+						<Skeleton class="aspect-2/3 w-10" />
+						<div class="grid flex-1 gap-2">
+							<Skeleton class="h-3.5 w-7/10" />
+							<Skeleton class="h-3 w-3/10" />
 						</div>
-					{/each}
-				{/snippet}
+					</div>
+				{/each}
+			{/snippet}
 
-				{#snippet failed()}
-					<p class="px-4 py-5 text-sm text-muted">Search isn’t available right now.</p>
-				{/snippet}
-			</svelte:boundary>
+			{#if search.typing}
+				{@render loading()}
+			{:else}
+				{#key search.term}
+					<svelte:boundary>
+						<Suggestions term={search.term} active={search.active} />
+
+						{#snippet pending()}
+							{@render loading()}
+						{/snippet}
+
+						{#snippet failed()}
+							<p class="px-4 py-5 text-sm text-muted">Search isn’t available right now.</p>
+						{/snippet}
+					</svelte:boundary>
+				{/key}
+			{/if}
 		</div>
 	{/if}
 </form>

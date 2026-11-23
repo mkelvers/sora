@@ -1,7 +1,7 @@
 import type { CodegenConfig } from "@graphql-codegen/cli";
 
 /**
- * Generates fully typed AniList operations from the live AniList schema.
+ * Generates AniList operation types and result validators from the live schema.
  *
  * Every `.graphql` document under `src/anilist/operations` becomes a
  * `TypedDocumentString` whose result and variable types are derived from the
@@ -28,6 +28,13 @@ export default {
 				useTypeImports: true,
 			},
 			plugins: ["typescript-operations", "typed-document-node"],
+		},
+		"src/anilist/validation.generated.ts": {
+			config: {
+				objects: false,
+				scalarSchemas: "./wire",
+			},
+			plugins: ["@nxgt/graphql-codegen-zod"],
 		},
 	},
 	schema: "https://graphql.anilist.co",

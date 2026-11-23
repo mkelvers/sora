@@ -16,7 +16,7 @@
 		TelevisionSimpleIcon,
 	} from "phosphor-svelte";
 
-	import { getDevices, signOutDevice, signOutOtherDevices } from "../devices.remote";
+	import { getSignIns, revoke, revokeOthers } from "../devices.remote";
 
 	const icons = {
 		computer: DesktopIcon,
@@ -28,7 +28,7 @@
 
 	const shownAtFirst = 5;
 
-	const devices = $derived(await getDevices());
+	const devices = $derived(await getSignIns());
 
 	let message = $state("");
 	let busy = $state<string | null>(null);
@@ -38,18 +38,28 @@
 
 	const here = $derived(devices.find((device) => device.current));
 	const others = $derived(devices.filter((device) => !device.current));
-	const listed = $derived(showAll ? others : others.slice(0, shownAtFirst));
+
+	const listed = $derived.by(() => {
+		if (showAll) {
+			return others;
+		}
+
+		return others.slice(0, shownAtFirst);
+	});
 
 	const since = (iso: string) => {
 		const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+
 		const units = [
 			["day", 86_400],
 			["hour", 3600],
 			["minute", 60],
 		] as const;
+
 		const formatter = new Intl.RelativeTimeFormat("en", {
 			numeric: "auto",
 		});
+
 		for (const [unit, length] of units) {
 			if (Math.abs(seconds) >= length) {
 				return formatter.format(Math.round(seconds / length), unit);
@@ -76,7 +86,11 @@
 			return null;
 		}
 
-		return version ? `${name} ${version}` : name;
+		if (version) {
+			return `${name} ${version}`;
+		}
+
+		return name;
 	};
 
 	const facts = (entry: SignedInDevice) =>
@@ -88,12 +102,17 @@
 			["IP address", entry.ip_address],
 		].filter((fact): fact is [string, string] => fact[1] !== null);
 
-	const nameOf = (entry: SignedInDevice) =>
-		entry.kind === "unknown" ? `Signed in ${day(entry.signed_in_at)}` : entry.device;
+	const nameOf = (entry: SignedInDevice) => {
+		if (entry.kind === "unknown") {
+			return `Signed in ${day(entry.signed_in_at)}`;
+		}
+
+		return entry.device;
+	};
 
 	const signOut = async (device: SignedInDevice) => {
 		busy = device.id;
-		await signOutDevice(device.id);
+		await revoke(device.id);
 		message = `${nameOf(device)} signed out.`;
 		busy = null;
 	};
@@ -101,14 +120,14 @@
 	const signOutEverywhere = async () => {
 		choosing = false;
 		busy = "everywhere";
-		await signOutOtherDevices();
+		await revokeOthers();
 		logoutForm?.requestSubmit();
 	};
 
 	const signOutOthers = async () => {
 		choosing = false;
 		busy = "others";
-		await signOutOtherDevices();
+		await revokeOthers();
 		message = "Every other device signed out.";
 		showAll = false;
 		busy = null;

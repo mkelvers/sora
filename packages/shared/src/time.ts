@@ -14,12 +14,22 @@ export const parseRetryAfter = (header: string | null, now = Date.now()) => {
 	}
 
 	const seconds = Number(header);
+
 	if (Number.isFinite(seconds)) {
-		return seconds >= 0 ? seconds * second : null;
+		if (seconds >= 0) {
+			return seconds * second;
+		}
+
+		return null;
 	}
 
 	const date = new Date(header).getTime();
-	return Number.isNaN(date) ? null : Math.max(0, date - now);
+
+	if (Number.isNaN(date)) {
+		return null;
+	}
+
+	return Math.max(0, date - now);
 };
 
 /** The `Retry-After` value for a wait in milliseconds: whole seconds, rounded up. */

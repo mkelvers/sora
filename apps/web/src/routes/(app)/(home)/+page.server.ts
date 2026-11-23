@@ -6,6 +6,7 @@ import { getContinueWatching } from "./home.remote";
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { viewer } = locals;
+
 	if (!viewer?.profile) {
 		error(403, "Choose a profile first");
 	}

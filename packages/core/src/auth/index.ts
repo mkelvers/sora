@@ -1,19 +1,14 @@
 /**
  * Accounts, sessions, and profiles.
  *
- * An account signs in with e-mail and password and holds any number of
+ * An account signs in with a username or e-mail and password and holds any number of
  * profiles, as on Netflix. What Sora keeps for a viewer, such as playback
  * preferences, is kept per profile: pass a profile ID wherever it asks for
  * a `userId`, after checking the profile belongs to the signed-in account
- * with {@link getProfile}.
+ * with {@link profiles.get}.
  */
 export { auth } from "./auth";
-export { listDevices, signOutDevice, signOutOtherDevices } from "./devices";
-export {
-	createProfile,
-	deleteProfile,
-	getProfile,
-	listProfiles,
-	updateProfile,
-	type AvatarStyle,
-} from "./profiles";
+
+export { devices } from "./devices";
+
+export { type AvatarStyle, profiles } from "./profiles";

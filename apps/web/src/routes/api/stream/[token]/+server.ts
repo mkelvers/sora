@@ -6,16 +6,19 @@ import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ params, request, locals, cookies }) => {
 	const session = cookies.get("sora_session");
+
 	if (!locals.viewer?.profile || !session) {
 		error(401, "Not signed in");
 	}
 
 	const site = request.headers.get("sec-fetch-site");
 	const destination = request.headers.get("sec-fetch-dest");
-	if (
+
+	const foreign =
 		(site !== null && site !== "same-origin") ||
-		(destination !== null && !["video", "audio", "track", "empty"].includes(destination))
-	) {
+		(destination !== null && !["video", "audio", "track", "empty"].includes(destination));
+
+	if (foreign) {
 		error(403, "Not available");
 	}
 
@@ -23,7 +26,9 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 		Authorization: `Bearer ${session}`,
 		"X-Sora-Client-Key": WEB_CLIENT_KEY,
 	});
+
 	const range = request.headers.get("range");
+
 	if (range) {
 		headers.set("Range", range);
 	}
@@ -34,6 +39,7 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 			signal: request.signal,
 		}),
 	);
+
 	if (unreachable) {
 		error(502, "Not available");
 	}
@@ -41,17 +47,25 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 	if (!upstream.ok) {
 		const unavailable = new Headers();
 		const retryAfter = upstream.headers.get("Retry-After");
+
 		if (retryAfter) {
 			unavailable.set("Retry-After", retryAfter);
 		}
 
+		let { status } = upstream;
+
+		if (status >= 500) {
+			status = 502;
+		}
+
 		return new Response(null, {
 			headers: unavailable,
-			status: upstream.status >= 500 ? 502 : upstream.status,
+			status,
 		});
 	}
 
 	const forwarded = new Headers();
+
 	for (const name of [
 		"Accept-Ranges",
 		"Cache-Control",
@@ -61,6 +75,7 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 		"Retry-After",
 	]) {
 		const value = upstream.headers.get(name);
+
 		if (value !== null) {
 			forwarded.set(name, value);
 		}

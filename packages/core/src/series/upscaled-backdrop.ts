@@ -10,8 +10,13 @@ const upscaledBackdropPath = "/api/backdrops/";
 export const upscaledBackdropUrl = (id: string) => `${upscaledBackdropPath}${id}`;
 
 /** The ID of the upscale a backdrop URL is served from, or `null` for any other URL. */
-export const upscaleIdOf = (url: string) =>
-	url.startsWith(upscaledBackdropPath) ? url.slice(upscaledBackdropPath.length) : null;
+export const upscaleIdOf = (url: string) => {
+	if (url.startsWith(upscaledBackdropPath)) {
+		return url.slice(upscaledBackdropPath.length);
+	}
+
+	return null;
+};
 
 /** An upscaled backdrop's picture, or `null` when there is no such upscale or it is not ready. */
 export const getUpscaledBackdrop = async (id: string): Promise<Uint8Array | null> => {

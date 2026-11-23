@@ -5,27 +5,35 @@ import { day } from "@sora/shared";
 import {
 	activityOf,
 	arrange,
-	featuredCount,
+	maximumCount,
 	hasNews,
 	isCurrent,
 	minimumCount,
 	order,
 	reasonsOf,
-	rotationOf,
-	rotationPeriod,
+	numberOf,
+	period,
 	shuffle,
 } from "./rotation";
 import type { Candidate } from "./rotation";
 
 const now = new Date("2026-10-05T12:00:00Z");
 
-const ids = (prefix: string, count: number) =>
-	Array.from(
-		{
-			length: count,
-		},
-		(_, index) => `${prefix}${index}`,
-	);
+/** Titles with something new, `c0` to `c19`. */
+const newIds = Array.from(
+	{
+		length: 20,
+	},
+	(_, index) => `c${index}`,
+);
+
+/** Titles featured before with nothing new, `r0` to `r4`. */
+const repeatIds = Array.from(
+	{
+		length: 5,
+	},
+	(_, index) => `r${index}`,
+);
 
 describe("isCurrent", () => {
 	test("accepts a well-liked, popular season that started recently", () => {
@@ -89,8 +97,27 @@ describe("isCurrent", () => {
 			startDate: "2026-07-03",
 			status: "RELEASING",
 		};
-		expect(isCurrent({ ...entry, popularity: 165_000, score: 67 }, now)).toBe(false);
-		expect(isCurrent({ ...entry, popularity: 5000, score: 80 }, now)).toBe(false);
+
+		expect(
+			isCurrent(
+				{
+					...entry,
+					popularity: 165_000,
+					score: 67,
+				},
+				now,
+			),
+		).toBe(false);
+		expect(
+			isCurrent(
+				{
+					...entry,
+					popularity: 5000,
+					score: 80,
+				},
+				now,
+			),
+		).toBe(false);
 	});
 
 	test("asks fewer listings of a title still airing than of a finished one", () => {
@@ -119,63 +146,74 @@ describe("isCurrent", () => {
 	});
 });
 
-describe("rotationOf", () => {
+describe("numberOf", () => {
 	const start = new Date("2026-09-28T06:00:00Z");
 
 	test("starts a rotation every day at 06:00 UTC", () => {
-		expect(rotationOf(new Date(start.getTime() - 1))).toBe(rotationOf(start) - 1);
+		expect(numberOf(new Date(start.getTime() - 1))).toBe(numberOf(start) - 1);
 	});
 
 	test("keeps it all day", () => {
-		expect(rotationOf(new Date(start.getTime() + rotationPeriod - 1))).toBe(rotationOf(start));
-		expect(rotationOf(new Date(start.getTime() + rotationPeriod))).toBe(rotationOf(start) + 1);
+		expect(numberOf(new Date(start.getTime() + period - 1))).toBe(numberOf(start));
+		expect(numberOf(new Date(start.getTime() + period))).toBe(numberOf(start) + 1);
 	});
 });
 
-const ago = (ms: number) => new Date(now.getTime() - ms);
+/** Times and activity counted back from {@link now}. */
+class Past {
+	readonly #now: Date;
+
+	constructor(time: Date) {
+		this.#now = time;
+	}
+
+	/** The time `ms` before now. */
+	ago(ms: number) {
+		return new Date(this.#now.getTime() - ms);
+	}
+
+	/** A day of `trending` activity for each day from `from` days ago up to `to` days ago. */
+	days(from: number, to: number, trending: number) {
+		return Array.from(
+			{
+				length: from - to,
+			},
+			(_, index) => ({
+				day: this.ago((to + index) * day)
+					.toISOString()
+					.slice(0, 10),
+				trending,
+			}),
+		);
+	}
+}
+
+const past = new Past(now);
 
 const quiet = {
 	past: null,
 	recent: null,
 };
 
-const candidate = (overrides: Partial<Candidate>): Candidate => ({
+const base: Candidate = {
 	activity: quiet,
 	id: "c",
 	lastAiredAt: null,
 	lastPickedAt: null,
 	startDate: "2026-01-01",
 	status: "FINISHED",
-	...overrides,
-});
-
-const daysOf = (from: number, to: number, trending: number) =>
-	Array.from(
-		{
-			length: from - to,
-		},
-		(_, index) => ({
-			day: ago((to + index) * day)
-				.toISOString()
-				.slice(0, 10),
-			trending,
-		}),
-	);
-
-const idsOf = (list: readonly Candidate[]) => list.map(({ id }) => id);
-
-const all = () => true;
+};
 
 describe("activityOf", () => {
 	test("averages the last week and a week a month ago", () => {
-		expect(activityOf([...daysOf(7, 0, 600), ...daysOf(35, 28, 1200)], now)).toEqual({
+		expect(activityOf([...past.days(7, 0, 600), ...past.days(35, 28, 1200)], now)).toEqual({
 			past: 1200,
 			recent: 600,
 		});
 	});
 
 	test("trusts neither window with too few days", () => {
-		expect(activityOf(daysOf(2, 0, 600), now)).toEqual(quiet);
+		expect(activityOf(past.days(2, 0, 600), now)).toEqual(quiet);
 	});
 });
 
@@ -183,9 +221,10 @@ describe("reasonsOf", () => {
 	test("features a title that is airing", () => {
 		expect(
 			reasonsOf(
-				candidate({
+				{
+					...base,
 					status: "RELEASING",
-				}),
+				},
 				now,
 			),
 		).toEqual(["airing"]);
@@ -194,9 +233,10 @@ describe("reasonsOf", () => {
 	test("features a season that ended in the last four weeks", () => {
 		expect(
 			reasonsOf(
-				candidate({
-					lastAiredAt: ago(20 * day),
-				}),
+				{
+					...base,
+					lastAiredAt: past.ago(20 * day),
+				},
 				now,
 			),
 		).toEqual(["fresh"]);
@@ -205,11 +245,13 @@ describe("reasonsOf", () => {
 	test("features a film that just came out", () => {
 		expect(
 			reasonsOf(
-				candidate({
-					startDate: ago(10 * day)
+				{
+					...base,
+					startDate: past
+						.ago(10 * day)
 						.toISOString()
 						.slice(0, 10),
-				}),
+				},
 				now,
 			),
 		).toEqual(["fresh"]);
@@ -218,13 +260,14 @@ describe("reasonsOf", () => {
 	test("leaves out a season past its moment that people talk about less", () => {
 		expect(
 			reasonsOf(
-				candidate({
+				{
+					...base,
 					activity: {
 						past: 1224,
 						recent: 589,
 					},
-					lastAiredAt: ago(120 * day),
-				}),
+					lastAiredAt: past.ago(120 * day),
+				},
 				now,
 			),
 		).toEqual([]);
@@ -233,13 +276,14 @@ describe("reasonsOf", () => {
 	test("features an older season people are coming back to", () => {
 		expect(
 			reasonsOf(
-				candidate({
+				{
+					...base,
 					activity: {
 						past: 300,
 						recent: 900,
 					},
-					lastAiredAt: ago(120 * day),
-				}),
+					lastAiredAt: past.ago(120 * day),
+				},
 				now,
 			),
 		).toEqual(["rising"]);
@@ -248,13 +292,14 @@ describe("reasonsOf", () => {
 	test("does not count a little-known title as rising", () => {
 		expect(
 			reasonsOf(
-				candidate({
+				{
+					...base,
 					activity: {
 						past: 20,
 						recent: 80,
 					},
-					lastAiredAt: ago(120 * day),
-				}),
+					lastAiredAt: past.ago(120 * day),
+				},
 				now,
 			),
 		).toEqual([]);
@@ -265,11 +310,12 @@ describe("hasNews", () => {
 	test("counts an episode aired since the title was last featured", () => {
 		expect(
 			hasNews(
-				candidate({
-					lastAiredAt: ago(day),
-					lastPickedAt: ago(5 * day),
+				{
+					...base,
+					lastAiredAt: past.ago(day),
+					lastPickedAt: past.ago(5 * day),
 					status: "RELEASING",
-				}),
+				},
 				now,
 			),
 		).toBe(true);
@@ -278,10 +324,11 @@ describe("hasNews", () => {
 	test("counts nothing when no episode aired since", () => {
 		expect(
 			hasNews(
-				candidate({
-					lastAiredAt: ago(9 * day),
-					lastPickedAt: ago(5 * day),
-				}),
+				{
+					...base,
+					lastAiredAt: past.ago(9 * day),
+					lastPickedAt: past.ago(5 * day),
+				},
 				now,
 			),
 		).toBe(false);
@@ -292,21 +339,24 @@ describe("hasNews", () => {
 			past: 300,
 			recent: 900,
 		};
+
 		expect(
 			hasNews(
-				candidate({
+				{
+					...base,
 					activity: rising,
-					lastPickedAt: ago(3 * day),
-				}),
+					lastPickedAt: past.ago(3 * day),
+				},
 				now,
 			),
 		).toBe(false);
 		expect(
 			hasNews(
-				candidate({
+				{
+					...base,
 					activity: rising,
-					lastPickedAt: ago(8 * day),
-				}),
+					lastPickedAt: past.ago(8 * day),
+				},
 				now,
 			),
 		).toBe(true);
@@ -314,44 +364,46 @@ describe("hasNews", () => {
 });
 
 describe("shuffle", () => {
-	const candidates = ids("c", 20).map((id) =>
-		candidate({
-			id,
-		}),
-	);
+	const candidates = newIds.map((id) => ({
+		...base,
+		id,
+	}));
 
 	test("is stable for one profile and rotation", () => {
-		expect(idsOf(shuffle(candidates, "profile", 100))).toEqual(
-			idsOf(shuffle(candidates, "profile", 100)),
+		expect(shuffle(candidates, "profile", 100).map(({ id }) => id)).toEqual(
+			shuffle(candidates, "profile", 100).map(({ id }) => id),
 		);
 	});
 
 	test("shuffles each rotation anew", () => {
-		expect(idsOf(shuffle(candidates, "profile", 100))).not.toEqual(
-			idsOf(shuffle(candidates, "profile", 101)),
+		expect(shuffle(candidates, "profile", 100).map(({ id }) => id)).not.toEqual(
+			shuffle(candidates, "profile", 101).map(({ id }) => id),
 		);
 	});
 
 	test("orders each profile differently", () => {
-		expect(idsOf(shuffle(candidates, "one", 100))).not.toEqual(
-			idsOf(shuffle(candidates, "two", 100)),
+		expect(shuffle(candidates, "one", 100).map(({ id }) => id)).not.toEqual(
+			shuffle(candidates, "two", 100).map(({ id }) => id),
 		);
 	});
 
 	test("puts a much-talked-about title first more often", () => {
-		const hot = candidate({
+		const hot = {
+			...base,
 			activity: {
 				past: null,
 				recent: 2000,
 			},
 			id: "hot",
-		});
+		};
+
 		const rotations = Array.from(
 			{
 				length: 200,
 			},
 			(_, rotation) => shuffle([hot, ...candidates.slice(0, 5)], "profile", rotation),
 		);
+
 		const first = rotations.filter((list) => list[0]?.id === "hot").length;
 		expect(first).toBeGreaterThan(100);
 	});
@@ -361,33 +413,38 @@ describe("order", () => {
 	test("leaves out titles without a reason and keeps repeats for last", () => {
 		const { news, repeats } = order(
 			[
-				candidate({
+				{
+					...base,
 					id: "past",
-					lastAiredAt: ago(120 * day),
-				}),
-				candidate({
+					lastAiredAt: past.ago(120 * day),
+				},
+				{
+					...base,
 					id: "new",
-					lastAiredAt: ago(day),
-					lastPickedAt: ago(3 * day),
+					lastAiredAt: past.ago(day),
+					lastPickedAt: past.ago(3 * day),
 					status: "RELEASING",
-				}),
-				candidate({
+				},
+				{
+					...base,
 					id: "same",
-					lastAiredAt: ago(4 * day),
-					lastPickedAt: ago(3 * day),
+					lastAiredAt: past.ago(4 * day),
+					lastPickedAt: past.ago(3 * day),
 					status: "RELEASING",
-				}),
-				candidate({
+				},
+				{
+					...base,
 					id: "older",
-					lastAiredAt: ago(6 * day),
-					lastPickedAt: ago(5 * day),
+					lastAiredAt: past.ago(6 * day),
+					lastPickedAt: past.ago(5 * day),
 					status: "RELEASING",
-				}),
+				},
 			],
 			"profile",
 			100,
 			now,
 		);
+
 		expect(news).toEqual(["new"]);
 		expect(repeats).toEqual(["older", "same"]);
 	});
@@ -398,7 +455,7 @@ describe("arrange", () => {
 		expect(
 			arrange(
 				{
-					news: ids("c", 9),
+					news: newIds.slice(0, 9),
 					repeats: [],
 				},
 				(id) => id !== "c1",
@@ -410,12 +467,12 @@ describe("arrange", () => {
 		expect(
 			arrange(
 				{
-					news: ids("c", 20),
-					repeats: ids("r", 5),
+					news: newIds,
+					repeats: repeatIds,
 				},
-				all,
+				() => true,
 			),
-		).toHaveLength(featuredCount);
+		).toHaveLength(maximumCount);
 	});
 
 	test("repeats titles only to reach the minimum", () => {
@@ -423,21 +480,21 @@ describe("arrange", () => {
 			arrange(
 				{
 					news: ["c0"],
-					repeats: ids("r", 5),
+					repeats: repeatIds,
 				},
-				all,
+				() => true,
 			),
-		).toEqual(["c0", ...ids("r", minimumCount - 1)]);
+		).toEqual(["c0", ...repeatIds.slice(0, minimumCount - 1)]);
 	});
 
 	test("counts titles already featured this rotation", () => {
 		expect(
 			arrange(
 				{
-					news: ids("c", 9),
-					repeats: ids("r", 5),
+					news: newIds.slice(0, 9),
+					repeats: repeatIds,
 				},
-				all,
+				() => true,
 				4,
 			),
 		).toEqual(["c0", "c1"]);
@@ -445,9 +502,9 @@ describe("arrange", () => {
 			arrange(
 				{
 					news: [],
-					repeats: ids("r", 5),
+					repeats: repeatIds,
 				},
-				all,
+				() => true,
 				2,
 			),
 		).toEqual(["r0"]);

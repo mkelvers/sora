@@ -1,90 +1,87 @@
 import { SORA_API_URL, WEB_CLIENT_KEY } from "$app/env/private";
-import { knownProfiles, profileCookie } from "$lib/server/sora";
+import { knownProfiles, listProfiles, profileCookie } from "$lib/server/sora";
 import { handoverKey, startedInPopup } from "$routes/(app)/settings/library/connection";
-import { route, SoraClient, SoraError } from "@sora/sdk";
-import { attempt } from "@sora/shared";
+import { SoraClient, SoraError } from "@sora/sdk";
 import { error, redirect } from "@sveltejs/kit";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
 
-/**
- * What the site sends a connection popup back to: nothing of Sora's, only a
- * hand-over of the code to the page that opened it and a closing of itself, so
- * the popup never shows the app.
- */
-const handover = () =>
-	new Response(
-		`<!doctype html><meta charset="utf-8"><title>Sora</title><meta name="color-scheme" content="dark"><body style="margin:0;display:grid;min-height:100vh;place-items:center;background:#000;color:#9a9a9a;font:14px system-ui,sans-serif"><p>Done. You can close this window.</p><script>try{localStorage.setItem(${JSON.stringify(handoverKey)},location.search)}catch{}window.close()</script>`,
-		{
-			headers: {
-				"Cache-Control": "no-store",
-				"Content-Type": "text/html; charset=utf-8",
-			},
-		},
-	);
+/** A request on its way in: where it may go, and whether it brings a connection popup back. */
+class Visit {
+	readonly #event: RequestEvent;
 
-const returnsToPopup = (url: URL) =>
-	url.pathname === "/settings/library" &&
-	(url.searchParams.has("code") || url.searchParams.has("error")) &&
-	startedInPopup(url.search);
+	constructor(event: RequestEvent) {
+		this.#event = event;
+	}
 
-const openPaths = ["/api", "/login", "/logout", "/profiles"];
+	/**
+	 * Where a page request without a signed-in profile goes. Pages that reset
+	 * their layout, like the player, skip the app layout's redirect, so the hook
+	 * has to send everyone there itself instead of letting their queries fail.
+	 */
+	get destination() {
+		const openPaths = ["/api", "/login", "/logout", "/profiles"];
 
-/**
- * Where a page request without a signed-in profile goes. Pages that reset
- * their layout, like the player, skip the app layout's redirect, so the hook
- * has to send everyone there itself instead of letting their queries fail.
- */
-const redirectionFor = (event: RequestEvent) => {
-	const isPage =
-		event.request.method === "GET" &&
-		!event.isDataRequest &&
-		!event.isRemoteRequest &&
-		!openPaths.some((path) => event.url.pathname.startsWith(path));
-	if (!isPage) {
+		const isPage =
+			this.#event.request.method === "GET" &&
+			!this.#event.isDataRequest &&
+			!this.#event.isRemoteRequest &&
+			!openPaths.some((path) => this.#event.url.pathname.startsWith(path));
+
+		if (!isPage) {
+			return null;
+		}
+
+		const here = encodeURIComponent(this.#event.url.pathname + this.#event.url.search);
+
+		if (!this.#event.locals.viewer) {
+			return `/login?redirect=${here}`;
+		}
+
+		if (!this.#event.locals.viewer.profile) {
+			return `/profiles?redirect=${here}`;
+		}
+
 		return null;
 	}
 
-	const here = encodeURIComponent(event.url.pathname + event.url.search);
-	if (!event.locals.viewer) {
-		return `/login?redirect=${here}`;
-	}
-	if (!event.locals.viewer.profile) {
-		return `/profiles?redirect=${here}`;
-	}
-	return null;
-};
+	get returnsToPopup() {
+		const { url } = this.#event;
 
-const listProfiles = async (sora: SoraClient, token: string) => {
-	const known = knownProfiles.get(token);
-	if (known && Date.now() - known.at < 30_000) {
-		return known.profiles;
+		return (
+			url.pathname === "/settings/library" &&
+			(url.searchParams.has("code") || url.searchParams.has("error")) &&
+			startedInPopup(url.search)
+		);
 	}
+}
 
-	const { data, error: listFailure } = await attempt(sora.request(route.listProfiles), SoraError);
-	if (listFailure && listFailure.status !== 401) {
-		throw listFailure;
+export const handle: Handle = async ({ event, resolve }) => {
+	if (event.route.id === "/live") {
+		return resolve(event);
 	}
 
-	if (knownProfiles.size > 500) {
-		knownProfiles.clear();
-	}
-	if (data) {
-		knownProfiles.set(token, {
-			at: Date.now(),
-			profiles: data,
-		});
-	} else {
-		knownProfiles.delete(token);
+	if (new Visit(event).returnsToPopup) {
+		/**
+		 * What the site sends a connection popup back to: nothing of Sora's, only a
+		 * hand-over of the code to the page that opened it and a closing of itself, so
+		 * the popup never shows the app.
+		 */
+		return new Response(
+			`<!doctype html><meta charset="utf-8"><title>Sora</title><meta name="color-scheme" content="dark"><body style="margin:0;display:grid;min-height:100vh;place-items:center;background:#000;color:#9a9a9a;font:14px system-ui,sans-serif"><p>Done. You can close this window.</p><script>try{localStorage.setItem(${JSON.stringify(handoverKey)},location.search)}catch{}window.close()</script>`,
+			{
+				headers: {
+					"Cache-Control": "no-store",
+					"Content-Type": "text/html; charset=utf-8",
+				},
+			},
+		);
 	}
 
-	return data;
-};
-
-const withViewer: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
 
 	const token = event.cookies.get("sora_session");
+
 	if (token) {
 		const sora = new SoraClient({
 			baseUrl: SORA_API_URL,
@@ -121,7 +118,8 @@ const withViewer: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	const destination = redirectionFor(event);
+	const { destination } = new Visit(event);
+
 	if (destination) {
 		redirect(303, destination);
 	}
@@ -130,15 +128,20 @@ const withViewer: Handle = async ({ event, resolve }) => {
 		if (!event.locals.viewer) {
 			error(401, "Not signed in");
 		}
+
 		if (!event.locals.viewer.profile) {
 			error(403, "Choose a profile first");
 		}
 	}
 
 	const response = await resolve(event);
-	if (token && !event.isRemoteRequest && event.request.method !== "GET") {
+
+	const changing = token && !event.isRemoteRequest && event.request.method !== "GET";
+
+	if (changing) {
 		knownProfiles.delete(token);
 	}
+
 	response.headers.set("X-Robots-Tag", "noindex, nofollow");
 	response.headers.set("X-Content-Type-Options", "nosniff");
 	response.headers.set("X-Frame-Options", "DENY");
@@ -148,15 +151,13 @@ const withViewer: Handle = async ({ event, resolve }) => {
 		"Permissions-Policy",
 		"camera=(), microphone=(), geolocation=(), payment=()",
 	);
+
 	if (event.url.protocol === "https:") {
 		response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 	}
 
 	return response;
 };
-
-export const handle: Handle = (input) =>
-	returnsToPopup(input.event.url) ? handover() : withViewer(input);
 
 export const handleError: HandleServerError = ({ error: thrown }) => {
 	if (thrown instanceof SoraError) {

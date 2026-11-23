@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseTmdbHints } from "./hints";
+import { parseFribb } from "./hints";
 
-describe("parseTmdbHints", () => {
+describe("parseFribb", () => {
 	test("reads the show and films hinted for each AniList entry", () => {
-		const hints = parseTmdbHints([
+		const hints = parseFribb([
 			{
 				anidb_id: 17_617,
 				anilist_id: 154_587,
@@ -47,7 +47,7 @@ describe("parseTmdbHints", () => {
 	});
 
 	test("skips entries without an AniList ID or TMDB IDs, and malformed ones", () => {
-		const hints = parseTmdbHints([
+		const hints = parseFribb([
 			{
 				anidb_id: 1,
 				themoviedb_id: {
@@ -80,7 +80,7 @@ describe("parseTmdbHints", () => {
 	});
 
 	test("merges entries that share an AniList ID", () => {
-		const hints = parseTmdbHints([
+		const hints = parseFribb([
 			{
 				anilist_id: 1,
 				themoviedb_id: {
@@ -105,7 +105,7 @@ describe("parseTmdbHints", () => {
 
 	test("rejects a list that is not an array", () => {
 		expect(() =>
-			parseTmdbHints({
+			parseFribb({
 				entries: [],
 			}),
 		).toThrow(TypeError);

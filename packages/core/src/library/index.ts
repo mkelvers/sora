@@ -6,14 +6,12 @@
  * Every function takes an opaque `userId` from the caller's identity layer.
  * The core trusts it, so callers must authenticate before calling.
  */
-export { getFeatured } from "./featured/featured";
-export {
-	dismissNotification,
-	getNotifications,
-	markNotificationsRead,
-	type Notifications,
-} from "./notifications/notifications";
+export { featured } from "./featured/featured";
+
+export { type Notifications, notifications } from "./notifications/notifications";
+
 export { authorizationUrl, importOptions } from "./transfer/oauth";
+
 export {
 	disconnectImport,
 	exportLibrary,
@@ -21,27 +19,15 @@ export {
 	listImportConnections,
 	undoImport,
 } from "./transfer/transfer";
-export { getProfilePreferences, updateProfilePreferences } from "./preferences/profile";
-export { getPlaybackPreferences, updatePlaybackPreferences } from "./preferences/preferences";
-export {
-	dismissContinueWatching,
-	getContinueWatching,
-	getProgress,
-	getSeriesProgress,
-	markUnwatched,
-	markWatched,
-	removeProgress,
-	saveProgress,
-	startRewatch,
-	type EpisodeAddress,
-} from "./progress/progress";
-export { getRating, removeRating, setRating } from "./ratings/ratings";
-export { getRecommendations } from "./recommendations/recommendations";
-export {
-	getWatchlist,
-	getWatchlistStatuses,
-	removeFromWatchlist,
-	setWatchlistStatus,
-} from "./watchlist/watchlist";
+
+export { preferences } from "./preferences/preferences";
+
+export { type EpisodeAddress, progress } from "./progress/progress";
+
+export { ratings } from "./ratings/ratings";
+
+export { recommendations } from "./recommendations/recommendations";
+
+export { watchlist } from "./watchlist/watchlist";
 
 export { getNowWatching } from "./progress/now-watching";

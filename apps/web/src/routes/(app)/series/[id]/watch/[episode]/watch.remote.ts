@@ -1,14 +1,13 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
-import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
-import { refreshStatus, refreshTracking } from "$routes/(app)/tracking.server";
+import { getTitleProgress } from "$routes/(app)/series/[id]/series.remote";
+import { refreshStatus, refreshLibrary } from "$routes/(app)/tracking.server";
 import { route, SoraError } from "@sora/sdk";
-import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
-export type WatchMedia = Omit<PlaybackMedia, "provider" | "locale" | "hardsub">;
+import { resolveEpisode } from "./playback.server";
 
 const EpisodeAddress = z.object({
 	episode: z.coerce.number().int().positive(),
@@ -17,6 +16,7 @@ const EpisodeAddress = z.object({
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const { sora } = remoteViewer();
+
 	const found = await attempt(
 		Promise.all([
 			sora.request(route.getSeries, {
@@ -33,9 +33,11 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 		]),
 		SoraError,
 	);
+
 	if (found.error?.status === 404) {
 		error(404, "Episode not found");
 	}
+
 	if (found.error) {
 		throw found.error;
 	}
@@ -46,44 +48,9 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 	};
 });
 
-const proxied = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
-
-export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) => {
-	const playback = await attempt(
-		remoteViewer().sora.requestWithMeta(route.getPlayback, {
-			params: {
-				episode,
-				series_id: seriesId,
-			},
-		}),
-		SoraError,
-	);
-	if (playback.error) {
-		return {
-			media: [],
-			next: null,
-			previous: null,
-		};
-	}
-
-	const { results, meta } = playback.data;
-
-	return {
-		media: results.map(({ provider: _provider, locale: _locale, hardsub: _hardsub, ...media }) => ({
-			...media,
-			sources: media.sources.map((source) => ({
-				...source,
-				url: proxied(source.url),
-			})),
-			subtitles: media.subtitles.map((track) => ({
-				...track,
-				url: proxied(track.url),
-			})),
-		})),
-		next: meta.next_episode,
-		previous: meta.previous_episode,
-	};
-});
+export const getPlayback = query(EpisodeAddress, (address) =>
+	resolveEpisode(remoteViewer().sora, address),
+);
 
 export const getPlaybackPreferences = query(async () => {
 	const { sora, profile } = remoteViewer();
@@ -98,13 +65,18 @@ export const getPlaybackPreferences = query(async () => {
 export const getProgress = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const { sora, profile } = remoteViewer();
 
-	return await sora.request(route.getProgress, {
+	const progress = await sora.request(route.getProgress, {
 		params: {
 			episode,
 			profile_id: profile.id,
 			series_id: seriesId,
 		},
 	});
+
+	return {
+		profileId: profile.id,
+		progress,
+	};
 });
 
 export const saveProgress = command(
@@ -114,10 +86,15 @@ export const saveProgress = command(
 		finished: z.boolean(),
 		leaving: z.boolean(),
 		position_seconds: z.number().int().nonnegative(),
+		profileId: z.string(),
 		seriesId: z.string(),
 	}),
-	async ({ seriesId, episode, leaving, ...progress }) => {
+	async ({ seriesId, episode, leaving, profileId, ...progress }) => {
 		const { sora, profile } = remoteViewer();
+
+		if (profileId !== profile.id) {
+			error(409, "The active profile has changed");
+		}
 
 		await sora.request(route.saveProgress, {
 			body: progress,
@@ -129,7 +106,7 @@ export const saveProgress = command(
 		});
 
 		if (leaving) {
-			await Promise.all([getSeriesProgress(seriesId).refresh(), refreshTracking()]);
+			await Promise.all([getTitleProgress(seriesId).refresh(), refreshLibrary()]);
 		} else if (progress.finished) {
 			await refreshStatus();
 		}

@@ -17,9 +17,11 @@ export const actions: Actions = {
 	select: async ({ request, locals, cookies, url }) => {
 		const form = await request.formData();
 		const id = form.get("profile");
+
 		if (!locals.viewer) {
 			error(401, "Not signed in");
 		}
+
 		const profile = locals.viewer.profiles.find((candidate) => candidate.id === id);
 
 		if (!profile) {
@@ -30,6 +32,12 @@ export const actions: Actions = {
 
 		const target = new URL(url.searchParams.get("redirect") ?? "/", url.origin);
 		const path = target.pathname + target.search;
-		redirect(303, target.origin === url.origin && !path.startsWith("//") ? path : "/");
+		const local = target.origin === url.origin && !path.startsWith("//");
+
+		if (local) {
+			redirect(303, path);
+		}
+
+		redirect(303, "/");
 	},
 };

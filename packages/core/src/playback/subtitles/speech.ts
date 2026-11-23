@@ -7,21 +7,6 @@ import { config } from "../../config";
 import { SubtitleRefinementError } from "./audio";
 import type { SpokenWord } from "./refine";
 
-const SpeechSchema = z.object({
-	words: z.array(
-		z.object({
-			end: z.number(),
-			start: z.number(),
-			text: z.string(),
-		}),
-	),
-});
-
-/** Listening runs at several times real time on a laptop; this leaves room for a slow server. */
-const timeoutMs = 90 * 60 * second;
-
-const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
-
 /**
  * The words spoken in a 16 kHz mono WAV file and when, found by running
  * `faster-whisper` through the Python in `SUBTITLE_ALIGNMENT_PYTHON`.
@@ -30,6 +15,21 @@ const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
  *   transcribing fails.
  */
 export const transcribe = async (path: string): Promise<SpokenWord[]> => {
+	/** Listening runs at several times real time on a laptop; this leaves room for a slow server. */
+	const timeoutMs = 90 * 60 * second;
+
+	const OutputSchema = z.object({
+		words: z.array(
+			z.object({
+				end: z.number(),
+				start: z.number(),
+				text: z.string(),
+			}),
+		),
+	});
+
+	const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
+
 	if (!config.subtitleAlignmentPython) {
 		throw new SubtitleRefinementError("SUBTITLE_ALIGNMENT_PYTHON is not set");
 	}
@@ -42,14 +42,16 @@ export const transcribe = async (path: string): Promise<SpokenWord[]> => {
 			timeout: timeoutMs,
 		},
 	);
+
 	const [output, failure, code] = await Promise.all([
 		new Response(child.stdout).text(),
 		new Response(child.stderr).text(),
 		child.exited,
 	]);
+
 	if (code !== 0) {
 		throw new SubtitleRefinementError(`Transcribing failed: ${failure.trim().split("\n").at(-1)}`);
 	}
 
-	return SpeechSchema.parse(JSON.parse(output)).words;
+	return OutputSchema.parse(JSON.parse(output)).words;
 };

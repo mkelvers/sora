@@ -1,29 +1,26 @@
 <script lang="ts">
 	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { searchSeries } from "$routes/(app)/search/search.remote";
+	import { getResults } from "$routes/(app)/search/search.remote";
 	import { CaretRightIcon } from "phosphor-svelte";
 
 	let {
 		term,
-		text,
 		active,
-		typing,
 	}: {
 		term: string;
-		text: string;
 		active: number;
-		typing: boolean;
 	} = $props();
 
 	const search = $derived(
-		searchSeries({
+		getResults({
 			page: 1,
 			perPage: 6,
 			q: term,
 		}),
 	);
+
 	const found = $derived(await search);
-	const busy = $derived(typing || $effect.pending() > 0);
+	const busy = $derived($effect.pending() > 0);
 
 	$effect(() => {
 		if (!found.meta.preparing) {
@@ -31,6 +28,7 @@
 		}
 
 		const timer = setTimeout(() => search.refresh(), 3000);
+
 		return () => clearTimeout(timer);
 	});
 </script>
@@ -88,9 +86,9 @@
 		role="option"
 		aria-selected={active === found.results.length}
 		tabindex="-1"
-		href="/search?q={encodeURIComponent(text.trim())}"
+		href="/search?q={encodeURIComponent(term)}"
 	>
-		<span class="truncate">See all results for “{text.trim()}”</span>
+		<span class="truncate">See all results for “{term}”</span>
 		<CaretRightIcon size="1.1rem" />
 	</a>
 {/if}

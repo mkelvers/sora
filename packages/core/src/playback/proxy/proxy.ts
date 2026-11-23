@@ -1,17 +1,15 @@
 import { attempt, hour } from "@sora/shared";
 
 import { config } from "../../config";
-import { InvalidStreamTokenError } from "../../errors";
+import { StreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
-import { getRefinement } from "../subtitles/store";
-import { rewritePlaylist, withDefaultAudio } from "./playlist";
-import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
-import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
-import { cleanWebVtt, paceWebVtt, retimeWebVtt } from "./subtitle";
-import { signStreamTarget, verifyStreamToken } from "./token";
+import { rewrite } from "./playlist";
+import { readahead } from "./readahead";
+import { Resource } from "./resource";
+import { StreamToken } from "./token";
 import type { StreamTarget, StreamTargetKind } from "./token";
-import { fetchUpstream, fetchUpstreamBytes, mirrorsFor, StreamUpstreamError } from "./upstream";
-import type { UpstreamBytes } from "./upstream";
+import { fetchTarget, mirrorsFor, readTarget } from "./upstream";
+import { StreamUpstreamError } from "./upstream-error";
 
 /**
  * How long tokens handed to clients stay valid.
@@ -21,15 +19,8 @@ import type { UpstreamBytes } from "./upstream";
  */
 export const tokenLifetimeMs = 6 * hour;
 
-/** A multivariant playlist's first variant stream, by its URI. */
-const variantPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u;
-const variantsPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/gu;
-
-/** Playlists are buffered for rewriting; anything larger is not a playlist. */
-const maximumPlaylistBytes = 4 * 1024 * 1024;
-
 /**
- * Issues a token that lets an account fetch `url` through {@link proxyStream}.
+ * Issues a token that lets an account fetch `url` through {@link serveStream}.
  *
  * Clients never see the upstream URL or headers: the token is opaque and the
  * proxy applies them.
@@ -52,25 +43,22 @@ export const createStreamToken = (
 		refinement?: string;
 	},
 ) =>
-	signStreamTarget(
-		{
-			accountId,
-			audio,
-			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
-			headers,
-			kind,
-			mirrors,
-			refinement,
-			shifts,
-			url,
-		},
-		config.streamSigningSecret,
-	);
+	new StreamToken(config.streamSigningSecret).sign({
+		accountId,
+		audio,
+		expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
+		headers,
+		kind,
+		mirrors,
+		refinement,
+		shifts,
+		url,
+	});
 
 /**
  * Whether the proxy could serve `url`, from its own host or a mirror. A host
  * answering 429 counts: it is up and throttling a burst, which requests for
- * the stream wait out (see `fetchUpstream`).
+ * the stream wait out (see `fetchTarget`).
  */
 export const canFetchStream = async (
 	url: string,
@@ -79,7 +67,7 @@ export const canFetchStream = async (
 	signal?: AbortSignal,
 ) => {
 	const { data, error } = await attempt(
-		fetchUpstream(
+		fetchTarget(
 			{
 				accountId: "",
 				expiresAt: 0,
@@ -93,10 +81,13 @@ export const canFetchStream = async (
 		),
 		StreamUpstreamError,
 	);
+
 	if (error) {
 		return error.status === 429;
 	}
+
 	await data.response.body?.cancel();
+
 	return true;
 };
 
@@ -127,7 +118,7 @@ export type PlaylistReader = (
 
 /** Reads a playlist from upstream; see {@link PlaylistReader}. */
 export const readPlaylist: PlaylistReader = async (url, headers, { mirrors = [], signal } = {}) => {
-	const playlist = await fetchUpstreamBytes(
+	const playlist = await readTarget(
 		{
 			accountId: "",
 			expiresAt: 0,
@@ -138,32 +129,48 @@ export const readPlaylist: PlaylistReader = async (url, headers, { mirrors = [],
 		},
 		signal,
 	);
+
 	return {
 		content: new TextDecoder().decode(playlist.bytes),
 		url: playlist.url,
 	};
 };
 
-/**
- * A multivariant playlist's first variant, as it is read from `read`, or
- * `playlist` itself when it is a media playlist.
- *
- * @throws {StreamUpstreamError} when the variant cannot be read.
- */
-const firstVariant = (
-	playlist: Playlist,
-	headers: Record<string, string>,
-	read: PlaylistReader,
-): Promise<Playlist> => {
-	const variant = variantPattern.exec(playlist.content)?.groups?.uri;
-	if (!variant) {
-		return Promise.resolve(playlist);
+/** A playlist that may list variant streams, and how to read them. */
+class Master {
+	readonly #playlist: Playlist;
+	readonly #headers: Record<string, string>;
+	readonly #read: PlaylistReader;
+
+	constructor(playlist: Playlist, headers: Record<string, string>, read: PlaylistReader) {
+		this.#playlist = playlist;
+		this.#headers = headers;
+		this.#read = read;
 	}
-	const variantUrl = new URL(variant.trim(), playlist.url).toString();
-	return read(variantUrl, headers, {
-		mirrors: mirrorsFor(variantUrl, playlist.url),
-	});
-};
+
+	/**
+	 * The first variant, as it is read, or the playlist itself when it is a
+	 * media playlist.
+	 *
+	 * @throws {StreamUpstreamError} when the variant cannot be read.
+	 */
+	first(): Promise<Playlist> {
+		/** A multivariant playlist's first variant stream, by its URI. */
+		const variantPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u;
+
+		const variant = variantPattern.exec(this.#playlist.content)?.groups?.uri;
+
+		if (!variant) {
+			return Promise.resolve(this.#playlist);
+		}
+
+		const variantUrl = new URL(variant.trim(), this.#playlist.url).toString();
+
+		return this.#read(variantUrl, this.#headers, {
+			mirrors: mirrorsFor(variantUrl, this.#playlist.url),
+		});
+	}
+}
 
 /**
  * A subtitle file's text, from its own host or a mirror.
@@ -176,7 +183,7 @@ export const readSubtitle = async (
 	mirrors: string[],
 ) => {
 	const { data, error } = await attempt(
-		fetchUpstreamBytes(
+		readTarget(
 			{
 				accountId: "",
 				expiresAt: 0,
@@ -189,9 +196,11 @@ export const readSubtitle = async (
 		),
 		StreamUpstreamError,
 	);
+
 	if (error) {
 		return null;
 	}
+
 	return new TextDecoder().decode(data.bytes);
 };
 
@@ -213,22 +222,28 @@ export const streamTimeline = async (
 	headers: Record<string, string>,
 	read: PlaylistReader = readPlaylist,
 ): Promise<StreamTimeline> => {
-	const { content } = await firstVariant(await read(url, headers), headers, read);
+	const { content } = await new Master(await read(url, headers), headers, read).first();
 
 	const starts: number[] = [];
 	let elapsed = 0;
+
 	for (const [, duration] of content.matchAll(/^#EXTINF:(?<duration>[\d.]+)/gmu)) {
 		starts.push(elapsed);
 		elapsed += Number(duration);
 	}
+
+	if (starts.length === 0) {
+		return {
+			duration: null,
+			starts,
+		};
+	}
+
 	return {
-		duration: starts.length > 0 ? elapsed : null,
+		duration: elapsed,
 		starts,
 	};
 };
-
-/** How many segments of a stream are loaded before it is played, an init section counting as one. */
-const warmedSegments = 3;
 
 /**
  * Starts loading the first segments of a stream that is about to be played, so
@@ -242,21 +257,28 @@ export const warmStream = async (
 	headers: Record<string, string>,
 	read: PlaylistReader = readPlaylist,
 ) => {
+	/** How many segments of a stream are loaded before it is played, an init section counting as one. */
+	const warmedSegments = 3;
+
+	const variantsPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/gu;
+
 	const { data: master, error } = await attempt(read(url, headers), StreamUpstreamError);
+
 	if (error || [...master.content.matchAll(variantsPattern)].length > 1) {
 		return;
 	}
 
 	const { data: playlist, error: variantFailure } = await attempt(
-		firstVariant(master, headers, read),
+		new Master(master, headers, read).first(),
 		StreamUpstreamError,
 	);
+
 	if (variantFailure) {
 		return;
 	}
 
 	const segments: StreamTarget[] = [];
-	rewritePlaylist(playlist.content, playlist.url, (segmentUrl, kind) => {
+	rewrite(playlist.content, playlist.url, (segmentUrl, kind) => {
 		if (kind === "segment") {
 			segments.push({
 				accountId: "",
@@ -267,167 +289,10 @@ export const warmStream = async (
 				url: segmentUrl,
 			});
 		}
+
 		return segmentUrl;
 	});
-	warmSegments(segments.slice(0, warmedSegments));
-};
-
-const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
-	if (upstream.bytes.byteLength > maximumPlaylistBytes) {
-		throw new StreamUpstreamError("Upstream playlist is too large", null);
-	}
-
-	const decoded = new TextDecoder().decode(upstream.bytes);
-	if (!decoded.trimStart().startsWith("#EXTM3U")) {
-		throw new StreamUpstreamError("Upstream did not return an HLS playlist", null);
-	}
-	const content = target.audio ? withDefaultAudio(decoded, target.audio) : decoded;
-
-	// Children inherit the parent's headers and expiry, so a playlist cannot be
-	// used to mint tokens that outlive the one the client was given.
-	const segments: StreamTarget[] = [];
-	const rewritten = rewritePlaylist(content, upstream.url, (url, kind) => {
-		const child: StreamTarget = {
-			accountId: target.accountId,
-			expiresAt: target.expiresAt,
-			headers: target.headers,
-			kind,
-			mirrors: mirrorsFor(url, upstream.url),
-			url,
-		};
-		if (kind === "segment") {
-			segments.push(child);
-		}
-		return signStreamTarget(child, config.streamSigningSecret);
-	});
-	rememberSegmentOrder(segments);
-
-	return new Response(rewritten, {
-		headers: {
-			// Live playlists change; media playlists for VOD are cheap to refetch.
-			"Cache-Control": "no-cache",
-			"Content-Type": "application/vnd.apple.mpegurl",
-		},
-		status: 200,
-	});
-};
-
-/**
- * Streams a segment through unchanged unless it starts with a disguising
- * image header, in which case it is buffered and the image removed.
- */
-const segmentResponse = async (body: ReadableStream<Uint8Array>, headers: Headers) => {
-	const reader = body.getReader();
-	const first = await reader.read();
-	if (first.done) {
-		return new Response(null, {
-			headers,
-			status: 200,
-		});
-	}
-
-	if (isDisguisedSegment(first.value)) {
-		const chunks = [first.value];
-		reader.releaseLock();
-		for await (const chunk of body) {
-			chunks.push(chunk);
-		}
-
-		const segment = unwrapDisguisedSegment(Buffer.concat(chunks));
-		headers.set("Content-Type", "video/mp2t");
-		headers.set("Content-Length", String(segment.byteLength));
-		return new Response(segment, {
-			headers,
-			status: 200,
-		});
-	}
-
-	return new Response(
-		new ReadableStream<Uint8Array>({
-			cancel(reason) {
-				return reader.cancel(reason);
-			},
-			async pull(controller) {
-				const chunk = await reader.read();
-				if (chunk.done) {
-					controller.close();
-				} else {
-					controller.enqueue(chunk.value);
-				}
-			},
-			start(controller) {
-				controller.enqueue(first.value);
-			},
-		}),
-		{
-			headers,
-			status: 200,
-		},
-	);
-};
-
-/** A whole segment, served from the read-ahead. */
-const wholeSegmentResponse = async (target: StreamTarget) => {
-	const segment = await readSegment(target);
-	const headers = new Headers({
-		"Cache-Control": "private, max-age=3600",
-		"Content-Length": String(segment.bytes.byteLength),
-	});
-	if (segment.contentType) {
-		headers.set("Content-Type", segment.contentType);
-	}
-	return new Response(segment.bytes, {
-		headers,
-		status: 200,
-	});
-};
-
-/** The signature a WebVTT file starts with, after an optional byte order mark. */
-const webVttHeader = /^\uFEFF?WEBVTT/u;
-
-/**
- * A subtitle or key, read whole. WebVTT subtitles are cleaned up (see
- * {@link cleanWebVtt}), retimed when the token asks for it, and paced so each
- * line stays up long enough to read.
- */
-const smallFileResponse = async (target: StreamTarget, signal: AbortSignal | undefined) => {
-	const upstream = await fetchUpstreamBytes(target, signal);
-	const text = target.kind === "subtitle" ? new TextDecoder().decode(upstream.bytes) : "";
-	if (target.shifts || webVttHeader.test(text)) {
-		const stored = target.refinement ? await getRefinement(target.refinement) : null;
-		const cleaned = cleanWebVtt(text);
-		const body = paceWebVtt(
-			target.shifts
-				? retimeWebVtt(cleaned, target.shifts, stored?.refinement?.anchors ?? [])
-				: cleaned,
-		);
-		return new Response(body, {
-			headers: {
-				"Cache-Control": "private, max-age=3600",
-				"Content-Type": "text/vtt; charset=utf-8",
-			},
-			status: 200,
-		});
-	}
-
-	const headers = new Headers({
-		"Cache-Control": "private, max-age=3600",
-		"Content-Length": String(upstream.bytes.byteLength),
-	});
-	const contentType = upstream.headers.get("Content-Type");
-	if (contentType) {
-		headers.set("Content-Type", contentType);
-	}
-
-	// Hosts serve WebVTT as octet-stream, which browsers may refuse for <track>.
-	if (target.kind === "subtitle" && new URL(target.url).pathname.endsWith(".vtt")) {
-		headers.set("Content-Type", "text/vtt; charset=utf-8");
-	}
-
-	return new Response(upstream.bytes, {
-		headers,
-		status: 200,
-	});
+	readahead.warm(segments.slice(0, warmedSegments));
 };
 
 /**
@@ -439,11 +304,11 @@ const smallFileResponse = async (target: StreamTarget, signal: AbortSignal | und
  *
  * `Range` is forwarded so players can seek in progressive files.
  *
- * @throws {InvalidStreamTokenError} for a forged, malformed, or expired
+ * @throws {StreamTokenError} for a forged, malformed, or expired
  *   token, or one issued to another account.
  * @throws {StreamUpstreamError} when the upstream and its mirrors fail.
  */
-export const proxyStream = async (
+export const serveStream = async (
 	token: string,
 	request: {
 		/** The signed-in account asking; the token must have been issued to it. */
@@ -452,50 +317,25 @@ export const proxyStream = async (
 		signal?: AbortSignal;
 	},
 ): Promise<Response> => {
-	const target = verifyStreamToken(token, config.streamSigningSecret);
+	const target = new StreamToken(config.streamSigningSecret).verify(token);
+
 	if (target.accountId !== request.accountId) {
-		throw new InvalidStreamTokenError("Stream token was issued to another account");
+		throw new StreamTokenError("Stream token was issued to another account");
 	}
 
+	const resource = new Resource(target);
+
 	if (target.kind === "segment" && !request.range) {
-		return await wholeSegmentResponse(target);
+		return await resource.whole();
 	}
 
 	if (target.kind === "playlist") {
-		const upstream = await fetchUpstreamBytes(target, request.signal);
-		return playlistResponse(target, upstream);
+		return await resource.playlist(request.signal);
 	}
 
 	if (target.kind === "subtitle" || target.kind === "key") {
-		return await smallFileResponse(target, request.signal);
+		return await resource.small(request.signal);
 	}
 
-	const upstream = await fetchUpstream(target, request.range, request.signal);
-
-	const headers = new Headers({
-		"Cache-Control": "private, max-age=3600",
-	});
-	for (const name of ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"]) {
-		const value = upstream.response.headers.get(name);
-		if (value) {
-			headers.set(name, value);
-		}
-	}
-
-	// Some hosts disguise TS segments as images to pass CDN filters. Strict
-	// players (AVPlayer, ExoPlayer) reject that type, so restore the real one.
-	const contentType = headers.get("Content-Type");
-	if (target.kind === "segment" && contentType && /^(?:image|text)\//iu.test(contentType)) {
-		headers.set("Content-Type", "video/mp2t");
-	}
-
-	// A ranged response cannot be unwrapped without breaking its byte offsets.
-	if (target.kind === "segment" && upstream.response.status === 200 && upstream.response.body) {
-		return segmentResponse(upstream.response.body, headers);
-	}
-
-	return new Response(upstream.response.body, {
-		headers,
-		status: upstream.response.status,
-	});
+	return await resource.stream(request.range, request.signal);
 };

@@ -1,7 +1,8 @@
 /**
  * Applies every pending migration, including graphile-worker's: `bun run db:migrate`.
  */
-import { closeDatabase, migrateDatabase } from "./client";
+import { db, migrate } from "./client";
 
-await migrateDatabase();
-await closeDatabase();
+await migrate();
+
+await db.$client.close();

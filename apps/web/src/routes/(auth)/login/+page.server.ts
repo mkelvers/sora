@@ -7,11 +7,6 @@ import { z } from "zod";
 
 import type { Actions, PageServerLoad } from "./$types";
 
-const Credentials = z.object({
-	password: z.string().min(1, "Enter your password."),
-	username: z.string().trim().toLowerCase().min(1, "Enter your username."),
-});
-
 export const load: PageServerLoad = ({ locals, url }) => {
 	if (locals.viewer) {
 		redirect(303, `/profiles${url.search}`);
@@ -22,10 +17,16 @@ export const actions: Actions = {
 	default: async ({ request, cookies, url, getClientAddress }) => {
 		const form = await request.formData();
 		const username = String(form.get("username") ?? "");
-		const credentials = Credentials.safeParse({
-			password: form.get("password") ?? "",
-			username,
-		});
+
+		const credentials = z
+			.object({
+				password: z.string().min(1, "Enter your password."),
+				username: z.string().trim().toLowerCase().min(1, "Enter your username."),
+			})
+			.safeParse({
+				password: form.get("password") ?? "",
+				username,
+			});
 
 		if (!credentials.success) {
 			const { fieldErrors } = z.flattenError(credentials.error);
@@ -49,18 +50,21 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
+
 		if (error?.code === "INVALID_USERNAME_OR_PASSWORD") {
 			return fail(400, {
 				message: "Wrong username or password.",
 				username,
 			});
 		}
+
 		if (error?.status === 429) {
 			return fail(429, {
 				message: "Too many attempts. Try again in a minute.",
 				username,
 			});
 		}
+
 		if (error) {
 			throw error;
 		}

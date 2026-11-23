@@ -53,6 +53,14 @@ cd packages/core
 bun run auth:create-account yourname
 ```
 
+## Tests
+
+`bun run test` runs the unit tests without PostgreSQL. `bun run test:integration` runs the `*.integration.test.ts` suites against the development database: each test file runs inside one transaction and each test inside a savepoint, and both are rolled back, so the tests leave nothing behind and need no cleanup code.
+
+## Deployment health
+
+Both Docker images probe their own `GET /live` with a three-second HTTP deadline. Docker exposes one health status per container, which Swarm can use to replace tasks. Keep healthcheck overrides on `/live` so temporary API or PostgreSQL outages do not trigger replica replacement. The API's existing `GET /health` still provides the signed-in provider and scheduler report.
+
 ## Portfolio endpoint
 
 The optional portfolio endpoint `GET /v1/public/now-watching` requires `Authorization: Bearer <PORTFOLIO_TOKEN>`. Set `PORTFOLIO_TOKEN` and `NOW_WATCHING_PROFILE_ID` on the API container, as documented in `packages/core/.env.example`. Without the token it returns 404; without a profile it returns an empty list. It publishes only up to three display titles from unfinished viewing activity within 30 days, including active rewatches. Keep the token private and rotate it on both servers together.

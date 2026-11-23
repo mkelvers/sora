@@ -4,7 +4,7 @@
 	import Button from "$lib/components/ui/button.svelte";
 	import Tabs from "$lib/components/ui/tabs.svelte";
 	import { cn } from "$lib/utils";
-	import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+	import { getDetails } from "$routes/(app)/series/[id]/series.remote";
 	import {
 		ArrowCounterClockwiseIcon,
 		ArrowsClockwiseIcon,
@@ -21,12 +21,13 @@
 
 	let { params }: PageProps = $props();
 
-	const series = $derived(await getSeries(params.id));
+	const series = $derived(await getDetails(params.id));
 	const media = new Media(() => params.id);
 
 	let sizing = $state(false);
 
 	const arranging = $derived(sizing && media.type === "logo" && !!series.logo_url);
+
 	const placed = $derived(
 		series.logo_scale !== 1 || series.logo_offset_x !== 0 || series.logo_offset_y !== 0,
 	);

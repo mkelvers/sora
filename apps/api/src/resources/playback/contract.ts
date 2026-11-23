@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { PlaybackMediaSchema } from "@sora/core/models/playback";
+import { MediaSchema } from "@sora/core/models/playback";
 
-import { envelopeOf } from "../../openapi/envelope";
-import { json, PlaybackMetaSchema, problem, EpisodeParams } from "../../openapi/schemas";
+import { envelope } from "../../openapi/envelope";
+import { json, PlaybackMeta, problem, EpisodeParams } from "../../openapi/schemas";
 
 /** Playing an episode: its playback and the stream proxy. */
-export const playbackRoute = {
+export const contract = {
 	getPlayback: createRoute({
 		description:
 			"Resolves streams for every version of the episode at once, such as sub and dub, each from the first provider that can play it, with its skip segments. Sources and subtitles are URLs a player fetches directly; they expire, so resolve again rather than storing them.",
@@ -17,12 +17,12 @@ export const playbackRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(
-					z.array(PlaybackMediaSchema).openapi({
+				envelope(
+					z.array(MediaSchema).openapi({
 						description:
 							"Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out. A sub carries every subtitle language its provider has, English first, and always has English: as a track, or burned into the picture when `hardsub` is true. A dub carries the sub's WebVTT tracks retimed to its own encode, when the two encodes can be aligned. Raw has none.",
 					}),
-					PlaybackMetaSchema,
+					PlaybackMeta,
 				),
 				"Streams and skip segments for every version of the episode.",
 			),

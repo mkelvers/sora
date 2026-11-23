@@ -3,10 +3,7 @@
 	import Image from "$lib/components/ui/image.svelte";
 	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import {
-		dismissNotification,
-		markNotificationsRead,
-	} from "$routes/(app)/notifications/notifications.remote";
+	import { dismiss, markRead } from "$routes/(app)/notifications/notifications.remote";
 	import type { Notification } from "@sora/sdk";
 	import { CaretRightIcon, CheckIcon, ClockIcon, TrashIcon } from "phosphor-svelte";
 
@@ -17,20 +14,30 @@
 		item: Notification;
 		unread: boolean;
 	} = $props();
+
 	const releasedAt = $derived.by(() => {
-		const verb = item.kind === "announced" ? "Announced" : "Released";
+		let verb = "Released";
+
+		if (item.kind === "announced") {
+			verb = "Announced";
+		}
+
 		const released = new Date(item.released_at);
+
 		const time = new Intl.DateTimeFormat(undefined, {
 			hour: "2-digit",
 			hourCycle: "h23",
 			minute: "2-digit",
 		}).format(released);
+
 		if (released.toDateString() === new Date().toDateString()) {
 			return `${verb} at ${time}`;
 		}
+
 		const date = new Intl.DateTimeFormat(undefined, {
 			dateStyle: "medium",
 		}).format(released);
+
 		return `${verb} on ${date} at ${time}`;
 	});
 </script>
@@ -102,7 +109,7 @@
 						variant="icon"
 						class="group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
 						aria-label="Mark notification about {item.series.title} as read"
-						onclick={() => markNotificationsRead([item.id])}
+						onclick={() => markRead([item.id])}
 					>
 						<CheckIcon size="1.125rem" />
 					</Button>
@@ -118,7 +125,7 @@
 					tone="danger"
 					class="group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
 					aria-label="Delete notification about {item.series.title}"
-					onclick={() => dismissNotification(item.id)}
+					onclick={() => dismiss(item.id)}
 				>
 					<TrashIcon size="1.125rem" />
 				</Button>

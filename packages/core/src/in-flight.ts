@@ -16,12 +16,14 @@ export class InFlight<TKey, TValue> {
 	/** The work running for `key`, or `start()` begun now and shared until it settles. */
 	run(key: TKey, start: () => Promise<TValue>): Promise<TValue> {
 		const running = this.#running.get(key);
+
 		if (running) {
 			return running;
 		}
 
 		const started = start().finally(() => this.#running.delete(key));
 		this.#running.set(key, started);
+
 		return started;
 	}
 }

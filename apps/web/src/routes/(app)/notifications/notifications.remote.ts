@@ -3,7 +3,7 @@ import { remoteViewer } from "$lib/server/sora";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
-export const getNotifications = query(async () => {
+export const getLatest = query(async () => {
 	const { sora, profile } = remoteViewer();
 
 	const { results, meta } = await sora.requestWithMeta(route.getNotifications, {
@@ -14,13 +14,14 @@ export const getNotifications = query(async () => {
 			limit: 100,
 		},
 	});
+
 	return {
 		items: results,
 		unread: meta.unread,
 	};
 });
 
-export const getUnreadNotifications = query(async () => {
+export const getUnread = query(async () => {
 	const { sora, profile } = remoteViewer();
 
 	const { meta } = await sora.requestWithMeta(route.getNotifications, {
@@ -31,10 +32,11 @@ export const getUnreadNotifications = query(async () => {
 			limit: 1,
 		},
 	});
+
 	return meta.unread;
 });
 
-export const markNotificationsRead = command(z.array(z.string()).min(1).max(100), async (ids) => {
+export const markRead = command(z.array(z.string()).min(1).max(100), async (ids) => {
 	const { sora, profile } = remoteViewer();
 
 	await sora.request(route.markNotificationsRead, {
@@ -45,10 +47,10 @@ export const markNotificationsRead = command(z.array(z.string()).min(1).max(100)
 			profile_id: profile.id,
 		},
 	});
-	await Promise.all([getNotifications().refresh(), getUnreadNotifications().refresh()]);
+	await Promise.all([getLatest().refresh(), getUnread().refresh()]);
 });
 
-export const dismissNotification = command(z.string(), async (id) => {
+export const dismiss = command(z.string(), async (id) => {
 	const { sora, profile } = remoteViewer();
 
 	await sora.request(route.dismissNotification, {
@@ -57,5 +59,5 @@ export const dismissNotification = command(z.string(), async (id) => {
 			profile_id: profile.id,
 		},
 	});
-	await Promise.all([getNotifications().refresh(), getUnreadNotifications().refresh()]);
+	await Promise.all([getLatest().refresh(), getUnread().refresh()]);
 });

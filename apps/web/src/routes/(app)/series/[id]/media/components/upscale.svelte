@@ -3,7 +3,7 @@
 	import { cn } from "$lib/utils";
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
-	import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+	import { getDetails } from "$routes/(app)/series/[id]/series.remote";
 	import type { Series } from "@sora/sdk";
 	import { SparkleIcon } from "phosphor-svelte";
 
@@ -16,6 +16,7 @@
 	} = $props();
 
 	const images = $derived(await getImages(series.id));
+
 	const selected = $derived(
 		images.find(
 			(image) =>
@@ -24,6 +25,7 @@
 				series.backdrop_url?.split("/").at(-1) === image.url.split("/").at(-1),
 		),
 	);
+
 	const upscaling = $derived(images.some((image) => image.upscale === "pending"));
 
 	$effect(() => {
@@ -33,8 +35,9 @@
 
 		const timer = setInterval(() => {
 			getImages(series.id).refresh();
-			getSeries(series.id).refresh();
+			getDetails(series.id).refresh();
 		}, 5000);
+
 		return () => clearInterval(timer);
 	});
 </script>

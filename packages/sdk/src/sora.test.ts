@@ -5,36 +5,39 @@ import { attempt, defined } from "@sora/shared";
 import { route, SoraClient, SoraError } from "./index";
 
 /** A client whose requests are answered by `answer`, and recorded. */
-const clientAnswering = (answer: () => Response, options: { baseUrl?: string } = {}) => {
-	const requests: Request[] = [];
-	const sora = new SoraClient({
-		baseUrl: options.baseUrl ?? "https://sora.test",
-		fetch: (input, init) => {
-			requests.push(new Request(input as string, init));
-			return Promise.resolve(answer());
-		},
-		headers: {
-			Authorization: "Bearer token",
-		},
-	});
+class Answering {
+	readonly requests: Request[] = [];
+	readonly sora: SoraClient;
 
-	return {
-		requests,
-		sora,
-	};
-};
+	constructor(answer: () => Response, options: { baseUrl?: string } = {}) {
+		this.sora = new SoraClient({
+			baseUrl: options.baseUrl ?? "https://sora.test",
+			fetch: (input, init) => {
+				if (input instanceof Request) {
+					this.requests.push(new Request(input, init));
+				} else {
+					this.requests.push(new Request(input.toString(), init));
+				}
 
-const genres = () =>
-	Response.json({
-		meta: {
-			count: 2,
-		},
-		results: ["Action", "Comedy"],
-	});
+				return Promise.resolve(answer());
+			},
+			headers: {
+				Authorization: "Bearer token",
+			},
+		});
+	}
+}
 
 describe("SoraClient.request", () => {
 	test("resolves to a response's results, and requestWithMeta to the whole body", async () => {
-		const { sora } = clientAnswering(genres);
+		const { sora } = new Answering(() =>
+			Response.json({
+				meta: {
+					count: 2,
+				},
+				results: ["Action", "Comedy"],
+			}),
+		);
 
 		expect(await sora.request(route.listGenres)).toEqual(["Action", "Comedy"]);
 		expect(await sora.requestWithMeta(route.listGenres)).toEqual({
@@ -46,7 +49,7 @@ describe("SoraClient.request", () => {
 	});
 
 	test("fills in path parameters and writes query values as text", async () => {
-		const { sora, requests } = clientAnswering(() => new Response(null, { status: 500 }));
+		const { sora, requests } = new Answering(() => new Response(null, { status: 500 }));
 
 		await attempt(
 			sora.request(route.listReleases, {
@@ -86,7 +89,7 @@ describe("SoraClient.request", () => {
 	});
 
 	test("sends the method, headers, and JSON body", async () => {
-		const { sora, requests } = clientAnswering(() => new Response(null, { status: 204 }), {
+		const { sora, requests } = new Answering(() => new Response(null, { status: 204 }), {
 			baseUrl: "https://sora.test///",
 		});
 
@@ -112,7 +115,7 @@ describe("SoraClient.request", () => {
 	});
 
 	test("throws the API's problem as a SoraError", async () => {
-		const { sora } = clientAnswering(() =>
+		const { sora } = new Answering(() =>
 			Response.json(
 				{
 					code: "SERIES_NOT_FOUND",
@@ -150,9 +153,13 @@ describe("SoraClient.request", () => {
 		[{ errors: "Bad gateway" }],
 		[{ errors: [{ path: "email" }] }],
 	])("keeps a malformed failure body as an HTTP error: %j", async (body) => {
-		const { sora } = clientAnswering(() =>
-			Response.json(body, { status: 502, statusText: "Bad Gateway" }),
+		const { sora } = new Answering(() =>
+			Response.json(body, {
+				status: 502,
+				statusText: "Bad Gateway",
+			}),
 		);
+
 		const { error } = await attempt(sora.request(route.listGenres), SoraError);
 
 		expect(error?.status).toBe(502);
@@ -162,7 +169,7 @@ describe("SoraClient.request", () => {
 	});
 
 	test("keeps Better Auth's error message and code", async () => {
-		const { sora } = clientAnswering(() =>
+		const { sora } = new Answering(() =>
 			Response.json(
 				{
 					code: "INVALID_USERNAME_OR_PASSWORD",
@@ -171,8 +178,12 @@ describe("SoraClient.request", () => {
 				{ status: 401 },
 			),
 		);
+
 		const { error } = await attempt(
-			sora.signIn({ password: "wrong-password", username: "viewer" }),
+			sora.signIn({
+				password: "wrong-password",
+				username: "viewer",
+			}),
 			SoraError,
 		);
 
@@ -180,8 +191,35 @@ describe("SoraClient.request", () => {
 		expect(error?.message).toBe("Invalid username or password");
 	});
 
+	test("reports malformed sign-in results through the SDK error contract", async () => {
+		const { sora } = new Answering(() =>
+			Response.json({
+				token: 123,
+				user: {
+					id: "P1",
+					name: "Viewer",
+					username: "viewer",
+				},
+			}),
+		);
+
+		const { error } = await attempt(
+			sora.signIn({
+				password: "password",
+				username: "viewer",
+			}),
+		);
+
+		expect(error).toBeInstanceOf(SoraError);
+		expect(error).toMatchObject({
+			code: "INVALID_RESPONSE",
+			status: 200,
+		});
+	});
+
 	test("changes the password, ends other sessions, and returns the new token", async () => {
-		const { sora, requests } = clientAnswering(() => Response.json({ token: "new-token" }));
+		const { sora, requests } = new Answering(() => Response.json({ token: "new-token" }));
+
 		const changed = await sora.changePassword({
 			currentPassword: "old-password",
 			newPassword: "new-password",
@@ -196,17 +234,45 @@ describe("SoraClient.request", () => {
 		});
 	});
 
+	test("reports malformed password-change results through the SDK error contract", async () => {
+		const { sora } = new Answering(() => Response.json({ token: 123 }));
+
+		const { error } = await attempt(
+			sora.changePassword({
+				currentPassword: "old-password",
+				newPassword: "new-password",
+			}),
+		);
+
+		expect(error).toBeInstanceOf(SoraError);
+		expect(error).toMatchObject({
+			code: "INVALID_RESPONSE",
+			status: 200,
+		});
+	});
+
 	test("keeps validation errors and the retry delay from a problem response", async () => {
-		const errors = [{ message: "Invalid email", path: "email" }];
-		const { sora } = clientAnswering(() =>
+		const errors = [
+			{
+				message: "Invalid email",
+				path: "email",
+			},
+		];
+
+		const { sora } = new Answering(() =>
 			Response.json(
-				{ code: "INVALID_INPUT", detail: "Check the fields", errors },
+				{
+					code: "INVALID_INPUT",
+					detail: "Check the fields",
+					errors,
+				},
 				{
 					headers: { "Retry-After": "30" },
 					status: 429,
 				},
 			),
 		);
+
 		const { error } = await attempt(sora.request(route.listGenres), SoraError);
 
 		expect(error?.code).toBe("INVALID_INPUT");
@@ -215,8 +281,16 @@ describe("SoraClient.request", () => {
 		expect(error?.retryAfterSeconds).toBe(30);
 	});
 
+	test("rejects a successful status absent from the route contract", async () => {
+		const { sora } = new Answering(() => new Response(null, { status: 201 }));
+		const { error } = await attempt(sora.request(route.listGenres), SoraError);
+
+		expect(error?.code).toBe("INVALID_RESPONSE");
+		expect(error?.status).toBe(201);
+	});
+
 	test("throws when a response does not match the contract", async () => {
-		const { sora } = clientAnswering(() =>
+		const { sora } = new Answering(() =>
 			Response.json({
 				meta: {
 					count: "two",
@@ -232,7 +306,7 @@ describe("SoraClient.request", () => {
 	});
 
 	test("throws when a response is not JSON", async () => {
-		const { sora } = clientAnswering(() => new Response("<html>", { status: 200 }));
+		const { sora } = new Answering(() => new Response("<html>", { status: 200 }));
 
 		const { error } = await attempt(sora.request(route.listGenres), SoraError);
 
@@ -240,42 +314,51 @@ describe("SoraClient.request", () => {
 	});
 });
 
-/** Never called: it only has to compile, which `bun run check` makes sure of. */
-const typesAreChecked = async () => {
+test("types reject wrong input", () => {
 	const sora = new SoraClient({
 		baseUrl: "https://sora.test",
 	});
 
-	const names: string[] = await sora.request(route.listGenres);
-	const page = await sora.requestWithMeta(route.listReleases, {
-		query: {
-			page: 1,
-		},
-	});
-	const hasNext: boolean = page.meta.has_next_page;
-	const nothing: undefined = await sora.request(route.dismissNotification, {
-		params: {
-			notification_id: "S1:2",
-			profile_id: "P1",
-		},
-	});
+	/** Never called: it only has to compile, which `bun run check` makes sure of. */
+	const typesAreChecked = async () => {
+		const names: string[] = await sora.request(route.listGenres);
 
-	// @ts-expect-error a route's required path parameters cannot be left out
-	await sora.request(route.getSeries);
-	// @ts-expect-error a number is a number, not text
-	await sora.request(route.listReleases, { query: { page: "1" } });
-	// @ts-expect-error a query parameter the route does not have
-	await sora.request(route.listReleases, { query: { colour: "red" } });
-	// @ts-expect-error a body the route requires
-	await sora.request(route.markNotificationsRead, { params: { profile_id: "P1" } });
-	await sora.request(route.setWatchlistStatus, {
-		// @ts-expect-error a status the route does not know
-		body: { status: "bored" },
-		params: { profile_id: "P1", series_id: "S1" },
-	});
-	// @ts-expect-error results are not a number
-	const wrong: number = await sora.request(route.listGenres);
+		const page = await sora.requestWithMeta(route.listReleases, {
+			query: {
+				page: 1,
+			},
+		});
 
-	return [names, hasNext, nothing, wrong];
-};
-void typesAreChecked;
+		const hasNext: boolean = page.meta.has_next_page;
+
+		const nothing: undefined = await sora.request(route.dismissNotification, {
+			params: {
+				notification_id: "S1:2",
+				profile_id: "P1",
+			},
+		});
+
+		// @ts-expect-error a route's required path parameters cannot be left out
+		await sora.request(route.getSeries);
+		// @ts-expect-error a number is a number, not text
+		await sora.request(route.listReleases, { query: { page: "1" } });
+		// @ts-expect-error a query parameter the route does not have
+		await sora.request(route.listReleases, { query: { colour: "red" } });
+		// @ts-expect-error a body the route requires
+		await sora.request(route.markNotificationsRead, { params: { profile_id: "P1" } });
+		await sora.request(route.setWatchlistStatus, {
+			// @ts-expect-error a status the route does not know
+			body: { status: "bored" },
+			params: {
+				profile_id: "P1",
+				series_id: "S1",
+			},
+		});
+		// @ts-expect-error results are not a number
+		const wrong: number = await sora.request(route.listGenres);
+
+		return [names, hasNext, nothing, wrong];
+	};
+
+	expect(typesAreChecked).toBeFunction();
+});

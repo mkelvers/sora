@@ -32,43 +32,96 @@
 		if (hours === 0) {
 			return `${rest}m`;
 		}
-		return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+
+		if (rest === 0) {
+			return `${hours}h`;
+		}
+
+		return `${hours}h ${rest}m`;
 	};
 
 	const id = $props.id();
 	const library = getLibrary();
 	const movie = $derived(series.format === "MOVIE");
 	const watched = $derived(!!progress?.finished);
-	const started = $derived(progress && !watched && progress.position_seconds > 0 ? progress : null);
+
+	const started = $derived.by(() => {
+		const begun = !watched && (progress?.position_seconds ?? 0) > 0;
+
+		if (progress && begun) {
+			return progress;
+		}
+
+		return null;
+	});
+
 	const concealed = $derived(library.hideSpoilers && !watched && !started && !movie);
-	const played = $derived(started ? started.position_seconds / started.duration_seconds : 0);
+
+	const played = $derived.by(() => {
+		if (started) {
+			return started.position_seconds / started.duration_seconds;
+		}
+
+		return 0;
+	});
+
 	const playable = $derived(episode.audio?.length !== 0);
+
 	const heading = $derived.by(() => {
 		if (special) {
 			return special;
 		}
-		return movie
-			? (episode.title ?? series.title)
-			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`;
+
+		if (movie) {
+			return episode.title ?? series.title;
+		}
+
+		if (episode.title && !concealed) {
+			return `E${episode.number} – ${episode.title}`;
+		}
+
+		return `E${episode.number}`;
 	});
+
 	const badge = $derived.by(() => {
 		if (watched) {
 			return "Watched";
 		}
+
 		if (started) {
 			return `${duration(Math.max(1, (started.duration_seconds - started.position_seconds) / 60))} left`;
 		}
+
 		return episode.runtime_minutes && duration(episode.runtime_minutes);
 	});
-	const verb = $derived.by(() => {
-		if (watched) {
-			return "Watch again";
+
+	const action = $derived.by(() => {
+		let verb = "Play";
+
+		if (started) {
+			verb = "Resume";
 		}
-		return started ? "Resume" : "Play";
+
+		if (watched) {
+			verb = "Watch again";
+		}
+
+		if (movie || special) {
+			return verb;
+		}
+
+		return `${verb} E${episode.number}`;
 	});
-	const action = $derived(`${verb}${movie || special ? "" : ` E${episode.number}`}`);
+
 	const released = $derived(episode.aired_at ?? episode.air_date);
-	const image = $derived(concealed ? null : (episode.still_url ?? series.backdrop_url));
+
+	const image = $derived.by(() => {
+		if (concealed) {
+			return null;
+		}
+
+		return episode.still_url ?? series.backdrop_url;
+	});
 </script>
 
 <li class="group relative isolate flex min-w-0 flex-col self-start focus-within:z-10 hover:z-10">

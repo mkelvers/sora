@@ -3,11 +3,7 @@ import { createContext } from "svelte";
 
 import { getContinueWatching } from "./(home)/home.remote";
 import { getProfilePreferences } from "./settings/settings.remote";
-import {
-	getWatchlist,
-	getWatchlistStatuses,
-	setWatchlistStatus,
-} from "./watchlist/watchlist.remote";
+import { getEntries, getStatuses, setStatus } from "./watchlist/watchlist.remote";
 
 export const statuses = [
 	{
@@ -57,7 +53,7 @@ export class Library {
 	hideSpoilers: boolean;
 
 	constructor() {
-		const watchlist = getWatchlistStatuses();
+		const watchlist = getStatuses();
 		const continuing = getContinueWatching();
 		const preferences = getProfilePreferences();
 		this.status = $derived(
@@ -70,7 +66,13 @@ export class Library {
 	}
 
 	toggle(series: SeriesCard) {
-		this.set(series, this.status.has(series.id) ? null : "plan_to_watch");
+		if (this.status.has(series.id)) {
+			this.set(series, null);
+
+			return;
+		}
+
+		this.set(series, "plan_to_watch");
 	}
 
 	set(series: SeriesCard, status: WatchlistStatus | null) {
@@ -80,24 +82,28 @@ export class Library {
 
 		const now = new Date().toISOString();
 
-		setWatchlistStatus({
+		setStatus({
 			seriesId: series.id,
 			status,
 		}).updates(
-			getWatchlistStatuses().withOverride((current) => {
+			getStatuses().withOverride((current) => {
 				const rest = current.filter((entry) => entry.series_id !== series.id);
-				return status
-					? [
-							{
-								series_id: series.id,
-								status,
-							},
-							...rest,
-						]
-					: rest;
+
+				if (status) {
+					return [
+						{
+							series_id: series.id,
+							status,
+						},
+						...rest,
+					];
+				}
+
+				return rest;
 			}),
-			getWatchlist().withOverride((current) => {
+			getEntries().withOverride((current) => {
 				const rest = current.filter((entry) => entry.series.id !== series.id);
+
 				if (!status) {
 					return rest;
 				}

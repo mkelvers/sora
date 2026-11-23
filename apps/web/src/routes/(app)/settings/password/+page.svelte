@@ -32,10 +32,17 @@
 		currentPassword: "",
 		newPassword: "",
 	});
+
 	let pending = $state(false);
 	let dismissed = $state(false);
 
-	const message = $derived(!dismissed && form?.saved ? "Password changed." : "");
+	const message = $derived.by(() => {
+		if (!dismissed && form?.saved) {
+			return "Password changed.";
+		}
+
+		return "";
+	});
 </script>
 
 <svelte:head>
