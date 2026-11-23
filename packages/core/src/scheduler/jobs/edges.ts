@@ -1,6 +1,6 @@
 import type { Task } from "graphile-worker";
 
-import { storeMissingBackdropEdges } from "../../series/edges";
+import { edges } from "../../series/edges";
 
 /** The graphile-worker task that measures backdrop edges left unmeasured. */
 export const storeMissingTask = "store-missing-backdrop-edges";
@@ -11,7 +11,7 @@ export const storeMissingTask = "store-missing-backdrop-edges";
  * artwork was chosen, and those stored before edges were measured.
  */
 export const storeMissing: Task = async (_payload, helpers) => {
-	const { stored, failed } = await storeMissingBackdropEdges();
+	const { stored, failed } = await edges.storeMissing();
 
 	if (stored + failed > 0) {
 		helpers.logger.info(`Measured ${stored} backdrop edges; ${failed} failed`);

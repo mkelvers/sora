@@ -3,7 +3,7 @@ import { and, eq, or } from "drizzle-orm";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import type { NextEpisode } from "../../models/library";
-import { getAdjacentEpisodes } from "../../series/queries";
+import { titles } from "../../series/queries";
 import { clearSeries } from "../state";
 import { watchlist } from "../watchlist/watchlist";
 import type { EpisodeAddress } from "./progress";
@@ -72,7 +72,7 @@ export class Viewer {
 		});
 
 		if (finished) {
-			const adjacent = await getAdjacentEpisodes(address.seriesId, address.episode);
+			const adjacent = await titles.adjacentEpisodes(address.seriesId, address.episode);
 
 			if (adjacent.next === null) {
 				await this.endRewatch(address.seriesId);
@@ -104,7 +104,7 @@ export class Viewer {
 					};
 				}
 
-				const adjacent = await getAdjacentEpisodes(last.seriesId, last.episode);
+				const adjacent = await titles.adjacentEpisodes(last.seriesId, last.episode);
 
 				return {
 					episode: adjacent.next,

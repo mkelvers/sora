@@ -1,6 +1,6 @@
 import type { PreparingTitle } from "../models/series";
 import { scheduleSeriesStore } from "../scheduler/queue";
-import { storedSeriesIds } from "./store";
+import { store } from "./store";
 
 /** A page of browsed entries, `perPage` places from `pageStart`, of the first `wanted` entries. */
 export class BrowsePage {
@@ -67,7 +67,7 @@ export class BrowsePage {
 	 */
 	async stored(anilistIds: readonly number[]) {
 		const window = this.#window;
-		const found = await storedSeriesIds(anilistIds);
+		const found = await store.ids(anilistIds);
 
 		const missing = anilistIds.slice(0, window.wanted).flatMap((anilistId, place) => {
 			if (found.has(anilistId)) {

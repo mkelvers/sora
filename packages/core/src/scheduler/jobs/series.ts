@@ -16,8 +16,8 @@ import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
 import { releaseTime } from "../../series/episodes";
-import { expireMapping } from "../../series/mapping";
-import { storedSeriesIds, storeSeries } from "../../series/store";
+import { mappings } from "../../series/mapping";
+import { store } from "../../series/store";
 import { editsWindowMs, getShow, withEdits } from "../../tmdb/resources";
 import { withChoices } from "../../tmdb/stills";
 import { parseInput } from "../payload";
@@ -58,7 +58,7 @@ export const storeEntry: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const { data, error } = await attempt(storeSeries(anilistId), UnknownAnimeError);
+	const { data, error } = await attempt(store.save(anilistId), UnknownAnimeError);
 
 	if (error) {
 		// Searches queue every entry they find that is not stored, so an entry
@@ -128,7 +128,7 @@ export const discoverEntries: Task = async (_payload, helpers) => {
 			return [];
 		});
 
-		const stored = await storedSeriesIds([
+		const stored = await store.ids([
 			...entries.map((entry) => entry.id),
 			...entries.flatMap((entry) => idsRelatedBy(entry, franchiseRelations)),
 		]);
@@ -397,7 +397,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 
 	await sequence.all([...staleMappings], async (row) => {
 		if (row.retry_match) {
-			await expireMapping(row.anilist_id);
+			await mappings.expire(row.anilist_id);
 		}
 
 		await scheduleRefresh(row.anilist_id);

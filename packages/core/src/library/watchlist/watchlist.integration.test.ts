@@ -6,7 +6,7 @@ import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
 import { series, titleEpisode } from "../../database/schema/series";
-import { getSeries, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
+import { toCards, titles } from "../../series/queries";
 import { watchlist } from "./watchlist";
 
 describe("saved short titles", () => {
@@ -79,8 +79,8 @@ describe("saved short titles", () => {
 			throw new Error("Missing watchlist test fixture");
 		}
 
-		const cards = await toSeriesCards([row]);
-		const otherCards = await toSeriesCards([row], ["another-title"]);
+		const cards = await toCards([row]);
+		const otherCards = await toCards([row], ["another-title"]);
 		expect(cards.size).toBe(0);
 		expect(otherCards.size).toBe(0);
 
@@ -95,10 +95,10 @@ describe("saved short titles", () => {
 		expect(entry.added_at).toBe(addedAt.toISOString());
 		expect(entry.updated_at).toBe(updatedAt.toISOString());
 
-		const details = await getSeries(id);
+		const details = await titles.get(id);
 		expect(details.id).toBe(id);
 		expect(details.seasons.some((season) => season.series_id === id)).toBe(true);
-		expect(await getSeriesEpisodes(id)).toEqual([]);
+		expect(await titles.episodes(id)).toEqual([]);
 
 		await watchlist.set(profile, id, "completed");
 		expect(await watchlist.list(profile)).toEqual([entry]);

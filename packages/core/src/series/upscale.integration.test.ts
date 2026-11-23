@@ -6,7 +6,7 @@ import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import { pools } from "../scheduler/pools";
 import { upscaleBackdropTask } from "../scheduler/queue";
-import { requestBackdropUpscale, upscaleBackdrop, statusesOf } from "./upscale";
+import { statusesOf, upscales } from "./upscale";
 
 describe("backdrop upscale queue", () => {
 	/** The series key the fixtures use; queries are scoped to it, so the development database's own upscales stay out. */
@@ -55,12 +55,12 @@ describe("backdrop upscale queue", () => {
 
 	let server: Bun.Server<undefined> | undefined;
 	let sourceUrl: string;
-	const request = () => requestBackdropUpscale(id, sourceUrl);
+	const request = () => upscales.request(id, sourceUrl);
 
 	const status = async () => {
-		const upscales = await statusesOf(key);
+		const statuses = await statusesOf(key);
 
-		return upscales.get(sourceUrl)?.status;
+		return statuses.get(sourceUrl)?.status;
 	};
 
 	beforeAll(async () => {
@@ -164,8 +164,8 @@ describe("backdrop upscale queue", () => {
 
 		await Promise.all([request(), request(), request(), request()]);
 		expect(await status()).toBe("pending");
-		const upscales = await statusesOf(key);
-		expect(upscales.get(sourceUrl)?.id).toBe(orphan?.id);
+		const statuses = await statusesOf(key);
+		expect(statuses.get(sourceUrl)?.id).toBe(orphan?.id);
 		expect(await jobs()).toMatchObject([
 			{
 				attempts: 0,
@@ -237,7 +237,7 @@ describe("backdrop upscale queue", () => {
 	test("shows the worker's failure and lets the viewer retry after job completion", async () => {
 		await request();
 		const [queued] = await stored();
-		await upscaleBackdrop(queued?.id ?? "");
+		await upscales.run(queued?.id ?? "");
 		const [failed] = await stored();
 		expect(failed).toMatchObject({
 			failure: "TMDB answered 404",
@@ -268,7 +268,7 @@ describe("backdrop upscale queue", () => {
 			const [queued] = await stored();
 			// The failing write gets its own savepoint, so it cannot abort the test's transaction.
 			await expect(
-				db.transaction(async () => await upscaleBackdrop(queued?.id ?? "")),
+				db.transaction(async () => await upscales.run(queued?.id ?? "")),
 			).rejects.toThrow('update "title_backdrop_upscale"');
 		} finally {
 			await db.execute(sql`drop function reject_upscale_result() cascade`);

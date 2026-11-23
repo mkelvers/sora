@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "../../database/client";
 import { tmdbMapping } from "../../database/schema/series";
 import { UpstreamUnavailableError } from "../../errors";
-import { expireMapping, mappedEpisodes } from "../../series/mapping";
+import { mappedEpisodes, mappings } from "../../series/mapping";
 import { continuesPastLinks } from "../../series/matching";
 import { getShow } from "../../tmdb/resources";
 import type { TmdbShow } from "../../tmdb/resources";
@@ -65,7 +65,7 @@ export class Behind {
 		}
 
 		if (isUnmatched) {
-			await expireMapping(row.anilist_id);
+			await mappings.expire(row.anilist_id);
 		}
 
 		await scheduleRefresh(row.anilist_id);
@@ -175,7 +175,7 @@ export class Behind {
 
 		if (stale) {
 			if (isMatchStale) {
-				await expireMapping(row.anilist_id);
+				await mappings.expire(row.anilist_id);
 			}
 
 			await scheduleRefresh(row.anilist_id);

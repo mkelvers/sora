@@ -13,7 +13,7 @@ import type { WatchlistStatus } from "../../models/library";
 import type { ImportConnection, LibraryExport, LibraryImportReport } from "../../models/transfer";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { releaseTime } from "../../series/episodes";
-import { storedSeriesIds } from "../../series/store";
+import { store } from "../../series/store";
 import { Batches } from "./batches";
 import { fromMal } from "./sources";
 import type { ListEntry, MalEntry } from "./sources";
@@ -95,7 +95,7 @@ export class Importer {
 		const userId = this.#userId;
 		const now = this.#now;
 
-		const stored = await storedSeriesIds(additions.map((addition) => addition.anilistId));
+		const stored = await store.ids(additions.map((addition) => addition.anilistId));
 		const missing = additions.filter((addition) => !stored.has(addition.anilistId));
 
 		const present = additions.flatMap((addition) => {

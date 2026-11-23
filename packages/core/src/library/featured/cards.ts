@@ -3,7 +3,7 @@ import { inArray } from "drizzle-orm";
 import { db } from "../../database/client";
 import { series } from "../../database/schema/series";
 import type { SeriesCard } from "../../models/series";
-import { toSeriesCards } from "../../series/queries";
+import { toCards } from "../../series/queries";
 
 /** The cards of stored series, by series ID. */
 export class Cards {
@@ -21,7 +21,7 @@ export class Cards {
 				.from(series)
 				.where(inArray(series.id, [...seriesIds]));
 
-			return new Cards(await toSeriesCards(rows));
+			return new Cards(await toCards(rows));
 		}
 
 		return new Cards(new Map());

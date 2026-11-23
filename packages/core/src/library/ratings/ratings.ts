@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client";
 import { seriesRating } from "../../database/schema/library";
 import type { Rating } from "../../models/library";
-import { assertSeriesExists } from "../../series/queries";
+import { titles } from "../../series/queries";
 
 export const ratings = {
 	/** The stars a user gave a series; `null` rating when they have not rated it. */
@@ -34,7 +34,7 @@ export const ratings = {
 	 * @throws {UnknownSeriesError} when the ID does not identify a series.
 	 */
 	async set(userId: string, seriesId: string, rating: number) {
-		await assertSeriesExists(seriesId);
+		await titles.assertExists(seriesId);
 		await db
 			.insert(seriesRating)
 			.values({

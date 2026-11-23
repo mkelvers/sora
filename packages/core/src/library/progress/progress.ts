@@ -14,7 +14,7 @@ import type {
 	SeriesProgress,
 } from "../../models/library";
 import { locate } from "../../series/episodes";
-import { assertSeriesExists, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
+import { toCards, titles } from "../../series/queries";
 import { clearSeries } from "../state";
 import { Played } from "./played";
 import { Viewer } from "./viewer";
@@ -114,7 +114,7 @@ export const progress = {
 		}
 
 		const [cards, finishedCounts] = await Promise.all([
-			toSeriesCards(
+			toCards(
 				await db
 					.select()
 					.from(series)
@@ -167,7 +167,7 @@ export const progress = {
 	 * @throws {UnknownSeriesError} when the ID does not identify a series.
 	 */
 	async dismiss(userId: string, seriesId: string) {
-		await assertSeriesExists(seriesId);
+		await titles.assertExists(seriesId);
 		await db
 			.insert(seriesState)
 			.values({
@@ -252,7 +252,7 @@ export const progress = {
 	async markWatched(userId: string, seriesId: string, episode?: number) {
 		const viewer = new Viewer(userId);
 
-		const listed = await getSeriesEpisodes(seriesId);
+		const listed = await titles.episodes(seriesId);
 
 		if (episode !== undefined) {
 			await locate(seriesId, episode);
@@ -339,7 +339,7 @@ export const progress = {
 	 * @throws {UnknownSeriesError} when the ID does not identify a series.
 	 */
 	async remove(userId: string, seriesId: string) {
-		await assertSeriesExists(seriesId);
+		await titles.assertExists(seriesId);
 		await db
 			.delete(episodeProgress)
 			.where(and(eq(episodeProgress.userId, userId), eq(episodeProgress.seriesId, seriesId)));
@@ -361,7 +361,7 @@ export const progress = {
 	async rewatch(userId: string, seriesId: string) {
 		const viewer = new Viewer(userId);
 
-		await assertSeriesExists(seriesId);
+		await titles.assertExists(seriesId);
 		await viewer.forgetRewatch(seriesId);
 		await db
 			.insert(seriesState)
@@ -459,7 +459,7 @@ export const progress = {
 	async series(userId: string, seriesId: string): Promise<SeriesProgress> {
 		const viewer = new Viewer(userId);
 
-		await assertSeriesExists(seriesId);
+		await titles.assertExists(seriesId);
 
 		const [state] = await db
 			.select({
@@ -486,7 +486,7 @@ export const progress = {
 
 		const [last] = rows;
 		const finishedCount = rows.filter((row) => row.finished).length;
-		const seriesEpisodes = await getSeriesEpisodes(seriesId);
+		const seriesEpisodes = await titles.episodes(seriesId);
 		const finished = !rewatch && finishedCount > 0 && finishedCount >= seriesEpisodes.length;
 		let next: NextEpisode | null = null;
 

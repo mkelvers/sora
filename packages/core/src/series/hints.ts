@@ -67,7 +67,7 @@ export const parseFribb = (list: Json): Map<number, TmdbHint> => {
 		throw new TypeError("The Fribb/anime-lists list is not an array");
 	}
 
-	const hints = new Map<number, TmdbHint>();
+	const found = new Map<number, TmdbHint>();
 
 	for (const item of list) {
 		const parsed = EntrySchema.safeParse(item);
@@ -77,7 +77,7 @@ export const parseFribb = (list: Json): Map<number, TmdbHint> => {
 		}
 
 		const { anilist_id: anilistId, themoviedb_id: ids } = parsed.data;
-		const known = hints.get(anilistId);
+		const known = found.get(anilistId);
 
 		const hint = {
 			movieIds: [...new Set([...(known?.movieIds ?? []), ...(ids.movie ?? [])])],
@@ -85,126 +85,128 @@ export const parseFribb = (list: Json): Map<number, TmdbHint> => {
 		};
 
 		if (hint.showId !== null || hint.movieIds.length > 0) {
-			hints.set(anilistId, hint);
+			found.set(anilistId, hint);
 		}
 	}
 
-	return hints;
+	return found;
 };
 
-/**
- * Brings the stored hints in line with the current list: new and changed
- * hints are written, and hints the list no longer has are removed.
- *
- * @returns The AniList IDs whose hint changed, removed ones included.
- * @throws {UpstreamUnavailableError} when the list cannot be downloaded
- *   or read, or holds far fewer hints than are stored; the stored hints are
- *   then kept as they are.
- */
-export const syncTmdbHints = async (): Promise<number[]> => {
+export const hints = {
 	/**
-	 * A list with fewer hints than this share of those stored is taken for a
-	 * broken upstream rather than titles removed, and is not applied. The list
-	 * only grows in practice, so a real shrink this large never happens.
+	 * Brings the stored hints in line with the current list: new and changed
+	 * hints are written, and hints the list no longer has are removed.
+	 *
+	 * @returns The AniList IDs whose hint changed, removed ones included.
+	 * @throws {UpstreamUnavailableError} when the list cannot be downloaded
+	 *   or read, or holds far fewer hints than are stored; the stored hints are
+	 *   then kept as they are.
 	 */
-	const minimumKeptShare = 0.8;
+	async sync(): Promise<number[]> {
+		/**
+		 * A list with fewer hints than this share of those stored is taken for a
+		 * broken upstream rather than titles removed, and is not applied. The list
+		 * only grows in practice, so a real shrink this large never happens.
+		 */
+		const minimumKeptShare = 0.8;
 
-	// Fribb/anime-lists' merged list, minified. Its generator rebuilds it about
-	// weekly from anime-offline-database, which links AniList to AniDB, and the
-	// Anime-Lists project, which links AniDB to TMDB.
-	const response = await attempt(
-		fetch("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", {
-			signal: AbortSignal.timeout(60_000),
-		}),
-	);
-
-	if (response.error) {
-		throw new UpstreamUnavailableError(
-			"GitHub could not be reached for the Fribb/anime-lists list",
-			{
-				cause: response.error,
-				retryAfterMs: null,
-			},
+		// Fribb/anime-lists' merged list, minified. Its generator rebuilds it about
+		// weekly from anime-offline-database, which links AniList to AniDB, and the
+		// Anime-Lists project, which links AniDB to TMDB.
+		const response = await attempt(
+			fetch("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", {
+				signal: AbortSignal.timeout(60_000),
+			}),
 		);
-	}
 
-	if (!response.data.ok) {
-		throw new UpstreamUnavailableError(
-			`GitHub answered ${response.data.status} for the Fribb/anime-lists list`,
-			{
+		if (response.error) {
+			throw new UpstreamUnavailableError(
+				"GitHub could not be reached for the Fribb/anime-lists list",
+				{
+					cause: response.error,
+					retryAfterMs: null,
+				},
+			);
+		}
+
+		if (!response.data.ok) {
+			throw new UpstreamUnavailableError(
+				`GitHub answered ${response.data.status} for the Fribb/anime-lists list`,
+				{
+					retryAfterMs: null,
+				},
+			);
+		}
+
+		const list = await attempt(response.data.json());
+
+		if (list.error) {
+			throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
+				cause: list.error,
 				retryAfterMs: null,
-			},
-		);
-	}
+			});
+		}
 
-	const list = await attempt(response.data.json());
+		const parsed = attempt(() => parseFribb(z.json().parse(list.data)), TypeError);
 
-	if (list.error) {
-		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
-			cause: list.error,
-			retryAfterMs: null,
-		});
-	}
-
-	const hints = attempt(() => parseFribb(z.json().parse(list.data)), TypeError);
-
-	if (hints.error) {
-		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
-			cause: hints.error,
-			retryAfterMs: null,
-		});
-	}
-
-	const fetched = hints.data;
-	const storedRows = await db.select().from(tmdbHint);
-	const stored = new Map(storedRows.map(({ anilistId, ...hint }) => [anilistId, hint]));
-
-	if (fetched.size < stored.size * minimumKeptShare) {
-		throw new UpstreamUnavailableError(
-			`Fribb/anime-lists lists ${fetched.size} TMDB hints against ${stored.size} stored; keeping the stored ones`,
-			{
+		if (parsed.error) {
+			throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
+				cause: parsed.error,
 				retryAfterMs: null,
-			},
-		);
-	}
+			});
+		}
 
-	const changed = [...fetched].filter(([anilistId, hint]) => {
-		const known = stored.get(anilistId);
+		const fetched = parsed.data;
+		const storedRows = await db.select().from(tmdbHint);
+		const stored = new Map(storedRows.map(({ anilistId, ...hint }) => [anilistId, hint]));
 
-		const same =
-			known !== undefined &&
-			known.showId === hint.showId &&
-			known.movieIds.length === hint.movieIds.length &&
-			known.movieIds.every((id, index) => id === hint.movieIds[index]);
+		if (fetched.size < stored.size * minimumKeptShare) {
+			throw new UpstreamUnavailableError(
+				`Fribb/anime-lists lists ${fetched.size} TMDB hints against ${stored.size} stored; keeping the stored ones`,
+				{
+					retryAfterMs: null,
+				},
+			);
+		}
 
-		return !same;
-	});
+		const changed = [...fetched].filter(([anilistId, hint]) => {
+			const known = stored.get(anilistId);
 
-	const removed = [...stored.keys()].filter((anilistId) => !fetched.has(anilistId));
+			const same =
+				known !== undefined &&
+				known.showId === hint.showId &&
+				known.movieIds.length === hint.movieIds.length &&
+				known.movieIds.every((id, index) => id === hint.movieIds[index]);
 
-	await db.transaction(async (tx) => {
-		await sequence.all(chunked(changed, writeBatchSize), async (batch) => {
-			await tx
-				.insert(tmdbHint)
-				.values(
-					batch.map(([anilistId, hint]) => ({
-						anilistId,
-						...hint,
-					})),
-				)
-				.onConflictDoUpdate({
-					set: {
-						movieIds: sql`excluded.movie_ids`,
-						showId: sql`excluded.show_id`,
-					},
-					target: tmdbHint.anilistId,
-				});
+			return !same;
 		});
 
-		await sequence.all(chunked(removed, writeBatchSize), async (batch) => {
-			await tx.delete(tmdbHint).where(inArray(tmdbHint.anilistId, batch));
-		});
-	});
+		const removed = [...stored.keys()].filter((anilistId) => !fetched.has(anilistId));
 
-	return [...changed.map(([anilistId]) => anilistId), ...removed];
+		await db.transaction(async (tx) => {
+			await sequence.all(chunked(changed, writeBatchSize), async (batch) => {
+				await tx
+					.insert(tmdbHint)
+					.values(
+						batch.map(([anilistId, hint]) => ({
+							anilistId,
+							...hint,
+						})),
+					)
+					.onConflictDoUpdate({
+						set: {
+							movieIds: sql`excluded.movie_ids`,
+							showId: sql`excluded.show_id`,
+						},
+						target: tmdbHint.anilistId,
+					});
+			});
+
+			await sequence.all(chunked(removed, writeBatchSize), async (batch) => {
+				await tx.delete(tmdbHint).where(inArray(tmdbHint.anilistId, batch));
+			});
+		});
+
+		return [...changed.map(([anilistId]) => anilistId), ...removed];
+	},
 };

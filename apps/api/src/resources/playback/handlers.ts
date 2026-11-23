@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
-import { getAdjacentEpisodes } from "@sora/core/series";
+import { titles } from "@sora/core/series";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
@@ -32,7 +32,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 					streamBaseUrl: streamBaseUrl.href,
 				},
 			),
-			getAdjacentEpisodes(series_id, episode),
+			titles.adjacentEpisodes(series_id, episode),
 		]);
 
 		// Stream URLs expire; a cached playback would hand out dead ones.

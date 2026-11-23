@@ -4,7 +4,7 @@ import type { SQL } from "drizzle-orm";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series, titleRelation } from "../../database/schema/series";
-import { toSeriesCards } from "../../series/queries";
+import { toCards } from "../../series/queries";
 
 /** A format worth recommending. */
 type Format = "TV" | "MOVIE";
@@ -116,7 +116,7 @@ export class Pool {
 			}
 		}
 
-		const cards = await toSeriesCards(found);
+		const cards = await toCards(found);
 
 		return found.flatMap((row) => {
 			const card = cards.get(row.id);

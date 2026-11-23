@@ -140,96 +140,98 @@ class Picture {
 	}
 }
 
-/**
- * Measures the average colour down an image's left and right edges and
- * stores it under the image's URL, unless it is stored already. Returns
- * whether it is stored.
- *
- * Never throws: an image that fails to load or decode is left for
- * {@link storeMissingBackdropEdges} to measure again.
- */
-export const storeImageEdges = async (url: string): Promise<boolean> => {
-	const [stored] = await db
-		.select({
-			url: imageEdge.url,
-		})
-		.from(imageEdge)
-		.where(eq(imageEdge.url, url))
-		.limit(1);
+export const edges = {
+	/**
+	 * Measures the edges of a series' backdrop as readers see it, unless they
+	 * are stored already. See {@link edges.store}.
+	 */
+	async measureBackdrop(id: string): Promise<boolean> {
+		const [row] = await db
+			.select({
+				url: effectiveBackdrop,
+			})
+			.from(series)
+			.where(eq(series.id, id))
+			.limit(1);
 
-	if (stored) {
-		return true;
-	}
-
-	const { data, error } = await attempt(new Picture(url).edges());
-
-	if (error) {
-		console.warn(`Could not measure the edges of ${url}: ${error.message}`);
-
-		return false;
-	}
-
-	await db
-		.insert(imageEdge)
-		.values({
-			url,
-			...data,
-		})
-		.onConflictDoNothing();
-
-	return true;
-};
-
-/**
- * Measures the edges of a series' backdrop as readers see it, unless they
- * are stored already. See {@link storeImageEdges}.
- */
-export const measureBackdrop = async (id: string): Promise<boolean> => {
-	const [row] = await db
-		.select({
-			url: effectiveBackdrop,
-		})
-		.from(series)
-		.where(eq(series.id, id))
-		.limit(1);
-
-	if (row?.url) {
-		return storeImageEdges(row.url);
-	}
-
-	return false;
-};
-
-/**
- * Measures every backdrop readers see whose edges are not stored, such as
- * those that failed to load when their series was stored. Returns how many
- * were stored and how many failed again.
- */
-export const storeMissingBackdropEdges = async (): Promise<{
-	stored: number;
-	failed: number;
-}> => {
-	const rows = await db
-		.selectDistinct({
-			url: effectiveBackdrop,
-		})
-		.from(series)
-		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
-		.where(isNull(imageEdge.url));
-
-	const urls = rows.flatMap(({ url }) => {
-		if (url) {
-			return [url];
+		if (row?.url) {
+			return edges.store(row.url);
 		}
 
-		return [];
-	});
+		return false;
+	},
 
-	const results = await sequence.all(urls, (url) => storeImageEdges(url));
-	const stored = results.filter(Boolean).length;
+	/**
+	 * Measures the average colour down an image's left and right edges and
+	 * stores it under the image's URL, unless it is stored already. Returns
+	 * whether it is stored.
+	 *
+	 * Never throws: an image that fails to load or decode is left for
+	 * {@link edges.storeMissing} to measure again.
+	 */
+	async store(url: string): Promise<boolean> {
+		const [stored] = await db
+			.select({
+				url: imageEdge.url,
+			})
+			.from(imageEdge)
+			.where(eq(imageEdge.url, url))
+			.limit(1);
 
-	return {
-		failed: urls.length - stored,
-		stored,
-	};
+		if (stored) {
+			return true;
+		}
+
+		const { data, error } = await attempt(new Picture(url).edges());
+
+		if (error) {
+			console.warn(`Could not measure the edges of ${url}: ${error.message}`);
+
+			return false;
+		}
+
+		await db
+			.insert(imageEdge)
+			.values({
+				url,
+				...data,
+			})
+			.onConflictDoNothing();
+
+		return true;
+	},
+
+	/**
+	 * Measures every backdrop readers see whose edges are not stored, such as
+	 * those that failed to load when their series was stored. Returns how many
+	 * were stored and how many failed again.
+	 */
+	async storeMissing(): Promise<{
+		stored: number;
+		failed: number;
+	}> {
+		const rows = await db
+			.selectDistinct({
+				url: effectiveBackdrop,
+			})
+			.from(series)
+			.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
+			.where(isNull(imageEdge.url));
+
+		const urls = rows.flatMap(({ url }) => {
+			if (url) {
+				return [url];
+			}
+
+			return [];
+		});
+
+		const results = await sequence.all(urls, (url) => edges.store(url));
+		const stored = results.filter(Boolean).length;
+
+		return {
+			failed: urls.length - stored,
+			stored,
+		};
+	},
 };

@@ -4,7 +4,7 @@ import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, titleEpisode } from "../../database/schema/series";
 import type { WatchlistEntry, WatchlistStatus, WatchlistStatusEntry } from "../../models/library";
-import { assertSeriesExists, toSeriesCards } from "../../series/queries";
+import { toCards, titles } from "../../series/queries";
 import { clearSeries } from "../state";
 import { afterPlayback } from "./status";
 
@@ -95,11 +95,11 @@ export const watchlist = {
 			.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status)))
 			.orderBy(desc(seriesState.statusChangedAt));
 
-		const titles = rows.map((row) => row.series);
+		const entries = rows.map((row) => row.series);
 
-		const cards = await toSeriesCards(
-			titles,
-			titles.map((title) => title.id),
+		const cards = await toCards(
+			entries,
+			entries.map((title) => title.id),
 		);
 
 		return rows.flatMap((row) => {
@@ -137,7 +137,7 @@ export const watchlist = {
 	 * @throws {UnknownSeriesError} when the ID does not identify a series.
 	 */
 	async set(userId: string, seriesId: string, status: WatchlistStatus) {
-		await assertSeriesExists(seriesId);
+		await titles.assertExists(seriesId);
 		await db
 			.insert(seriesState)
 			.values({

@@ -3,7 +3,7 @@ import type { Task } from "graphile-worker";
 
 import { syncTimetables } from "../../animeschedule/timetable";
 import { providerHttp } from "../../playback/providers/registry";
-import { storedSeriesIds } from "../../series/store";
+import { store } from "../../series/store";
 import { scheduleSeriesStore } from "../queue";
 
 /** The graphile-worker task that keeps AnimeSchedule's timetable stored for the release calendar. */
@@ -20,7 +20,7 @@ export const syncWeeksTask = "sync-timetables";
  */
 export const syncWeeks: Task = async (_payload, helpers) => {
 	const anilistIds = await syncTimetables(providerHttp);
-	const stored = await storedSeriesIds(anilistIds);
+	const stored = await store.ids(anilistIds);
 	const missing = anilistIds.filter((anilistId) => !stored.has(anilistId));
 	await sequence.all(missing, (anilistId) => scheduleSeriesStore(anilistId, "backfill"));
 

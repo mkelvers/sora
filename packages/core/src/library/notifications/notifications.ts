@@ -14,7 +14,7 @@ import { series, titleEpisode } from "../../database/schema/series";
 import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { releaseTime, releasedBetween } from "../../series/episodes";
-import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
+import { listedDatesOf, toCards } from "../../series/queries";
 import { preferences } from "../preferences/preferences";
 import { Continuity } from "./continuity";
 import { Message } from "./message";
@@ -406,7 +406,7 @@ export const notifications = {
 		// Check availability only for titles with recent news. A large library can
 		// otherwise load tens of thousands of old episodes for an unread badge.
 		const releasedIds = new Set(releases.map((row) => row.seriesId));
-		const listed = await listedEpisodeDatesOf(rows.filter((row) => releasedIds.has(row.id)));
+		const listed = await listedDatesOf(rows.filter((row) => releasedIds.has(row.id)));
 		const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
 
 		const episodes = releases
@@ -457,7 +457,7 @@ export const notifications = {
 		const shownIds = new Set(groups.map((group) => group.seriesId));
 		const shownRows = rows.filter((row) => shownIds.has(row.id));
 		const startDates = new Map(shownRows.map((row) => [row.id, row.startDate]));
-		const cards = await toSeriesCards(shownRows);
+		const cards = await toCards(shownRows);
 
 		return {
 			items: groups.flatMap(({ seriesId, ...group }): Notification[] => {

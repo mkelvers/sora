@@ -7,8 +7,8 @@ import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../datab
 import type { UpscaleStatus } from "../database/schema/series";
 import { InvalidInputError, UnknownSeriesError } from "../errors";
 import { hasLiveUpscale, requestUpscale } from "../scheduler/queue";
-import { isCollage } from "./collage";
-import { storeImageEdges } from "./edges";
+import { collage } from "./collage";
+import { edges } from "./edges";
 import { upscale } from "./realesrgan";
 import { upscaledBackdropUrl } from "./upscaled-backdrop";
 
@@ -65,7 +65,7 @@ class Upscale {
 			});
 
 		if (chosen.length > 0) {
-			await storeImageEdges(url);
+			await edges.store(url);
 		}
 	}
 
@@ -108,7 +108,7 @@ class Upscale {
 			return;
 		}
 
-		const { data, error } = await attempt(isCollage(sourceUrl));
+		const { data, error } = await attempt(collage.test(sourceUrl));
 
 		if (error) {
 			console.warn(`Could not look at ${sourceUrl}: ${error.message}`);
@@ -131,172 +131,174 @@ class Upscale {
 	}
 }
 
-/**
- * Asks for one of a series' title's backdrops to be upscaled. The scheduler
- * makes it (see {@link upscaleBackdrop}) and, when it is ready and the
- * original is still the title's chosen backdrop, chooses it in its place.
- * Asking again keeps a live job, chooses a ready upscale, or queues a new
- * attempt after a failure or a lost job.
- *
- * @throws {UnknownSeriesError} when the ID does not identify a series.
- * @throws {InvalidInputError} when the URL is not one of the title's backdrops.
- */
-export const requestBackdropUpscale = async (id: string, url: string) => {
-	const [row] = await db
-		.select({
-			key: series.key,
-		})
-		.from(series)
-		.where(eq(series.id, id))
-		.limit(1);
-
-	if (!row) {
-		throw new UnknownSeriesError(id);
-	}
-
-	const [image] = await db
-		.select({
-			width: titleImage.width,
-		})
-		.from(titleImage)
-		.where(
-			and(eq(titleImage.key, row.key), eq(titleImage.type, "backdrop"), eq(titleImage.url, url)),
-		)
-		.limit(1);
-
-	if (!image) {
-		throw new InvalidInputError("That is not one of the title's backdrops");
-	}
-
-	const readyId = await db.transaction(async (tx) => {
-		// ON CONFLICT locks the existing row even when setWhere skips the update.
-		// A competing request must wait for this transaction's job to commit.
-		const [stored] = await tx
-			.insert(titleBackdropUpscale)
-			.values({
-				key: row.key,
-				sourceUrl: url,
+export const upscales = {
+	/**
+	 * Asks for one of a series' title's backdrops to be upscaled. The scheduler
+	 * makes it (see {@link upscales.run}) and, when it is ready and the
+	 * original is still the title's chosen backdrop, chooses it in its place.
+	 * Asking again keeps a live job, chooses a ready upscale, or queues a new
+	 * attempt after a failure or a lost job.
+	 *
+	 * @throws {UnknownSeriesError} when the ID does not identify a series.
+	 * @throws {InvalidInputError} when the URL is not one of the title's backdrops.
+	 */
+	async request(id: string, url: string) {
+		const [row] = await db
+			.select({
+				key: series.key,
 			})
-			.onConflictDoUpdate({
-				set: {
-					failure: null,
-					status: "pending",
-				},
-				setWhere: eq(titleBackdropUpscale.status, "failed"),
-				target: [titleBackdropUpscale.key, titleBackdropUpscale.sourceUrl],
-			})
-			.returning({ id: titleBackdropUpscale.id });
+			.from(series)
+			.where(eq(series.id, id))
+			.limit(1);
 
-		if (stored) {
-			await requestUpscale(tx, { id: stored.id }, true);
-
-			return;
+		if (!row) {
+			throw new UnknownSeriesError(id);
 		}
 
-		const [existing] = await tx
+		const [image] = await db
 			.select({
-				id: titleBackdropUpscale.id,
+				width: titleImage.width,
+			})
+			.from(titleImage)
+			.where(
+				and(eq(titleImage.key, row.key), eq(titleImage.type, "backdrop"), eq(titleImage.url, url)),
+			)
+			.limit(1);
+
+		if (!image) {
+			throw new InvalidInputError("That is not one of the title's backdrops");
+		}
+
+		const readyId = await db.transaction(async (tx) => {
+			// ON CONFLICT locks the existing row even when setWhere skips the update.
+			// A competing request must wait for this transaction's job to commit.
+			const [stored] = await tx
+				.insert(titleBackdropUpscale)
+				.values({
+					key: row.key,
+					sourceUrl: url,
+				})
+				.onConflictDoUpdate({
+					set: {
+						failure: null,
+						status: "pending",
+					},
+					setWhere: eq(titleBackdropUpscale.status, "failed"),
+					target: [titleBackdropUpscale.key, titleBackdropUpscale.sourceUrl],
+				})
+				.returning({ id: titleBackdropUpscale.id });
+
+			if (stored) {
+				await requestUpscale(tx, { id: stored.id }, true);
+
+				return;
+			}
+
+			const [existing] = await tx
+				.select({
+					id: titleBackdropUpscale.id,
+					status: titleBackdropUpscale.status,
+				})
+				.from(titleBackdropUpscale)
+				.where(and(eq(titleBackdropUpscale.key, row.key), eq(titleBackdropUpscale.sourceUrl, url)))
+				.limit(1);
+
+			if (existing?.status === "pending") {
+				await requestUpscale(tx, { id: existing.id }, false);
+			}
+
+			if (existing?.status === "done") {
+				return existing.id;
+			}
+		});
+
+		if (readyId) {
+			await new Upscale(readyId, row.key, url).choose();
+		}
+	},
+
+	/**
+	 * Makes one requested upscale: fetches the original from TMDB, upscales it,
+	 * and keeps it as a JPEG. Records a failure on the upscale rather than
+	 * throwing, so whoever asked sees it.
+	 */
+	async run(id: string) {
+		/** JPEG quality an upscaled backdrop is stored at. */
+		const storedQuality = 92;
+
+		/**
+		 * The widest an upscaled backdrop is kept: 4K, which is as sharp as a screen
+		 * shows it. A larger original is cleaned up at twice its size and then
+		 * brought back down to this, which is what removes its blur.
+		 */
+		const maxUpscaledWidth = 3840;
+
+		const [row] = await db
+			.select({
+				key: titleBackdropUpscale.key,
+				sourceUrl: titleBackdropUpscale.sourceUrl,
 				status: titleBackdropUpscale.status,
 			})
 			.from(titleBackdropUpscale)
-			.where(and(eq(titleBackdropUpscale.key, row.key), eq(titleBackdropUpscale.sourceUrl, url)))
+			.where(eq(titleBackdropUpscale.id, id))
 			.limit(1);
 
-		if (existing?.status === "pending") {
-			await requestUpscale(tx, { id: existing.id }, false);
+		if (row?.status !== "pending") {
+			return;
 		}
 
-		if (existing?.status === "done") {
-			return existing.id;
-		}
-	});
+		const job = new Upscale(id, row.key, row.sourceUrl);
 
-	if (readyId) {
-		await new Upscale(readyId, row.key, url).choose();
-	}
-};
+		try {
+			const response = await fetch(row.sourceUrl, {
+				signal: AbortSignal.timeout(30_000),
+			});
 
-/**
- * Makes one requested upscale: fetches the original from TMDB, upscales it,
- * and keeps it as a JPEG. Records a failure on the upscale rather than
- * throwing, so whoever asked sees it.
- */
-export const upscaleBackdrop = async (id: string) => {
-	/** JPEG quality an upscaled backdrop is stored at. */
-	const storedQuality = 92;
+			if (!response.ok) {
+				await job.fail(`TMDB answered ${response.status}`);
 
-	/**
-	 * The widest an upscaled backdrop is kept: 4K, which is as sharp as a screen
-	 * shows it. A larger original is cleaned up at twice its size and then
-	 * brought back down to this, which is what removes its blur.
-	 */
-	const maxUpscaledWidth = 3840;
+				return;
+			}
 
-	const [row] = await db
-		.select({
-			key: titleBackdropUpscale.key,
-			sourceUrl: titleBackdropUpscale.sourceUrl,
-			status: titleBackdropUpscale.status,
-		})
-		.from(titleBackdropUpscale)
-		.where(eq(titleBackdropUpscale.id, id))
-		.limit(1);
+			const png = await upscale(new Uint8Array(await response.arrayBuffer()));
 
-	if (row?.status !== "pending") {
-		return;
-	}
+			const { data, info } = await sharp(png)
+				.resize({
+					kernel: "lanczos3",
+					width: maxUpscaledWidth,
+					withoutEnlargement: true,
+				})
+				.jpeg({
+					mozjpeg: true,
+					quality: storedQuality,
+				})
+				.toBuffer({
+					resolveWithObject: true,
+				});
 
-	const job = new Upscale(id, row.key, row.sourceUrl);
+			await db
+				.update(titleBackdropUpscale)
+				.set({
+					failure: null,
+					height: info.height,
+					image: data,
+					status: "done",
+					width: info.width,
+				})
+				.where(eq(titleBackdropUpscale.id, id));
+		} catch (error) {
+			let failure = "Upscaling failed";
 
-	try {
-		const response = await fetch(row.sourceUrl, {
-			signal: AbortSignal.timeout(30_000),
-		});
+			if (error instanceof Error) {
+				failure = error.message;
+			}
 
-		if (!response.ok) {
-			await job.fail(`TMDB answered ${response.status}`);
+			await job.fail(failure);
 
 			return;
 		}
 
-		const png = await upscale(new Uint8Array(await response.arrayBuffer()));
-
-		const { data, info } = await sharp(png)
-			.resize({
-				kernel: "lanczos3",
-				width: maxUpscaledWidth,
-				withoutEnlargement: true,
-			})
-			.jpeg({
-				mozjpeg: true,
-				quality: storedQuality,
-			})
-			.toBuffer({
-				resolveWithObject: true,
-			});
-
-		await db
-			.update(titleBackdropUpscale)
-			.set({
-				failure: null,
-				height: info.height,
-				image: data,
-				status: "done",
-				width: info.width,
-			})
-			.where(eq(titleBackdropUpscale.id, id));
-	} catch (error) {
-		let failure = "Upscaling failed";
-
-		if (error instanceof Error) {
-			failure = error.message;
-		}
-
-		await job.fail(failure);
-
-		return;
-	}
-
-	await job.lookAtOriginal();
-	await job.choose();
+		await job.lookAtOriginal();
+		await job.choose();
+	},
 };
