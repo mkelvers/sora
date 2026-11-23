@@ -15,7 +15,7 @@ import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { episodeReleasedAt, releasedBetween } from "../../series/episodes";
 import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
-import { getProfilePreferences } from "../preferences/profile";
+import { preferences } from "../preferences/preferences";
 import { Continuity } from "./continuity";
 import { Message } from "./message";
 
@@ -385,8 +385,7 @@ export const getNotifications = async (
 		}))
 		.toArray();
 
-	const { hide_spoilers: hideSpoilers, notifications: wanted } =
-		await getProfilePreferences(userId);
+	const { hide_spoilers: hideSpoilers, notifications: wanted } = await preferences.profile(userId);
 
 	const kinds: Record<NotificationGroup["kind"], boolean> = {
 		announced: wanted.premieres,

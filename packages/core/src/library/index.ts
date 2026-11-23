@@ -25,9 +25,7 @@ export {
 	undoImport,
 } from "./transfer/transfer";
 
-export { getProfilePreferences, updateProfilePreferences } from "./preferences/profile";
-
-export { getPlaybackPreferences, updatePlaybackPreferences } from "./preferences/preferences";
+export { preferences } from "./preferences/preferences";
 
 export {
 	dismissContinueWatching,

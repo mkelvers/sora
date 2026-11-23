@@ -6,13 +6,7 @@ import {
 	listProfiles,
 	updateProfile,
 } from "@sora/core/auth";
-import {
-	getFeatured,
-	getPlaybackPreferences,
-	getProfilePreferences,
-	updatePlaybackPreferences,
-	updateProfilePreferences,
-} from "@sora/core/library";
+import { getFeatured, preferences } from "@sora/core/library";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
@@ -87,12 +81,12 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.getPlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const preferences = await getPlaybackPreferences(profile.id);
+		const results = await preferences.playback(profile.id);
 
 		return c.json(
 			{
 				meta: {},
-				results: preferences,
+				results,
 			},
 			200,
 		);
@@ -100,12 +94,12 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.updatePlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const preferences = await updatePlaybackPreferences(profile.id, c.req.valid("json"));
+		const results = await preferences.updatePlayback(profile.id, c.req.valid("json"));
 
 		return c.json(
 			{
 				meta: {},
-				results: preferences,
+				results,
 			},
 			200,
 		);
@@ -113,12 +107,12 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.getProfilePreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const preferences = await getProfilePreferences(profile.id);
+		const results = await preferences.profile(profile.id);
 
 		return c.json(
 			{
 				meta: {},
-				results: preferences,
+				results,
 			},
 			200,
 		);
@@ -126,12 +120,12 @@ export const handlers = new OpenAPIHono<V1Env>({
 
 	.openapi(contract.updateProfilePreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const preferences = await updateProfilePreferences(profile.id, c.req.valid("json"));
+		const results = await preferences.updateProfile(profile.id, c.req.valid("json"));
 
 		return c.json(
 			{
 				meta: {},
-				results: preferences,
+				results,
 			},
 			200,
 		);
