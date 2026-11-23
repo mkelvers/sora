@@ -65,11 +65,11 @@
 		</p>
 		<Button
 			variant="icon"
-			class="absolute inset-y-0 right-0 h-auto w-14 bg-black/10 text-current hover:bg-black/15 hover:text-current focus-visible:-outline-offset-2 focus-visible:outline-on-status"
+			class="absolute inset-y-0 right-0 h-auto w-14 text-current hover:bg-black/10 hover:text-current focus-visible:-outline-offset-2 focus-visible:outline-on-status"
 			aria-label="Dismiss"
 			onclick={ondismiss}
 		>
-			<XIcon size={20} aria-hidden="true" />
+			<XIcon size={22} weight="bold" aria-hidden="true" />
 		</Button>
 	</div>
 {/if}
