@@ -369,7 +369,10 @@ export const refreshListingsTask = "refresh-episode-listings";
  * about 45 layouts over the twelve days after an episode, ten of them in the
  * first ten hours, and none once it is matched; two had a new episode.
  */
-export const refreshEpisodeListings: Task = async (_payload, helpers) => {
+export const refreshEpisodeListings = async (
+	_payload: Parameters<Task>[0],
+	{ logger }: Pick<Parameters<Task>[1], "logger">,
+) => {
 	// Finished standalone titles have no airing job to revisit a failed
 	// match. Retry them monthly, and apply successful mappings resolved
 	// after the last layout, including those resolved through a sequel.
@@ -420,7 +423,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
       ${series.anilistId} as anilist_id,
       bool_or(${unlisted}) as is_unlisted,
       (extract(epoch from now() - max(${releaseTime}) filter (where ${unlisted})) * 1000)::float8 as unlisted_for_ms,
-      bool_or(${lacksDetails}) as lacks_details,
+      coalesce(bool_or(${lacksDetails}), false) as lacks_details,
       (extract(epoch from now() - max(${releaseTime}) filter (where ${lacksDetails})) * 1000)::float8 as lacking_for_ms,
       (extract(epoch from now() - ${series.laidOutAt}) * 1000)::float8 as laid_out_for_ms
     from ${titleEpisode}
@@ -472,7 +475,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 			return await new Behind(row).relayout();
 		}
 
-		return await new Behind(row).refresh(showId, fetchedAt, helpers.logger);
+		return await new Behind(row).refresh(showId, fetchedAt, logger);
 	});
 
 	let fetched = 0;
@@ -485,7 +488,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 		queued += outcome.queued;
 	}
 
-	helpers.logger.info(
+	logger.info(
 		`Asked TMDB for ${fetched} of ${showIds.size} shows it is behind on, filled in ${updated} episodes, and queued ${queued} of ${behind.length} series to be laid out again`,
 	);
 };
