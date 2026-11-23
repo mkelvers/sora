@@ -4,17 +4,17 @@ import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { UnknownEpisodeError, PlaybackUnavailableError, UnknownSeriesError } from "../../errors";
-import { detectSkipSegments, listenToSong } from "../../playback/skips/detect";
+import { locateSongs, listenToSong } from "../../playback/skips/detect";
 import type { ListenedSong } from "../../playback/skips/detect";
 import {
 	episodeDetectionKey,
-	getSkipDetections,
-	isSkipDetectionDue,
-	saveSkipDetection,
-	skipDetectionKey,
+	loadDetections,
+	isDue,
+	saveDetection,
+	videoKey,
 } from "../../playback/skips/store";
-import { themeSongsFor } from "../../playback/skips/themes";
-import { resolveVideos } from "../../playback/streams/resolve";
+import { songsFor } from "../../playback/skips/themes";
+import { streams } from "../../playback/streams/resolve";
 import { locate } from "../../series/episodes";
 import { parseInput } from "../payload";
 
@@ -25,7 +25,7 @@ const unsettled = {
 
 /**
  * Finds where an episode's opening and ending songs play in each of its
- * videos that is due (see `isSkipDetectionDue`), by looking for the songs
+ * videos that is due (see `isDue`), by looking for the songs
  * AnimeThemes has for the anime in the videos' audio, and stores the spans;
  * playback puts them in place of the provider's skip segments (see
  * `withDetection`).
@@ -49,9 +49,9 @@ export const detectSegments: Task = async (payload, helpers) => {
 	const marker = episodeDetectionKey(request.seriesId, request.episode);
 
 	if (ahead) {
-		const markers = await getSkipDetections([marker]);
+		const markers = await loadDetections([marker]);
 
-		if (!isSkipDetectionDue(markers.get(marker))) {
+		if (!isDue(markers.get(marker))) {
 			return;
 		}
 	}
@@ -68,7 +68,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 	}
 
 	const versions = await attempt(
-		resolveVideos(request),
+		streams.videos(request),
 		PlaybackUnavailableError,
 		UnknownEpisodeError,
 	);
@@ -87,7 +87,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 		if (video) {
 			return [
 				{
-					key: skipDetectionKey(video.url),
+					key: videoKey(video.url),
 					video,
 				},
 			];
@@ -96,13 +96,13 @@ export const detectSegments: Task = async (payload, helpers) => {
 		return [];
 	});
 
-	const stored = await getSkipDetections(videos.map(({ key }) => key));
-	const due = videos.filter(({ key }) => isSkipDetectionDue(stored.get(key)));
+	const stored = await loadDetections(videos.map(({ key }) => key));
+	const due = videos.filter(({ key }) => isDue(stored.get(key)));
 
-	let songs: Awaited<ReturnType<typeof themeSongsFor>> = [];
+	let songs: Awaited<ReturnType<typeof songsFor>> = [];
 
 	if (due.length > 0) {
-		songs = await themeSongsFor(await getAnime(located.data.anilistId), located.data.number);
+		songs = await songsFor(await getAnime(located.data.anilistId), located.data.number);
 	}
 
 	const listened = await sequence.all(songs, async (song) => {
@@ -122,18 +122,18 @@ export const detectSegments: Task = async (payload, helpers) => {
 
 		if (previous && previous.songs >= heard.length) {
 			// Nothing new to look for: kept as it was until it is due again.
-			await saveSkipDetection(key, previous.detection, previous.songs);
+			await saveDetection(key, previous.detection, previous.songs);
 
 			return;
 		}
 
 		if (heard.length === 0) {
-			await saveSkipDetection(key, unsettled, 0);
+			await saveDetection(key, unsettled, 0);
 
 			return;
 		}
 
-		const { data: detection, error } = await attempt(detectSkipSegments(video, heard));
+		const { data: detection, error } = await attempt(locateSongs(video, heard));
 
 		if (error) {
 			helpers.logger.info(
@@ -141,11 +141,11 @@ export const detectSegments: Task = async (payload, helpers) => {
 			);
 		}
 
-		await saveSkipDetection(key, detection ?? unsettled, heard.length);
+		await saveDetection(key, detection ?? unsettled, heard.length);
 		helpers.logger.info(
 			`${request.seriesId} ${request.episode}: opening ${JSON.stringify(detection?.opening ?? null)}, ending ${JSON.stringify(detection?.ending ?? null)}`,
 		);
 	});
 
-	await saveSkipDetection(marker, unsettled, heard.length);
+	await saveDetection(marker, unsettled, heard.length);
 };

@@ -13,7 +13,7 @@
 		saveProgress,
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
-	import { choosePlayback } from "@sora/sdk";
+	import { chooseVersion } from "@sora/sdk";
 	import type {
 		Episode,
 		PlaybackPreferences,
@@ -149,7 +149,7 @@
 		return [];
 	});
 
-	const chosen = $derived(choosePlayback(media, preferences));
+	const chosen = $derived(chooseVersion(media, preferences));
 	const selected = $derived(chosen.media);
 	const subtitle = $derived(chosen.subtitle?.url);
 

@@ -170,21 +170,23 @@ export const recorded = (provider: StreamProvider, recorder?: CallRecorder): Str
 	};
 };
 
-/**
- * Deletes recorded calls older than a month.
- *
- * @returns How many hourly rows were deleted.
- */
-export const pruneProviderCalls = async () => {
-	/** Calls are kept this long. */
-	const retentionMs = 30 * day;
+export const calls = {
+	/**
+	 * Deletes recorded calls older than a month.
+	 *
+	 * @returns How many hourly rows were deleted.
+	 */
+	async prune() {
+		/** Calls are kept this long. */
+		const retentionMs = 30 * day;
 
-	const deleted = await db
-		.delete(providerCalls)
-		.where(lt(providerCalls.hour, new Date(Date.now() - retentionMs)))
-		.returning({
-			provider: providerCalls.provider,
-		});
+		const deleted = await db
+			.delete(providerCalls)
+			.where(lt(providerCalls.hour, new Date(Date.now() - retentionMs)))
+			.returning({
+				provider: providerCalls.provider,
+			});
 
-	return deleted.length;
+		return deleted.length;
+	},
 };

@@ -1,4 +1,4 @@
-import { isWebClientKey } from "@sora/core/playback";
+import { isWebKey } from "@sora/core/playback";
 import { attempt } from "@sora/shared";
 import { getConnInfo } from "hono/bun";
 import { createMiddleware } from "hono/factory";
@@ -15,7 +15,7 @@ import type { V1Env } from "./errors";
  * address its limits count against.
  */
 export const clientAddress = createMiddleware<V1Env>(async (c, proceed) => {
-	if (!isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
+	if (!isWebKey(c.req.header("X-Sora-Client-Key"))) {
 		const { data: address } = attempt(() => getConnInfo(c).remote.address, TypeError);
 		const headers = new Headers(c.req.raw.headers);
 		headers.delete("X-Forwarded-For");

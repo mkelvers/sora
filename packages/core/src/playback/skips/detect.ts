@@ -213,7 +213,7 @@ const seamOverlap = 100;
  *
  * @throws {Error} when the video cannot be read.
  */
-export const detectSkipSegments = async (
+export const locateSongs = async (
 	video: ProviderVideo,
 	songs: ListenedSong[],
 ): Promise<SkipDetection> => {

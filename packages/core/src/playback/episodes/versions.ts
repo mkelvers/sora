@@ -8,7 +8,7 @@ import { scheduleEpisodeLookups } from "../../scheduler/queue";
 import { anilistKey } from "../../series/episodes";
 import type { LocatedEpisode } from "../../series/episodes";
 import type { StreamProvider } from "../providers/provider";
-import { servedLocale, streamProviders } from "../providers/registry";
+import { servedLocale, providers } from "../providers/registry";
 import { getProviderUnits, getStoredLanguages, getStoredUnits } from "./episodes";
 import type { ProviderUnit, StoredUnits } from "./episodes";
 
@@ -27,7 +27,7 @@ const live: VersionDependencies = {
 	getProviderUnits,
 	getStoredLanguages,
 	getStoredUnits,
-	providers: streamProviders,
+	providers,
 	scheduleEpisodeLookups,
 };
 
@@ -316,7 +316,7 @@ export interface EpisodeListing {
  * @returns Listings keyed by {@link anilistKey}, with `null` fields
  *   for an episode that is not known yet.
  */
-export const findEpisodeListings = async (
+export const findListings = async (
 	episodes: readonly {
 		anilistId: number;
 		episode: number;

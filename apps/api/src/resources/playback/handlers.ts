@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { proxyStream, resolvePlayback } from "@sora/core/playback";
+import { serveStream, streams } from "@sora/core/playback";
 import { titles } from "@sora/core/series";
 
 import { onInvalidRequest } from "../../errors";
@@ -22,7 +22,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 		}
 
 		const [playback, adjacent] = await Promise.all([
-			resolvePlayback(
+			streams.resolve(
 				{
 					episode,
 					seriesId: series_id,
@@ -71,7 +71,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(contract.getStream, (c) =>
-		proxyStream(c.req.valid("param").token, {
+		serveStream(c.req.valid("param").token, {
 			accountId: c.get("accountId"),
 			range: c.req.header("range") ?? null,
 			signal: c.req.raw.signal,

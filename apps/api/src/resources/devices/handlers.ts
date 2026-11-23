@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { devices } from "@sora/core/auth";
-import { isWebClientKey } from "@sora/core/playback";
+import { isWebKey } from "@sora/core/playback";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
@@ -14,7 +14,7 @@ export const handlers = new OpenAPIHono<V1Env>({
 		// Only the web app, which proves itself with its key, may say what browser a person is on.
 		let userAgent: string | null = null;
 
-		if (isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
+		if (isWebKey(c.req.header("X-Sora-Client-Key"))) {
 			userAgent = c.req.header("X-Sora-User-Agent") ?? null;
 		}
 

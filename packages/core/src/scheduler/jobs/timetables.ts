@@ -2,7 +2,7 @@ import { sequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 
 import { syncTimetables } from "../../animeschedule/timetable";
-import { providerHttp } from "../../playback/providers/registry";
+import { http } from "../../playback/providers/registry";
 import { store } from "../../series/store";
 import { scheduleSeriesStore } from "../queue";
 
@@ -19,7 +19,7 @@ export const syncWeeksTask = "sync-timetables";
  * AnimeSchedule a day, plus one for each show it has not seen before.
  */
 export const syncWeeks: Task = async (_payload, helpers) => {
-	const anilistIds = await syncTimetables(providerHttp);
+	const anilistIds = await syncTimetables(http);
 	const stored = await store.ids(anilistIds);
 	const missing = anilistIds.filter((anilistId) => !stored.has(anilistId));
 	await sequence.all(missing, (anilistId) => scheduleSeriesStore(anilistId, "backfill"));

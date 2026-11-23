@@ -187,7 +187,7 @@ export const songsForEpisode = (songs: ThemeSong[], episode: number) => {
  *
  * @throws {Error} when AnimeThemes cannot be reached.
  */
-export const themeSongsFor = async (anime: Anime, episode: number) => {
+export const songsFor = async (anime: Anime, episode: number) => {
 	const sequels = anime.relations.filter((relation) => relation.type === "SEQUEL");
 
 	// A season goes on in a series, not in a film or a special.

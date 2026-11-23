@@ -16,7 +16,7 @@ import type { ProviderUnit } from "../episodes/episodes";
 import { watchable } from "../episodes/versions";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/provider";
-import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
+import { isServedSubtitle, servedLocale, providers } from "../providers/registry";
 import {
 	canFetchStream,
 	createStreamToken,
@@ -29,7 +29,7 @@ import type { Playlist, PlaylistReader } from "../proxy/proxy";
 import type { StreamTargetKind } from "../proxy/token";
 import { mirrorsFor } from "../proxy/upstream";
 import { StreamUpstreamError } from "../proxy/upstream-error";
-import { getSkipDetections, isSkipDetectionDue, skipDetectionKey } from "../skips/store";
+import { loadDetections, isDue, videoKey } from "../skips/store";
 import type { SkipDetection, StoredSkipDetection } from "../skips/store";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { align, shiftTime } from "./align";
@@ -75,7 +75,7 @@ export interface PlaybackDependencies {
 	readPlaylist: PlaylistReader;
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
-	getSkipDetections: typeof getSkipDetections;
+	getSkipDetections: typeof loadDetections;
 	requestSkipDetection: typeof requestSkipDetection;
 	recordSubtitleLanguages: typeof recordSubtitleLanguages;
 	warmStream: typeof warmStream;
@@ -87,9 +87,9 @@ const live: PlaybackDependencies = {
 	getAnime,
 	getProviderUnits,
 	getRefinement,
-	getSkipDetections,
+	getSkipDetections: loadDetections,
 	locateEpisode: locate,
-	providers: streamProviders,
+	providers,
 	readPlaylist,
 	recordSubtitleLanguages,
 	requestRefinement,
@@ -267,7 +267,7 @@ class Resolution {
 		this.#dependencies = dependencies;
 	}
 
-	/** Resolves every version of an episode at once; see {@link resolvePlayback}. */
+	/** Resolves every version of an episode at once; see {@link streams.resolve}. */
 	async versions({ seriesId, episode }: z.output<typeof PlaybackRequestSchema>) {
 		const dependencies = this.#dependencies;
 		const located = await dependencies.locateEpisode(seriesId, episode);
@@ -398,7 +398,7 @@ class Resolution {
 			if (version && video) {
 				return [
 					{
-						key: skipDetectionKey(video.url),
+						key: videoKey(video.url),
 						version,
 						video,
 					},
@@ -429,7 +429,7 @@ class Resolution {
 			}),
 		);
 
-		if (versions.some(({ key }) => isSkipDetectionDue(detections.get(key)))) {
+		if (versions.some(({ key }) => isDue(detections.get(key)))) {
 			void attempt(dependencies.requestSkipDetection(request));
 		}
 
@@ -742,7 +742,7 @@ class Resolution {
 			const media = this.#media(stream.videos, versionUrl, kinds);
 
 			// Providers hand a dub the sub's subtitles timed to the sub's encode;
-			// resolvePlayback retimes them to the dub's and adds the dub's own
+			// streams.resolve retimes them to the dub's and adds the dub's own
 			// signs and captions.
 			let subtitles: PlaybackSubtitle[] = [];
 
@@ -893,125 +893,6 @@ class Resolution {
 }
 
 /**
- * Resolves playable streams for one episode in every English version
- * providers offer it in, such as dub and sub, at once. Each version comes
- * from the first English provider that can stream it; a version none can
- * stream right now is left out. A sub keeps every subtitle track its
- * provider has, and always has English ones: a provider with English tracks
- * is preferred, and otherwise the first whose English subtitles are burned in
- * is served, marked `hardsub`.
- *
- * Each version carries the opening and ending its provider's player ships
- * with the stream, so they need no requests of their own.
- *
- * Upstream URLs are never exposed; clients receive proxy URLs so upstream
- * headers and hosts stay on the server. They expire with their tokens.
- *
- * @throws {InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
- * @throws {UnknownSeriesError} when the ID does not identify a series.
- * @throws {UnknownEpisodeError} when the series has no such episode,
- *   or no provider lists it.
- * @throws {PlaybackUnavailableError} when providers list the episode but
- *   none can currently stream any version of it.
- */
-export const resolvePlayback = async (
-	request: PlaybackRequest,
-	options: PlaybackOptions,
-	dependencies: PlaybackDependencies = live,
-): Promise<Playback> => {
-	const parsed = PlaybackRequestSchema.safeParse(request);
-
-	if (!parsed.success) {
-		throw new InvalidInputError("Invalid playback request", {
-			cause: parsed.error,
-		});
-	}
-
-	const { seriesId, episode } = parsed.data;
-	// Taken before any token is made, so every token outlives it.
-	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
-
-	const tokenUrl: StreamUrl = (...token) =>
-		`${options.streamBaseUrl.replace(/\/$/u, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
-
-	// Each playlist is read once per playback, by the probe that picks a
-	// provider, the warm-up, aligning a dub to its sub, and the length check of
-	// skip segments; an episode's sub and dub often share one. A read that
-	// failed is not kept, so the next asks again.
-	const playlists = new Map<string, Promise<Playlist>>();
-
-	const readOnce: PlaybackDependencies = {
-		...dependencies,
-		readPlaylist: (url, headers, readOptions) => {
-			const kept = playlists.get(url);
-
-			if (kept) {
-				return kept;
-			}
-
-			const read = dependencies.readPlaylist(url, headers, readOptions);
-			playlists.set(url, read);
-			read.catch(() => playlists.delete(url));
-
-			return read;
-		},
-	};
-
-	const resolution = new Resolution(
-		tokenUrl,
-		options.accountId,
-		options.deadlineMs ?? playbackDeadlineMs,
-		readOnce,
-	);
-
-	const results = await resolution.versions(parsed.data);
-
-	// The first version is the one played by default, so its first segments are
-	// loaded while the rest of the playback is put together and the player starts.
-	const defaultVideo = results
-		.find((result) => result.version)
-		?.videos?.find((candidate) => candidate.format === "hls");
-
-	if (defaultVideo) {
-		void attempt(
-			dependencies.warmStream(defaultVideo.url, defaultVideo.headers, readOnce.readPlaylist),
-		);
-	}
-
-	await resolution.fitDub(results, parsed.data);
-	await resolution.settleSkips(results, parsed.data);
-
-	const media = results.flatMap((result) => {
-		if (result.version) {
-			return [result.version];
-		}
-
-		return [];
-	});
-
-	if (media.length > 0) {
-		await dependencies.recordSubtitleLanguages(seriesId, subtitleLanguagesOf(results));
-
-		return {
-			episode,
-			expiresAt,
-			media,
-			seriesId,
-		};
-	}
-
-	if (!results.some((result) => result.listed)) {
-		throw new UnknownEpisodeError(seriesId, episode);
-	}
-
-	throw new PlaybackUnavailableError(
-		seriesId,
-		episode,
-		results.flatMap((result) => result.attempts),
-	);
-};
-
-/**
  * Looks at which subtitle languages an episode's streams have, for a series
  * nobody has played yet, and stores them as playing it would; see
  * `seriesSubtitles`. Nothing is played, so no stream is warmed and no dub is
@@ -1034,31 +915,149 @@ export const probeSubtitleLanguages = async (
 	return languages;
 };
 
-/**
- * The upstream videos of every version of an episode a provider can stream
- * right now, burned-in subs included, for work that reads them rather than
- * plays them.
- */
-export const resolveVideos = async (
-	request: PlaybackRequest,
-	dependencies: PlaybackDependencies = live,
-) => {
-	const parsed = PlaybackRequestSchema.parse(request);
-	const resolution = new Resolution(() => "", "", playbackDeadlineMs, dependencies);
-	const results = await resolution.versions(parsed);
+export const streams = {
+	/**
+	 * Resolves playable streams for one episode in every English version
+	 * providers offer it in, such as dub and sub, at once. Each version comes
+	 * from the first English provider that can stream it; a version none can
+	 * stream right now is left out. A sub keeps every subtitle track its
+	 * provider has, and always has English ones: a provider with English tracks
+	 * is preferred, and otherwise the first whose English subtitles are burned in
+	 * is served, marked `hardsub`.
+	 *
+	 * Each version carries the opening and ending its provider's player ships
+	 * with the stream, so they need no requests of their own.
+	 *
+	 * Upstream URLs are never exposed; clients receive proxy URLs so upstream
+	 * headers and hosts stay on the server. They expire with their tokens.
+	 *
+	 * @throws {InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
+	 * @throws {UnknownSeriesError} when the ID does not identify a series.
+	 * @throws {UnknownEpisodeError} when the series has no such episode,
+	 *   or no provider lists it.
+	 * @throws {PlaybackUnavailableError} when providers list the episode but
+	 *   none can currently stream any version of it.
+	 */
+	async resolve(
+		request: PlaybackRequest,
+		options: PlaybackOptions,
+		dependencies: PlaybackDependencies = live,
+	): Promise<Playback> {
+		const parsed = PlaybackRequestSchema.safeParse(request);
 
-	return results.flatMap(({ version, videos }) => {
-		if (version && videos) {
-			return [
-				{
-					audio: version.audio,
-					videos,
-				},
-			];
+		if (!parsed.success) {
+			throw new InvalidInputError("Invalid playback request", {
+				cause: parsed.error,
+			});
 		}
 
-		return [];
-	});
+		const { seriesId, episode } = parsed.data;
+		// Taken before any token is made, so every token outlives it.
+		const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
+
+		const tokenUrl: StreamUrl = (...token) =>
+			`${options.streamBaseUrl.replace(/\/$/u, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
+
+		// Each playlist is read once per playback, by the probe that picks a
+		// provider, the warm-up, aligning a dub to its sub, and the length check of
+		// skip segments; an episode's sub and dub often share one. A read that
+		// failed is not kept, so the next asks again.
+		const playlists = new Map<string, Promise<Playlist>>();
+
+		const readOnce: PlaybackDependencies = {
+			...dependencies,
+			readPlaylist: (url, headers, readOptions) => {
+				const kept = playlists.get(url);
+
+				if (kept) {
+					return kept;
+				}
+
+				const read = dependencies.readPlaylist(url, headers, readOptions);
+				playlists.set(url, read);
+				read.catch(() => playlists.delete(url));
+
+				return read;
+			},
+		};
+
+		const resolution = new Resolution(
+			tokenUrl,
+			options.accountId,
+			options.deadlineMs ?? playbackDeadlineMs,
+			readOnce,
+		);
+
+		const results = await resolution.versions(parsed.data);
+
+		// The first version is the one played by default, so its first segments are
+		// loaded while the rest of the playback is put together and the player starts.
+		const defaultVideo = results
+			.find((result) => result.version)
+			?.videos?.find((candidate) => candidate.format === "hls");
+
+		if (defaultVideo) {
+			void attempt(
+				dependencies.warmStream(defaultVideo.url, defaultVideo.headers, readOnce.readPlaylist),
+			);
+		}
+
+		await resolution.fitDub(results, parsed.data);
+		await resolution.settleSkips(results, parsed.data);
+
+		const media = results.flatMap((result) => {
+			if (result.version) {
+				return [result.version];
+			}
+
+			return [];
+		});
+
+		if (media.length > 0) {
+			await dependencies.recordSubtitleLanguages(seriesId, subtitleLanguagesOf(results));
+
+			return {
+				episode,
+				expiresAt,
+				media,
+				seriesId,
+			};
+		}
+
+		if (!results.some((result) => result.listed)) {
+			throw new UnknownEpisodeError(seriesId, episode);
+		}
+
+		throw new PlaybackUnavailableError(
+			seriesId,
+			episode,
+			results.flatMap((result) => result.attempts),
+		);
+	},
+
+	/**
+	 * The upstream videos of every version of an episode a provider can stream
+	 * right now, burned-in subs included, for work that reads them rather than
+	 * plays them.
+	 */
+	async videos(request: PlaybackRequest, dependencies: PlaybackDependencies = live) {
+		const parsed = PlaybackRequestSchema.parse(request);
+		const resolution = new Resolution(() => "", "", playbackDeadlineMs, dependencies);
+		const results = await resolution.versions(parsed);
+
+		return results.flatMap(({ version, videos }) => {
+			if (version && videos) {
+				return [
+					{
+						audio: version.audio,
+						videos,
+					},
+				];
+			}
+
+			return [];
+		});
+	},
 };
 
 /**

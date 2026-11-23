@@ -20,7 +20,7 @@ import { StreamUpstreamError } from "./upstream-error";
 export const tokenLifetimeMs = 6 * hour;
 
 /**
- * Issues a token that lets an account fetch `url` through {@link proxyStream}.
+ * Issues a token that lets an account fetch `url` through {@link serveStream}.
  *
  * Clients never see the upstream URL or headers: the token is opaque and the
  * proxy applies them.
@@ -308,7 +308,7 @@ export const warmStream = async (
  *   token, or one issued to another account.
  * @throws {StreamUpstreamError} when the upstream and its mirrors fail.
  */
-export const proxyStream = async (
+export const serveStream = async (
 	token: string,
 	request: {
 		/** The signed-in account asking; the token must have been issued to it. */

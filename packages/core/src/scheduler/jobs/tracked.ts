@@ -11,7 +11,7 @@ import {
 	providerMapping,
 } from "../../database/schema/playback";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
-import { aniKoto, streamProviders } from "../../playback/providers/registry";
+import { aniKoto, providers } from "../../playback/providers/registry";
 import { extendThroughReleased } from "./airing-plan";
 import type { AiringState } from "./airing-plan";
 
@@ -64,7 +64,7 @@ export class Tracked {
 	async refresh(logger: Parameters<Task>[1]["logger"]) {
 		const anime = this.#anime;
 
-		await sequence.all(streamProviders, async (provider) => {
+		await sequence.all(providers, async (provider) => {
 			const { error } = await attempt(
 				refreshProviderUnits(anime, provider, {
 					retryUnmatched: true,

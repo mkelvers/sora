@@ -1,14 +1,14 @@
 import type { Task } from "graphile-worker";
 
-import { pruneProviderCalls } from "../../playback/providers/calls";
-import { getProviderHealth } from "../../playback/providers/health";
+import { calls } from "../../playback/providers/calls";
+import { statusReport } from "../../playback/providers/health";
 
 /** The graphile-worker task that drops old provider calls. */
 export const pruneLogTask = "prune-provider-calls";
 
 /** Drops recorded provider calls older than a month. Runs daily. */
 export const pruneLog: Task = async (_payload, helpers) => {
-	const deleted = await pruneProviderCalls();
+	const deleted = await calls.prune();
 	helpers.logger.info(`Pruned ${deleted} hourly rows of provider calls`);
 };
 
@@ -21,7 +21,7 @@ export const healthTask = "check-provider-health";
  * Runs hourly, so the warning repeats until the provider recovers.
  */
 export const checkHealth: Task = async (_payload, helpers) => {
-	for (const health of await getProviderHealth()) {
+	for (const health of await statusReport()) {
 		if (health.status !== "failing") {
 			continue;
 		}

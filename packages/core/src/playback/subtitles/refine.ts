@@ -83,7 +83,7 @@ class Matching {
 		this.#lines = cues.map((cue) => new Line(cue.text));
 	}
 
-	/** Where each cue goes; see {@link refineCues}. */
+	/** Where each cue goes; see {@link retimeCues}. */
 	refine(): Refinement | null {
 		/** Fewer matched cues than this and the dub's speech is not the sub's script. */
 		const minimumAnchors = 12;
@@ -707,7 +707,7 @@ class Matching {
  * @returns `null` when too few cues match the speech for the dub to be the
  *   same script.
  */
-export const refineCues = (
+export const retimeCues = (
 	cues: Cue[],
 	words: SpokenWord[],
 	picture: TimelineShift[] | null,

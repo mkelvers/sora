@@ -4,7 +4,7 @@ import { anime } from "../../catalog/models/anime.fixture";
 import {
 	fillerOf,
 	findAnimeLanguages,
-	findEpisodeListings,
+	findListings,
 	watchable,
 	languagesOf,
 	offered,
@@ -100,9 +100,9 @@ class Providers {
 		};
 	}
 
-	/** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
-	async languages(episodes: Parameters<typeof findEpisodeListings>[0]) {
-		const found = await findEpisodeListings(episodes, this.dependencies);
+	/** {@link findListings} with only each episode's languages, for tests about those. */
+	async languages(episodes: Parameters<typeof findListings>[0]) {
+		const found = await findListings(episodes, this.dependencies);
 
 		return new Map([...found].map(([key, listing]) => [key, listing.languages]));
 	}
@@ -365,7 +365,7 @@ describe("findEpisodeListings", () => {
 			provider("silent", "en", [unit(1, ["dub"]), unit(2, ["dub"]), unit(3, ["dub"])]),
 		]);
 
-		const found = await findEpisodeListings(
+		const found = await findListings(
 			[1, 2, 3].map((episode) => ({
 				anilistId: 1,
 				episode,
@@ -385,7 +385,7 @@ describe("findEpisodeListings", () => {
 	test("does not know whether an episode is filler while it is unknown", async () => {
 		const { dependencies } = new Providers([notLookedUp("anikoto", "en")]);
 
-		const listings = await findEpisodeListings(pilot, dependencies);
+		const listings = await findListings(pilot, dependencies);
 		expect(listings.get("1:1")).toEqual({
 			isFiller: null,
 			languages: null,

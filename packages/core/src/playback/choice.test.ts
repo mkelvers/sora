@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { choosePlayback } from "./choice";
+import { chooseVersion } from "./choice";
 import { track } from "./choice.fixture";
 
 const sub = {
@@ -15,7 +15,7 @@ const dub = {
 
 describe("choosePlayback", () => {
 	test("plays the preferred audio with its default track", () => {
-		const chosen = choosePlayback([dub, sub], {
+		const chosen = chooseVersion([dub, sub], {
 			audio: "sub",
 			subtitles: {},
 		});
@@ -26,7 +26,7 @@ describe("choosePlayback", () => {
 
 	test("plays the first version when the preferred audio is missing", () => {
 		expect(
-			choosePlayback([dub], {
+			chooseVersion([dub], {
 				audio: "raw",
 				subtitles: {},
 			}).media,
@@ -40,25 +40,25 @@ describe("choosePlayback", () => {
 		};
 
 		expect(
-			choosePlayback([raw, sub], {
+			chooseVersion([raw, sub], {
 				audio: "dub",
 				subtitles: {},
 			}).media,
 		).toBe(sub);
 		expect(
-			choosePlayback([raw], {
+			chooseVersion([raw], {
 				audio: "dub",
 				subtitles: {},
 			}).media,
 		).toBe(raw);
 		expect(
-			choosePlayback([dub, raw], {
+			chooseVersion([dub, raw], {
 				audio: "sub",
 				subtitles: {},
 			}).media,
 		).toBe(raw);
 		expect(
-			choosePlayback([dub], {
+			chooseVersion([dub], {
 				audio: "sub",
 				subtitles: {},
 			}).media,
@@ -67,7 +67,7 @@ describe("choosePlayback", () => {
 
 	test("picks the chosen language and kind, else the language", () => {
 		expect(
-			choosePlayback([sub], {
+			chooseVersion([sub], {
 				audio: null,
 				subtitles: {
 					sub: {
@@ -78,7 +78,7 @@ describe("choosePlayback", () => {
 			}).subtitle?.url,
 		).toBe("en-signs");
 		expect(
-			choosePlayback([sub], {
+			chooseVersion([sub], {
 				audio: null,
 				subtitles: {
 					sub: {
@@ -92,7 +92,7 @@ describe("choosePlayback", () => {
 
 	test("shows no track when subtitles are off or the version is raw", () => {
 		expect(
-			choosePlayback([sub], {
+			chooseVersion([sub], {
 				audio: null,
 				subtitles: {
 					sub: null,
@@ -100,7 +100,7 @@ describe("choosePlayback", () => {
 			}).subtitle,
 		).toBeUndefined();
 		expect(
-			choosePlayback(
+			chooseVersion(
 				[
 					{
 						audio: "raw" as const,

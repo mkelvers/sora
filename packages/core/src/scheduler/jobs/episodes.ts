@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getAnime } from "../../catalog/queries/anime";
 import { UnknownAnimeError } from "../../errors";
 import { getProviderUnits } from "../../playback/episodes/episodes";
-import { streamProviders } from "../../playback/providers/registry";
+import { providers } from "../../playback/providers/registry";
 import { parseInput } from "../payload";
 
 /**
@@ -34,7 +34,7 @@ export const lookUp: Task = async (rawPayload, helpers) => {
 	}
 
 	const failures = await Promise.all(
-		streamProviders.map(async (provider) => {
+		providers.map(async (provider) => {
 			const { error: lookupError } = await attempt(getProviderUnits(data, provider));
 
 			if (lookupError) {

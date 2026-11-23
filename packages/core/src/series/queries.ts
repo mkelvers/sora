@@ -37,7 +37,7 @@ import type {
 	Series,
 	SeriesCard,
 } from "../models/series";
-import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
+import { findAnimeLanguages, findListings } from "../playback/episodes/versions";
 import { requestSubtitleProbe } from "../scheduler/queue";
 import { About } from "./about";
 import { BrowsePage } from "./browse-page";
@@ -516,7 +516,7 @@ class Title {
 
 		const [stills, listings] = await Promise.all([
 			stillsOf(),
-			findEpisodeListings(
+			findListings(
 				episodes.map((episode) => ({
 					anilistId: row.anilistId,
 					episode: episode.number,
