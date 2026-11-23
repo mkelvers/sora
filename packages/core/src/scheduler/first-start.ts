@@ -9,10 +9,6 @@ import { syncDubScheduleTask } from "./jobs/dubs";
 import { syncSearchIndexTask } from "./jobs/search";
 import { syncTimetablesTask } from "./jobs/timetables";
 
-const logger = new Logger(consoleLogFactory).scope({
-	label: "first-start",
-});
-
 /**
  * What a fresh catalogue needs first: the search index and provider
  * catalogues read whole, and the release timetable. Full syncs, so a sync cut
@@ -58,6 +54,11 @@ export const fillEmptyCatalog = async (runner: Runner) => {
 			priority: -1,
 		});
 	});
+
+	const logger = new Logger(consoleLogFactory).scope({
+		label: "first-start",
+	});
+
 	logger.info(
 		`The catalogue was never filled; queued ${firstJobs.map(([task]) => task).join(", ")}`,
 	);

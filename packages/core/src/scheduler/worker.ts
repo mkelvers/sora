@@ -76,18 +76,31 @@ const waitedOnTasks = {
 	[lookUpEpisodesNowTask]: lookUpEpisodes,
 } satisfies Record<string, Task>;
 
-/** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
-const prioritized = (tasks: Record<string, Task>, pools: PoolWatch): Record<string, Task> =>
-	Object.fromEntries(
-		Object.entries(tasks).map(([name, task]): [string, Task] => [
-			name,
-			(payload, helpers) => {
-				pools.know(helpers.job.locked_by);
+/** Wraps a scheduler's tasks so each job marks its pool alive as it starts. */
+class Prioritizer {
+	readonly #pools: PoolWatch;
 
-				return aniListPriority.run(helpers.job.priority, async () => await task(payload, helpers));
-			},
-		]),
-	);
+	constructor(pools: PoolWatch) {
+		this.#pools = pools;
+	}
+
+	/** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
+	tasks(tasks: Record<string, Task>): Record<string, Task> {
+		return Object.fromEntries(
+			Object.entries(tasks).map(([name, task]): [string, Task] => [
+				name,
+				(payload, helpers) => {
+					this.#pools.know(helpers.job.locked_by);
+
+					return aniListPriority.run(
+						helpers.job.priority,
+						async () => await task(payload, helpers),
+					);
+				},
+			]),
+		);
+	}
+}
 
 /**
  * Starts the background scheduler, which follows every airing anime, stores
@@ -110,6 +123,7 @@ const prioritized = (tasks: Record<string, Task>, pools: PoolWatch): Record<stri
 export const startScheduler = async (): Promise<Scheduler> => {
 	// Pools that stop without shutting down keep their jobs locked; see watchPools.
 	const pools = watchPools();
+	const prioritizer = new Prioritizer(pools);
 
 	const main = await run({
 		// Long jobs, such as a full catalogue sync or an airing check waiting
@@ -148,32 +162,29 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`50 * * * * ${storeTitleFactsTask} ?priority=5`,
 		].join("\n"),
 		taskList: failInvalidPayloads(
-			prioritized(
-				{
-					[trackAiringTask]: trackAiring,
-					[reviveAiringChecksTask]: reviveAiringChecks,
-					[storeSeriesTask]: storeSeriesJob,
-					...waitedOnTasks,
-					[discoverSeriesEntriesTask]: discoverSeriesEntries,
-					[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
-					[refreshEpisodeListingsTask]: refreshEpisodeListings,
-					[syncProviderCatalogsTask]: syncProviderCatalogs,
-					[pruneProviderCallsTask]: pruneProviderCallsJob,
-					[pruneDeadJobsTask]: pruneDeadJobsJob,
-					[checkProviderHealthTask]: checkProviderHealthJob,
-					[syncSearchIndexTask]: syncSearchIndexJob,
-					[backfillSeriesTask]: backfillSeries,
-					[syncTmdbHintsTask]: syncTmdbHintsJob,
-					[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
-					[storeFeaturedImagesTask]: storeFeaturedImagesJob,
-					[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
-					[syncTimetablesTask]: syncTimetablesJob,
-					[storeAnimeTrendsTask]: storeAnimeTrendsJob,
-					[refreshStaleAnimeTask]: refreshStaleAnimeJob,
-					[storeTitleFactsTask]: storeTitleFactsJob,
-				},
-				pools,
-			),
+			prioritizer.tasks({
+				[trackAiringTask]: trackAiring,
+				[reviveAiringChecksTask]: reviveAiringChecks,
+				[storeSeriesTask]: storeSeriesJob,
+				...waitedOnTasks,
+				[discoverSeriesEntriesTask]: discoverSeriesEntries,
+				[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
+				[refreshEpisodeListingsTask]: refreshEpisodeListings,
+				[syncProviderCatalogsTask]: syncProviderCatalogs,
+				[pruneProviderCallsTask]: pruneProviderCallsJob,
+				[pruneDeadJobsTask]: pruneDeadJobsJob,
+				[checkProviderHealthTask]: checkProviderHealthJob,
+				[syncSearchIndexTask]: syncSearchIndexJob,
+				[backfillSeriesTask]: backfillSeries,
+				[syncTmdbHintsTask]: syncTmdbHintsJob,
+				[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
+				[storeFeaturedImagesTask]: storeFeaturedImagesJob,
+				[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
+				[syncTimetablesTask]: syncTimetablesJob,
+				[storeAnimeTrendsTask]: storeAnimeTrendsJob,
+				[refreshStaleAnimeTask]: refreshStaleAnimeJob,
+				[storeTitleFactsTask]: storeTitleFactsJob,
+			}),
 		),
 	});
 
@@ -190,7 +201,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		connectionString: config.databaseUrl,
 		// graphile-worker opens connections as jobs need them, up to this.
 		maxPoolSize: 24,
-		taskList: failInvalidPayloads(prioritized(waitedOnTasks, pools)),
+		taskList: failInvalidPayloads(prioritizer.tasks(waitedOnTasks)),
 	});
 
 	// Episode lookups ask stream providers, not AniList, so they have workers
@@ -241,14 +252,11 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		].join("\n"),
 		maxPoolSize: 4,
 		taskList: failInvalidPayloads(
-			prioritized(
-				{
-					[watchAniKotoReleasesTask]: watchAniKotoReleases,
-					[pollAniKotoTask]: pollAniKoto,
-					[syncDubScheduleTask]: syncDubSchedule,
-				},
-				pools,
-			),
+			prioritizer.tasks({
+				[watchAniKotoReleasesTask]: watchAniKotoReleases,
+				[pollAniKotoTask]: pollAniKoto,
+				[syncDubScheduleTask]: syncDubSchedule,
+			}),
 		),
 	});
 
