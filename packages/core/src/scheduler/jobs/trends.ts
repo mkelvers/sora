@@ -13,19 +13,36 @@ import { activityKeptFor, dateBefore } from "../../library/featured/rotation";
 /** The graphile-worker task that stores AniList's daily activity of the titles the home page may feature. */
 export const storeAnimeTrendsTask = "store-anime-trends";
 
-/** A Unix timestamp, in seconds, of the start of `date` (`YYYY-MM-DD`) in UTC. */
-const startOf = (date: string) => Date.parse(`${date}T00:00:00Z`) / 1000;
+/** The whole days AniList recorded for some entries after a moment and before now. */
+class Trends {
+	readonly #ids: readonly number[];
+	readonly #after: number;
+	readonly #now: number;
 
-/** The whole days AniList recorded for `ids` after `after` (a Unix timestamp) and before `now`, page by page. */
-const fetchTrends = async (ids: readonly number[], after: number, now: number) => {
-	const rows: (typeof animeTrend.$inferInsert)[] = [];
+	/**
+	 * @param after - A Unix timestamp, in seconds.
+	 * @param now - In milliseconds.
+	 */
+	constructor(ids: readonly number[], after: number, now: number) {
+		this.#ids = ids;
+		this.#after = after;
+		this.#now = now;
+	}
 
-	const readPage = async (page: number): Promise<void> => {
+	/** Reads the days, page by page. */
+	async fetch() {
+		const rows: (typeof animeTrend.$inferInsert)[] = [];
+		await this.#read(1, rows);
+
+		return rows;
+	}
+
+	async #read(page: number, rows: (typeof animeTrend.$inferInsert)[]): Promise<void> {
 		const { Page } = await anilist(
 			MediaTrendsDocument,
 			{
-				after,
-				ids: [...ids],
+				after: this.#after,
+				ids: [...this.#ids],
 				page,
 			},
 			zMediaTrendsQuery,
@@ -36,7 +53,7 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
 
 		for (const trend of Page?.mediaTrends ?? []) {
 			// A day still under way would count as a quiet one.
-			if (trend && trend.date * 1000 + day <= now) {
+			if (trend && trend.date * 1000 + day <= this.#now) {
 				rows.push({
 					anilistId: trend.mediaId,
 					day: new Date(trend.date * 1000).toISOString().slice(0, 10),
@@ -47,14 +64,10 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
 		}
 
 		if (Page?.pageInfo?.hasNextPage) {
-			await readPage(page + 1);
+			await this.#read(page + 1, rows);
 		}
-	};
-
-	await readPage(1);
-
-	return rows;
-};
+	}
+}
 
 /**
  * Stores AniList's daily activity of every entry the home page may feature
@@ -93,13 +106,14 @@ export const storeAnimeTrendsJob: Task = async (_payload, helpers) => {
 			group.map((entry) => entry.anilistId),
 			entriesPerRequest,
 		).map((ids) => ({
-			after: startOf(since) - 1,
+			// The Unix timestamp, in seconds, just before the start of that day in UTC.
+			after: Date.parse(`${since}T00:00:00Z`) / 1000 - 1,
 			ids,
 		})),
 	);
 
 	const fetched = await inSequence(groups, ({ ids, after }) =>
-		fetchTrends(ids, after, now.getTime()),
+		new Trends(ids, after, now.getTime()).fetch(),
 	);
 
 	const rows = fetched.flat();

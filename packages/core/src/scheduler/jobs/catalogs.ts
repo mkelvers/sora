@@ -5,12 +5,6 @@ import { z } from "zod";
 import { streamProviders } from "../../playback/providers/registry";
 import { parsePayload } from "../payload";
 
-const SyncProviderCatalogsPayloadSchema = z
-	.object({
-		full: z.boolean().optional(),
-	})
-	.nullish();
-
 /** The graphile-worker task that mirrors provider catalogues. */
 export const syncProviderCatalogsTask = "sync-provider-catalogs";
 
@@ -23,7 +17,14 @@ export const syncProviderCatalogsTask = "sync-provider-catalogs";
  * job once the others are synced, so graphile-worker retries it with backoff.
  */
 export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(SyncProviderCatalogsPayloadSchema, rawPayload);
+	const payload = parsePayload(
+		z
+			.object({
+				full: z.boolean().optional(),
+			})
+			.nullish(),
+		rawPayload,
+	);
 
 	const outcomes = await inSequence(streamProviders, async (provider) => {
 		if (!provider.syncCatalog) {

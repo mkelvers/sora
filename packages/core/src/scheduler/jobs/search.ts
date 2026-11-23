@@ -13,12 +13,6 @@ import { carriedByAniKoto } from "../../series/episodes";
 import { parsePayload } from "../payload";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
-const SyncSearchIndexPayloadSchema = z
-	.object({
-		full: z.boolean().optional(),
-	})
-	.nullish();
-
 /** The graphile-worker task that queues popular titles to be stored. */
 export const backfillSeriesTask = "backfill-series";
 
@@ -37,7 +31,14 @@ export const syncSearchIndexTask = "sync-search-index";
  * half hour.
  */
 export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
-	const payload = parsePayload(SyncSearchIndexPayloadSchema, rawPayload);
+	const payload = parsePayload(
+		z
+			.object({
+				full: z.boolean().optional(),
+			})
+			.nullish(),
+		rawPayload,
+	);
 
 	const { pages, stored } = await syncSearchIndex({
 		full: payload?.full === true,

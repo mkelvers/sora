@@ -55,17 +55,26 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 
 	const ids = releases.flatMap((release) => release.anilistId ?? []);
 
-	const [stored, units] = await Promise.all([
-		ids.length > 0
-			? db
-					.select({
-						anilistId: series.anilistId,
-					})
-					.from(series)
-					.where(inArray(series.anilistId, ids))
-			: [],
-		getStoredUnits(ids),
-	]);
+	let storedQuery:
+		| PromiseLike<
+				{
+					anilistId: number;
+				}[]
+		  >
+		| {
+				anilistId: number;
+		  }[] = [];
+
+	if (ids.length > 0) {
+		storedQuery = db
+			.select({
+				anilistId: series.anilistId,
+			})
+			.from(series)
+			.where(inArray(series.anilistId, ids));
+	}
+
+	const [stored, units] = await Promise.all([storedQuery, getStoredUnits(ids)]);
 
 	const storedIds = new Set(stored.map((entry) => entry.anilistId));
 

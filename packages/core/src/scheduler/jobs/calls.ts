@@ -26,8 +26,17 @@ export const checkProviderHealthJob: Task = async (_payload, helpers) => {
 			continue;
 		}
 
-		const lastOk = health.last_ok_at ? `since ${health.last_ok_at}` : "on record";
-		const lastError = health.last_error ? `; last error: ${health.last_error}` : "";
+		let lastOk = "on record";
+		let lastError = "";
+
+		if (health.last_ok_at) {
+			lastOk = `since ${health.last_ok_at}`;
+		}
+
+		if (health.last_error) {
+			lastError = `; last error: ${health.last_error}`;
+		}
+
 		helpers.logger.warn(
 			`Provider ${health.provider} has had no successful call ${lastOk}${lastError}`,
 		);
