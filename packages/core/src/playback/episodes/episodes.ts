@@ -1,14 +1,14 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
-import { z } from "zod";
+import { and, inArray, isNull } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
-import { episodeDub, providerEpisodes, providerMapping } from "../../database/schema/playback";
-import { LanguageSchema } from "../../models/series";
+import { providerEpisodes, providerMapping } from "../../database/schema/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { ProviderEpisode, StreamProvider } from "../providers/provider";
 import { aniKoto, servedLocale } from "../providers/registry";
-import { streamsDub, withConfirmedDubs } from "../streams/dub-audio";
+import { servesDub, withConfirmedDubs } from "../streams/dub-audio";
+import { Listing, ProviderUnitsSchema } from "./listing";
 import { getProviderMedia } from "./mapping";
 
 /**
@@ -16,90 +16,6 @@ import { getProviderMedia } from "./mapping";
  * the provider files under its prequel counts from 1.
  */
 export type ProviderUnit = ProviderEpisode;
-
-/**
- * A stored list that does not match this, such as one stored before a field
- * was added, is fetched again rather than served.
- */
-const ProviderUnitsSchema = z.array(
-	z.object({
-		id: z.string(),
-		isFiller: z.boolean().nullable(),
-		languages: z.array(LanguageSchema).nullable(),
-		number: z.number(),
-		title: z.string(),
-	}),
-);
-
-/**
- * Records the dubs in AniKoto's episode list of an anime that are not
- * recorded yet, before the list replaces `previous`, the stored one.
- *
- * A dub that appeared on an episode the stored list already had came out
- * now. One nobody saw come out has no time: the list is the first stored
- * for the anime, or the dub arrived together with its episode, which the
- * episode coming out already tells.
- */
-const recordDubs = async (
-	anilistId: number,
-	units: readonly ProviderUnit[],
-	previous: readonly ProviderUnit[] | null,
-	now: Date,
-) => {
-	const dubbed = units.filter(
-		(unit) => Number.isInteger(unit.number) && unit.languages?.includes("dub"),
-	);
-
-	if (dubbed.length === 0) {
-		return;
-	}
-
-	const recorded = await db
-		.select({
-			episode: episodeDub.episode,
-		})
-		.from(episodeDub)
-		.where(eq(episodeDub.anilistId, anilistId));
-
-	const known = new Set(recorded.map((row) => row.episode));
-	const carried = new Set(previous?.map((unit) => unit.number));
-
-	const fresh = dubbed.filter((unit) => !known.has(unit.number));
-
-	if (fresh.length > 0) {
-		await db
-			.insert(episodeDub)
-			.values(
-				fresh.map((unit) => ({
-					anilistId,
-					episode: unit.number,
-					releasedAt: carried.has(unit.number) ? now : null,
-				})),
-			)
-			.onConflictDoNothing();
-	}
-};
-
-/** `provider`'s stored episode list for an anime; `null` when none is stored or it is outdated. */
-const readStoredUnits = async (anilistId: number, providerId: string) => {
-	const [stored] = await db
-		.select({
-			units: providerEpisodes.units,
-		})
-		.from(providerEpisodes)
-		.where(
-			and(eq(providerEpisodes.anilistId, anilistId), eq(providerEpisodes.provider, providerId)),
-		)
-		.limit(1);
-
-	const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
-
-	if (units?.success) {
-		return units.data;
-	}
-
-	return null;
-};
 
 /**
  * `units` cut off at the first jump of more than {@link strayGap} episodes
@@ -113,7 +29,7 @@ const readStoredUnits = async (anilistId: number, providerId: string) => {
  *
  * @param units - Sorted by number.
  */
-export const withoutStrayEpisodes = <TUnit extends { number: number }>(
+export const withoutStrays = <TUnit extends { number: number }>(
 	units: readonly TUnit[],
 	anime: Pick<Anime, "episodes" | "status">,
 ): TUnit[] => {
@@ -187,21 +103,23 @@ export const refreshProviderUnits = async (
 		}))
 		.toSorted((left, right) => left.number - right.number);
 
-	const previous = await readStoredUnits(anime.id, provider.id);
+	const listing = new Listing(anime.id, provider.id);
+	const previous = await listing.stored();
+	let units = withoutStrays(mapped, anime);
 
-	const units = provider.listsLanguages
-		? await withConfirmedDubs(withoutStrayEpisodes(mapped, anime), previous, async (unit) => {
-				const confirmed = await streamsDub(provider, unit.id);
+	if (provider.listsLanguages) {
+		units = await withConfirmedDubs(units, previous, async (unit) => {
+			const confirmed = await servesDub(provider, unit.id);
 
-				if (!confirmed) {
-					console.warn(
-						`${provider.id} lists a dub of anime ${anime.id} episode ${unit.number} that does not play in ${servedLocale}`,
-					);
-				}
+			if (!confirmed) {
+				console.warn(
+					`${provider.id} lists a dub of anime ${anime.id} episode ${unit.number} that does not play in ${servedLocale}`,
+				);
+			}
 
-				return confirmed;
-			})
-		: withoutStrayEpisodes(mapped, anime);
+			return confirmed;
+		});
+	}
 
 	const values = {
 		fetchedAt: new Date(),
@@ -209,7 +127,7 @@ export const refreshProviderUnits = async (
 	};
 
 	if (provider.id === aniKoto.id) {
-		await recordDubs(anime.id, units, previous, values.fetchedAt);
+		await listing.recordDubs(units, previous, values.fetchedAt);
 	}
 
 	await db
@@ -240,7 +158,7 @@ export const getProviderUnits = async (
 	anime: Anime,
 	provider: StreamProvider,
 ): Promise<ProviderUnit[]> => {
-	const stored = await readStoredUnits(anime.id, provider.id);
+	const stored = await new Listing(anime.id, provider.id).stored();
 
 	if (stored) {
 		return stored;
@@ -339,17 +257,19 @@ export const getStoredUnits = async (
 	}
 
 	const ids = [...new Set(anilistIds)];
+	let listedProvider: SQL | undefined;
+	let unmatchedProvider: SQL | undefined;
+
+	if (providers) {
+		listedProvider = inArray(providerEpisodes.provider, [...providers]);
+		unmatchedProvider = inArray(providerMapping.provider, [...providers]);
+	}
 
 	const [listed, unmatched] = await Promise.all([
 		db
 			.select()
 			.from(providerEpisodes)
-			.where(
-				and(
-					inArray(providerEpisodes.anilistId, ids),
-					providers ? inArray(providerEpisodes.provider, [...providers]) : undefined,
-				),
-			),
+			.where(and(inArray(providerEpisodes.anilistId, ids), listedProvider)),
 		db
 			.select({
 				anilistId: providerMapping.anilistId,
@@ -360,7 +280,7 @@ export const getStoredUnits = async (
 				and(
 					inArray(providerMapping.anilistId, ids),
 					isNull(providerMapping.providerMediaId),
-					providers ? inArray(providerMapping.provider, [...providers]) : undefined,
+					unmatchedProvider,
 				),
 			),
 	]);

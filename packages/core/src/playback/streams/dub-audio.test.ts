@@ -1,64 +1,60 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ProviderUnit } from "../episodes/episodes";
-import type { ProviderVideo } from "../providers/provider";
 import { master } from "../proxy/playlist.fixture";
 import { StreamUpstreamError } from "../proxy/upstream-error";
 import { hasDubAudio, probeVideos, withConfirmedDubs } from "./dub-audio";
-
-const video = (url: string, format: ProviderVideo["format"] = "hls"): ProviderVideo => ({
-	format,
-	headers: {},
-	quality: "auto",
-	subtitles: [],
-	url,
-});
+import type { ProbeDependencies } from "./dub-audio";
+import { unit, video } from "./dub-audio.fixture";
 
 /**
  * Hosts serving playlists that list the audio languages in `playlists`, by
  * URL: `null` throttles, and a URL missing is unreachable. `requested`
  * collects every URL asked for.
  */
-const probing = (playlists: Record<string, string[] | null>, requested: string[] = []) => ({
-	canFetchStream: (url: string) => {
-		requested.push(url);
+class Hosts {
+	readonly requested: string[] = [];
+	readonly #playlists: Record<string, string[] | null>;
 
-		return Promise.resolve(!url.includes(".unreachable."));
-	},
-	readPlaylist: (url: string) => {
-		requested.push(url);
-		const languages = playlists[url];
+	constructor(playlists: Record<string, string[] | null>) {
+		this.#playlists = playlists;
+	}
 
-		if (languages === undefined) {
-			return Promise.reject(new StreamUpstreamError("Upstream could not be reached", null));
-		}
+	/** How {@link probeVideos} reaches these hosts. */
+	get dependencies(): ProbeDependencies {
+		return {
+			canFetchStream: (url) => {
+				this.requested.push(url);
 
-		if (languages === null) {
-			return Promise.reject(new StreamUpstreamError("Upstream throttles", 429));
-		}
+				return Promise.resolve(!url.includes(".unreachable."));
+			},
+			readPlaylist: (url) => {
+				this.requested.push(url);
+				const languages = this.#playlists[url];
 
-		return Promise.resolve({
-			content: master(languages),
-			url,
-		});
-	},
-});
+				if (languages === undefined) {
+					return Promise.reject(new StreamUpstreamError("Upstream could not be reached", null));
+				}
 
-const unit = (number: number, languages: ProviderUnit["languages"]): ProviderUnit => ({
-	id: `anikoto:${number}`,
-	isFiller: false,
-	languages,
-	number,
-	title: `Episode ${number}`,
-});
+				if (languages === null) {
+					return Promise.reject(new StreamUpstreamError("Upstream throttles", 429));
+				}
+
+				return Promise.resolve({
+					content: master(languages),
+					url,
+				});
+			},
+		};
+	}
+}
 
 describe("hasDubAudio", () => {
 	test("confirms a dub whose playlist has English audio, as Overgeared episode 8's has", async () => {
 		const probes = await probeVideos(
 			[video("https://cdn.example/master.m3u8")],
-			probing({
+			new Hosts({
 				"https://cdn.example/master.m3u8": ["ja", "en", "ar"],
-			}),
+			}).dependencies,
 		);
 
 		expect(hasDubAudio(probes)).toBe(true);
@@ -67,9 +63,9 @@ describe("hasDubAudio", () => {
 	test("refuses a dub whose playlist has no English audio yet", async () => {
 		const probes = await probeVideos(
 			[video("https://cdn.example/master.m3u8")],
-			probing({
+			new Hosts({
 				"https://cdn.example/master.m3u8": ["ja"],
-			}),
+			}).dependencies,
 		);
 
 		expect(hasDubAudio(probes)).toBe(false);
@@ -78,9 +74,9 @@ describe("hasDubAudio", () => {
 	test("takes the provider's word when no video names its audio", async () => {
 		const probes = await probeVideos(
 			[video("https://cdn.example/dub.m3u8"), video("https://cdn.example/dub.mp4", "mp4")],
-			probing({
+			new Hosts({
 				"https://cdn.example/dub.m3u8": [],
-			}),
+			}).dependencies,
 		);
 
 		expect(hasDubAudio(probes)).toBe(true);
@@ -89,9 +85,9 @@ describe("hasDubAudio", () => {
 	test("refuses a dub whose playlists cannot be read, even from a host that is only throttling", async () => {
 		const probes = await probeVideos(
 			[video("https://cdn.example/master.m3u8"), video("https://gone.example/master.m3u8")],
-			probing({
+			new Hosts({
 				"https://cdn.example/master.m3u8": null,
-			}),
+			}).dependencies,
 		);
 
 		expect(probes).toEqual([
@@ -104,18 +100,19 @@ describe("hasDubAudio", () => {
 	});
 
 	test("asks each video's host once", async () => {
-		const requested: string[] = [];
+		const hosts = new Hosts({
+			"https://cdn.example/master.m3u8": ["en"],
+		});
+
 		await probeVideos(
 			[video("https://cdn.example/master.m3u8"), video("https://cdn.example/dub.mp4", "mp4")],
-			probing(
-				{
-					"https://cdn.example/master.m3u8": ["en"],
-				},
-				requested,
-			),
+			hosts.dependencies,
 		);
 
-		expect(requested).toEqual(["https://cdn.example/master.m3u8", "https://cdn.example/dub.mp4"]);
+		expect(hosts.requested).toEqual([
+			"https://cdn.example/master.m3u8",
+			"https://cdn.example/dub.mp4",
+		]);
 	});
 });
 

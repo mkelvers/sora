@@ -7,7 +7,7 @@ import { firstInSequence } from "@sora/shared";
 import { isServedSubtitle } from "../providers/registry";
 import { readSubtitle } from "../proxy/proxy";
 import { mirrorsFor } from "../proxy/upstream";
-import { resolveStreams, timelineShifts } from "../streams/resolve";
+import { subAndDub, timelineShifts } from "../streams/resolve";
 import { subtitleKinds } from "../streams/subtitle-kinds";
 import { extract, SubtitleRefinementError } from "./audio";
 import { refineCues } from "./refine";
@@ -37,7 +37,7 @@ export const listenToDub = async (
 	/** A track with fewer cues than this is not a script to match speech against. */
 	const minimumCues = 40;
 
-	const { sub, dub } = await resolveStreams(request);
+	const { sub, dub } = await subAndDub(request);
 	const subVideo = sub?.find((video) => video.format === "hls");
 	const dubVideo = dub?.find((video) => video.format === "hls");
 

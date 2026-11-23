@@ -43,14 +43,19 @@ interface ResolvedVersion {
 export const subtitleLanguagesOf = (results: readonly ResolvedVersion[]) => [
 	...new Set(
 		results.flatMap(({ version, videos }) => {
-			if (version) {
-				return [
-					...(version.hardsub ? ["en"] : []),
-					...(videos ?? []).flatMap((video) => video.subtitles.map((track) => track.language)),
-				];
+			if (!version) {
+				return [];
 			}
 
-			return [];
+			const languages = (videos ?? []).flatMap((video) =>
+				video.subtitles.map((track) => track.language),
+			);
+
+			if (version.hardsub) {
+				return ["en", ...languages];
+			}
+
+			return languages;
 		}),
 	),
 ];

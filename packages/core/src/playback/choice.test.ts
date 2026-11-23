@@ -1,20 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import type { PlaybackMedia } from "../models/playback";
 import { choosePlayback } from "./choice";
-
-const track = (
-	language: string,
-	kind: "dialogue" | "signs" | null,
-	isDefault = false,
-): PlaybackMedia["subtitles"][number] => ({
-	default: isDefault,
-	format: "vtt",
-	kind,
-	label: language,
-	language,
-	url: `${language}-${kind}`,
-});
+import { track } from "./choice.fixture";
 
 const sub = {
 	audio: "sub" as const,
