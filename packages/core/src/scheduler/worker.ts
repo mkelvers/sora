@@ -11,7 +11,7 @@ import { pruneDead, pruneDeadTask } from "./jobs/dead-jobs";
 import { refreshStale, refreshStaleTask, storeFacts, storeFactsTask } from "./jobs/details";
 import { syncSchedule, syncScheduleTask } from "./jobs/dubs";
 import { storeMissing, storeMissingTask } from "./jobs/edges";
-import { lookUpEpisodes } from "./jobs/episodes";
+import { lookUp } from "./jobs/episodes";
 import { storeImages, storeImagesTask } from "./jobs/featured-images";
 import { syncTmdb, syncTmdbTask } from "./jobs/hints";
 import { pollAniKoto, watchAnikoto, watchAnikotoTask } from "./jobs/releases";
@@ -58,7 +58,7 @@ export interface Scheduler {
 /** Tasks for work a viewer is waiting on; see {@link storeNowTask}. */
 const waitedOnTasks = {
 	[storeNowTask]: storeEntry,
-	[lookupNowTask]: lookUpEpisodes,
+	[lookupNowTask]: lookUp,
 } satisfies Record<string, Task>;
 
 /** Wraps a scheduler's tasks so each job marks its pool alive as it starts. */
@@ -212,7 +212,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 
 				return aniListPriority.run(
 					Math.min(helpers.job.priority, seriesStorePriority("current")),
-					async () => await lookUpEpisodes(payload, helpers),
+					async () => await lookUp(payload, helpers),
 				);
 			},
 			// Asks the same sites as playback does, once per series, behind lookups.

@@ -17,7 +17,7 @@ import { parseInput } from "../payload";
  * watchers keep the lists current. A failing provider fails the job once
  * the others are stored, so graphile-worker retries it with backoff.
  */
-export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
+export const lookUp: Task = async (rawPayload, helpers) => {
 	const { anilistId } = parseInput(
 		z.object({
 			anilistId: z.number().int().positive(),

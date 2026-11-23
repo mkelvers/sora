@@ -5,7 +5,7 @@ import { Logger } from "graphile-worker";
 import type { JobHelpers, Task } from "graphile-worker";
 import { z } from "zod";
 
-import { lookUpEpisodes } from "./jobs/episodes";
+import { lookUp } from "./jobs/episodes";
 import { InvalidPayloadError, failInvalid, parseInput } from "./payload";
 
 const task = "test-task";
@@ -104,7 +104,7 @@ describe("failInvalid", () => {
 		const job = new RunningJob();
 		const { query } = job;
 
-		const run = job.run(lookUpEpisodes, {
+		const run = job.run(lookUp, {
 			anilistId: -155_682_372,
 		});
 
