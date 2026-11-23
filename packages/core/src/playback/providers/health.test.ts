@@ -1,29 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { summarizeHealth } from "./health";
-import type { OperationRow } from "./health";
+import { summarize } from "./health";
+import { hoursAgo, now, row, statusOf } from "./health.fixture";
 
-const now = new Date("2026-09-25T16:40:00Z");
-const hoursAgo = (hours: number) => new Date(Date.UTC(2026, 8, 25, 16 - hours));
-
-/** A row for `provider`'s `operation` with no calls and nothing on record, overridden by `fields`. */
-const row = (provider: string, operation: string, fields: Partial<OperationRow>): OperationRow => ({
-	durationMs: 0,
-	empty: 0,
-	failed: 0,
-	lastError: null,
-	lastErrorAt: null,
-	lastOkHour: null,
-	ok: 0,
-	operation,
-	provider,
-	recentCalls: 0,
-	...fields,
-});
-
-const statusOf = (rows: OperationRow[]) => summarizeHealth(["anikoto"], rows, now)[0]?.status;
-
-describe("summarizeHealth", () => {
+describe("summarize", () => {
 	test("calls a provider ok when a call succeeded within three hours", () => {
 		expect(
 			statusOf([
@@ -99,7 +79,7 @@ describe("summarizeHealth", () => {
 	});
 
 	test("lists every provider in order, even ones never called, and ignores others", () => {
-		const health = summarizeHealth(
+		const health = summarize(
 			["anikoto", "megaplay"],
 			[
 				row("removed", "resolve_stream", {
@@ -121,7 +101,7 @@ describe("summarizeHealth", () => {
 	});
 
 	test("reports the latest success and error across operations", () => {
-		const [health] = summarizeHealth(
+		const [health] = summarize(
 			["anikoto"],
 			[
 				row("anikoto", "list_episodes", {
@@ -146,7 +126,7 @@ describe("summarizeHealth", () => {
 	});
 
 	test("summarizes each operation called in the last day, with its mean duration", () => {
-		const [health] = summarizeHealth(
+		const [health] = summarize(
 			["anikoto"],
 			[
 				row("anikoto", "resolve_stream", {

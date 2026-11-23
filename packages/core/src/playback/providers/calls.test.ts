@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { anime } from "../../catalog/models/anime.fixture";
-import { recordingCalls } from "./calls";
+import { recorded } from "./calls";
 import type { ProviderCall } from "./calls";
 import type { ProviderEpisode, ProviderStream, StreamProvider } from "./provider";
 
@@ -27,63 +27,60 @@ const stream: ProviderStream = {
 };
 
 /** A provider that answers with `answers`, wrapped so its calls land in `calls`. */
-const recorded = (
-	answers: Partial<StreamProvider>,
-	record?: (call: ProviderCall) => Promise<void>,
-) => {
-	const calls: ProviderCall[] = [];
+class Fake {
+	readonly calls: ProviderCall[] = [];
+	readonly provider: StreamProvider;
 
-	const provider = recordingCalls(
-		{
-			findMedia: () => Promise.resolve(null),
-			id: "fake",
-			listEpisodes: () => Promise.resolve([]),
-			listsLanguages: true,
-			locale: "en",
-			resolveStream: () => Promise.resolve(stream),
-			...answers,
-		},
-		record ??
-			((call) => {
-				calls.push(call);
+	constructor(answers: Partial<StreamProvider>, record?: (call: ProviderCall) => Promise<void>) {
+		this.provider = recorded(
+			{
+				findMedia: () => Promise.resolve(null),
+				id: "fake",
+				listEpisodes: () => Promise.resolve([]),
+				listsLanguages: true,
+				locale: "en",
+				resolveStream: () => Promise.resolve(stream),
+				...answers,
+			},
+			record ??
+				((call) => {
+					this.calls.push(call);
 
-				return Promise.resolve();
-			}),
-	);
+					return Promise.resolve();
+				}),
+		);
+	}
+}
 
-	return {
-		calls,
-		provider,
-	};
-};
-
-/** Each recorded call as `operation:outcome`. */
-const outcomes = (calls: ProviderCall[]) =>
-	calls.map((call) => `${call.operation}:${call.outcome}`);
-
-describe("recordingCalls", () => {
+describe("recorded", () => {
 	test("records a result as ok and passes it through", async () => {
-		const { provider, calls } = recorded({
+		const { provider, calls } = new Fake({
 			listEpisodes: () => Promise.resolve([episode]),
 		});
 
 		expect(await provider.listEpisodes("1")).toEqual([episode]);
 		expect(await provider.resolveStream("fake:1", "sub")).toBe(stream);
-		expect(outcomes(calls)).toEqual(["list_episodes:ok", "resolve_stream:ok"]);
+		expect(calls.map((call) => `${call.operation}:${call.outcome}`)).toEqual([
+			"list_episodes:ok",
+			"resolve_stream:ok",
+		]);
 	});
 
 	test("records no match and no episodes as empty, which a broken scraper often returns", async () => {
-		const { provider, calls } = recorded({});
+		const { provider, calls } = new Fake({});
 
 		expect(await provider.findMedia(anime(1))).toBeNull();
 		expect(await provider.listEpisodes("1")).toEqual([]);
-		expect(outcomes(calls)).toEqual(["find_media:empty", "list_episodes:empty"]);
+		expect(calls.map((call) => `${call.operation}:${call.outcome}`)).toEqual([
+			"find_media:empty",
+			"list_episodes:empty",
+		]);
 	});
 
 	test("records a thrown error as failed with its message, and rethrows it", async () => {
 		const error = new Error("MegaPlay has no dub source for this episode");
 
-		const { provider, calls } = recorded({
+		const { provider, calls } = new Fake({
 			resolveStream: () => Promise.reject(error),
 		});
 
@@ -99,7 +96,7 @@ describe("recordingCalls", () => {
 	});
 
 	test("cuts long error messages, such as ones quoting a whole page", async () => {
-		const { provider, calls } = recorded({
+		const { provider, calls } = new Fake({
 			listEpisodes: () => Promise.reject(new Error("x".repeat(10_000))),
 		});
 
@@ -109,7 +106,7 @@ describe("recordingCalls", () => {
 	});
 
 	test("keeps no error for calls that did not fail", async () => {
-		const { provider, calls } = recorded({});
+		const { provider, calls } = new Fake({});
 
 		await provider.findMedia(anime(1));
 
@@ -117,7 +114,7 @@ describe("recordingCalls", () => {
 	});
 
 	test("never fails a call because recording it failed", async () => {
-		const { provider } = recorded(
+		const { provider } = new Fake(
 			{
 				listEpisodes: () => Promise.resolve([episode]),
 			},
@@ -128,9 +125,9 @@ describe("recordingCalls", () => {
 	});
 
 	test("offers syncCatalog only when the provider has one", async () => {
-		const { provider: without } = recorded({});
+		const { provider: without } = new Fake({});
 
-		const { provider: withSync, calls } = recorded({
+		const { provider: withSync, calls } = new Fake({
 			syncCatalog: () => Promise.resolve("Synced 3 series"),
 		});
 
@@ -140,11 +137,11 @@ describe("recordingCalls", () => {
 				full: false,
 			}),
 		).toBe("Synced 3 series");
-		expect(outcomes(calls)).toEqual(["sync_catalog:ok"]);
+		expect(calls.map((call) => `${call.operation}:${call.outcome}`)).toEqual(["sync_catalog:ok"]);
 	});
 
 	test("keeps the provider's ID and traits", () => {
-		const { provider } = recorded({
+		const { provider } = new Fake({
 			id: "megaplay",
 			listsLanguages: false,
 		});
