@@ -22,7 +22,6 @@
 	import Related from "./components/related.svelte";
 	import { getEpisodes, getSimilar, getDetails, getTitleProgress, markAll } from "./series.remote";
 	import { failedPlayback } from "./series.svelte";
-	import { getPlayback } from "./watch/[episode]/watch.remote";
 
 	let { params }: PageProps = $props();
 
@@ -143,20 +142,17 @@
 	});
 
 	const retryAction = $derived.by(() => {
-		if (!failure?.retry) {
+		const retry = failure?.retry;
+
+		if (!retry) {
 			return;
 		}
-
-		const address = {
-			episode: failure.episode,
-			seriesId: failure.seriesId,
-		};
 
 		return {
 			label: "Try again",
 			onclick: () => {
-				attempt(getPlayback(address).refresh());
-				goto(`/series/${address.seriesId}/watch/${address.episode}`);
+				attempt(retry.refresh());
+				goto(retry.href);
 			},
 		};
 	});

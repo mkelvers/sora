@@ -1,8 +1,11 @@
 interface FailedPlayback {
 	seriesId: string;
-	episode: number;
 	message: string;
-	retry: boolean;
+	retry?: {
+		href: string;
+		/** Refetches the player's own playback query, so its cached failure isn't reused. */
+		refresh: () => Promise<void>;
+	};
 }
 
 /**

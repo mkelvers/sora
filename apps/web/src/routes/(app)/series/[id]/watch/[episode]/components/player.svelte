@@ -211,10 +211,19 @@
 
 		sentBack = true;
 
+		const query = playbackQuery;
+		let retry;
+
+		if (playbackFailure.retry && query) {
+			retry = {
+				href: `/series/${series.id}/watch/${episode.number}`,
+				refresh: () => query.refresh(),
+			};
+		}
+
 		failedPlayback.current = {
-			episode: episode.number,
 			message: playbackFailure.message,
-			retry: playbackFailure.retry,
+			retry,
 			seriesId: series.id,
 		};
 
