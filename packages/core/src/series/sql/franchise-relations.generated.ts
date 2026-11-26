@@ -1,4 +1,4 @@
-/** Types generated for queries found in "src/series/franchise-relations.sql" */
+/** Types generated for queries found in "src/series/sql/franchise-relations.sql" */
 import { PreparedQuery } from '@pgtyped/runtime';
 
 /** 'FranchiseRelations' parameters type */

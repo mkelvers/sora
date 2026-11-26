@@ -1,9 +1,6 @@
 import { sqlConnection } from "../database/client";
-import { franchiseRelations } from "./franchise-relations.generated";
-import type { IFranchiseRelationsResult } from "./franchise-relations.generated";
-
-/** One stored AniList relation, as one of the two entries it joins sees it (`source`). */
-type Relation = IFranchiseRelationsResult;
+import { franchiseRelations } from "./sql/franchise-relations.generated";
+import type { IFranchiseRelationsResult } from "./sql/franchise-relations.generated";
 
 /** The AniList entries of an entry's franchise, found by following stored relations. */
 export class FranchiseWalk {
@@ -39,28 +36,29 @@ export class FranchiseWalk {
 		);
 	}
 
+	/** The entry a relation leads to from its `source`, and when it started; one never started sorts last. */
+	static #leadOf(relation: IFranchiseRelationsResult) {
+		if (relation.source === relation.from) {
+			return {
+				id: relation.to,
+				startDate: relation.toStartDate ?? "9999",
+			};
+		}
+
+		return {
+			id: relation.from,
+			startDate: relation.fromStartDate ?? "9999",
+		};
+	}
+
 	/**
 	 * The order relations are taken in within one step: sequels and prequels
 	 * first, then by when the entry they lead to started, then by its AniList
 	 * ID, so which entries make the limit is the same every time.
 	 */
-	static #order(left: Relation, right: Relation) {
-		const lead = (relation: Relation) => {
-			if (relation.source === relation.from) {
-				return {
-					id: relation.to,
-					startDate: relation.toStartDate ?? "9999",
-				};
-			}
-
-			return {
-				id: relation.from,
-				startDate: relation.fromStartDate ?? "9999",
-			};
-		};
-
-		const leftLead = lead(left);
-		const rightLead = lead(right);
+	static #order(left: IFranchiseRelationsResult, right: IFranchiseRelationsResult) {
+		const leftLead = FranchiseWalk.#leadOf(left);
+		const rightLead = FranchiseWalk.#leadOf(right);
 
 		return (
 			FranchiseWalk.#rank(left.relation) - FranchiseWalk.#rank(right.relation) ||
@@ -104,7 +102,7 @@ export class FranchiseWalk {
 	 * spin-off or from a remake to its original or back, which never start it
 	 * either.
 	 *
-	 * Every relation is read in one query (`franchise-relations.sql`), which
+	 * Every relation is read in one query (`sql/franchise-relations.sql`), which
 	 * follows the same relations this walk does but without its limit.
 	 *
 	 * @throws {Error} when the walk would follow an entry the query did not, so
