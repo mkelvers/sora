@@ -28,7 +28,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.tsbuildinfo
 
 # local agent tools
-.claude
+.claude/*
+!.claude/skills
 
 # local infra notes
 decisions.tsv

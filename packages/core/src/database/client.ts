@@ -201,7 +201,7 @@ export const migrationLockKey = 7_302_024_001;
  * (see {@link skippedMigrations}), and fails after migrating when the
  * database still lacks a table or column the code defines (see
  * {@link missingSchema}), or refuses a query of a `.sql` file (see
- * {@link fileQueries}), naming each one; AGENTS.md says how to repair the
+ * {@link fileQueries}), naming each one; the database-migrations skill says how to repair the
  * database.
  */
 export const migrate = async () => {
@@ -246,7 +246,7 @@ export const migrate = async () => {
 
 			if (skipped.length > 0) {
 				throw new Error(
-					`The database's migration history does not match packages/core/drizzle, so drizzle would skip migrations without saying so. Repair it as AGENTS.md says under "Database migrations":\n${skipped.map((reason) => `- ${reason}`).join("\n")}`,
+					`The database's migration history does not match packages/core/drizzle, so drizzle would skip migrations without saying so. Repair it as the database-migrations skill (.agents/skills/database-migrations) says:\n${skipped.map((reason) => `- ${reason}`).join("\n")}`,
 				);
 			}
 
@@ -282,7 +282,7 @@ export const migrate = async () => {
 					.map((createdAt) => `${createdAt} (${new Date(createdAt).toISOString()})`);
 
 				throw new Error(
-					`The database lacks tables or columns this checkout's schema defines, so queries would fail. A migration from another branch or a dropped draft usually changed them. Repair it as AGENTS.md says under "Database migrations".\nMissing:\n${missing.map((name) => `- ${name}`).join("\n")}\nRecorded migrations with no file in this checkout (newest last):\n${foreign.map((name) => `- ${name}`).join("\n") || "- none"}`,
+					`The database lacks tables or columns this checkout's schema defines, so queries would fail. A migration from another branch or a dropped draft usually changed them. Repair it as the database-migrations skill (.agents/skills/database-migrations) says.\nMissing:\n${missing.map((name) => `- ${name}`).join("\n")}\nRecorded migrations with no file in this checkout (newest last):\n${foreign.map((name) => `- ${name}`).join("\n") || "- none"}`,
 				);
 			}
 
@@ -290,7 +290,7 @@ export const migrate = async () => {
 
 			if (broken.length > 0) {
 				throw new Error(
-					`The database refuses queries of this checkout's .sql files, so they would fail when they run. Either the query is wrong, or the database differs from this checkout's migrations; then repair it as AGENTS.md says under "Database migrations".\n${broken.map((reason) => `- ${reason}`).join("\n")}`,
+					`The database refuses queries of this checkout's .sql files, so they would fail when they run. Either the query is wrong, or the database differs from this checkout's migrations; then repair it as the database-migrations skill (.agents/skills/database-migrations) says.\n${broken.map((reason) => `- ${reason}`).join("\n")}`,
 				);
 			}
 		})(),

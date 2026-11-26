@@ -1,0 +1,3 @@
+interface:
+  display_name: "Database migrations"
+  short_description: "Change Sora's schema without breaking shared databases"
