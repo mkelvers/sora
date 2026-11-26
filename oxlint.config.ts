@@ -14,7 +14,7 @@ export default defineConfig({
 	},
 	extends: [core, svelte],
 	ignorePatterns: [
-		...core.ignorePatterns,
+		...(core.ignorePatterns ?? []),
 		"packages/core/drizzle/**",
 		"vendor/oxlint/anti-slop/**",
 		"**/*.generated.ts",
