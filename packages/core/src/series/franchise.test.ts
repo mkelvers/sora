@@ -516,6 +516,54 @@ describe("Franchise", () => {
 		]);
 	});
 
+	test("lists a remake's own seasons and links each version to the other", () => {
+		const titles = [
+			new Fixture(210, "Ranma ½", "TV", "1989-04-15").title,
+			new Fixture(149_939, "Ranma ½ (1989)", "TV", "1989-10-20").title,
+			new Fixture(178_533, "Ranma1/2 (2024)", "TV", "2024-10-06").title,
+			new Fixture(185_731, "Ranma1/2 (2024) Season 2", "TV", "2025-10-05").title,
+			new Fixture(209_872, "Ranma1/2 (2024) Season 3", "TV", "2026-10-04").title,
+		];
+
+		const sequels = [
+			[210, 149_939],
+			[178_533, 185_731],
+			[185_731, 209_872],
+		] as const;
+
+		const alternatives = [
+			[210, 178_533],
+			[149_939, 178_533],
+			[149_939, 185_731],
+			[209_872, 149_939],
+		] as const;
+
+		const remake = new Franchise(titles, sequels, {
+			alternatives,
+			apart: [210, 149_939],
+			currentId: 209_872,
+		}).parts;
+
+		expect(remake.map((part) => [part.series_id, part.role])).toEqual([
+			["series-178533", "season"],
+			["series-185731", "season"],
+			["series-209872", "season"],
+			["series-210", "alternative"],
+		]);
+
+		const original = new Franchise(titles, sequels, {
+			alternatives,
+			apart: [178_533, 185_731, 209_872],
+			currentId: 210,
+		}).parts;
+
+		expect(original.map((part) => [part.series_id, part.role])).toEqual([
+			["series-210", "season"],
+			["series-149939", "season"],
+			["series-178533", "alternative"],
+		]);
+	});
+
 	test("never starts a franchise with a title reached only across a spin-off", () => {
 		const { parts } = new Franchise(
 			[

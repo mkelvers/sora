@@ -120,7 +120,7 @@ export const FranchisePartSchema = z.object({
 	}),
 	role: z.enum(["season", "special", "extra", "spin_off", "alternative"]).meta({
 		description:
-			"`season`: main story entries, including sequel films and longer specials. `special`: a short special or OVA that continues a season and is watched as part of it, named by `season_id`. `extra`: films, OVAs, and specials that sit inside the story or are worth watching on their own. `spin_off`: stories of their own that share the world or characters. `alternative`: another adaptation or recap, only listed when explicitly selected.",
+			"`season`: main story entries, including sequel films and longer specials. `special`: a short special or OVA that continues a season and is watched as part of it, named by `season_id`. `extra`: films, OVAs, and specials that sit inside the story or are worth watching on their own. `spin_off`: stories of their own that share the world or characters. `alternative`: another adaptation or recap, listed when explicitly selected, and the first title of a remake of the story or of the original it remakes, such as Ranma ½ (2024) and Ranma ½ (1989), which are shows of their own.",
 	}),
 	season_id: z.string().nullable().meta({
 		description: "For a `special`, the season it belongs to; otherwise null.",
@@ -196,7 +196,7 @@ export const DetailSchema = CardSchema.extend({
 		}),
 	related: z.array(FranchisePartSchema).meta({
 		description:
-			"Other released stories in the franchise: spin-offs first, then extras, each in release order. Alternatives, summaries, and compilations are omitted.",
+			"Other released stories in the franchise: the first title of each remake or original of this story first, then spin-offs, then extras, each in release order. Other alternatives, summaries, and compilations are omitted.",
 	}),
 	score_count: z.number().int().nullable().meta({
 		description:
