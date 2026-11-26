@@ -39,6 +39,9 @@ interface CleanBlock {
  *   skill name on screen while a character announces it.
  * - Every other sign without a position of its own goes to the top, so it
  *   never stacks onto dialogue at the bottom.
+ *
+ * A sign is a cue bold throughout, in a track whose bold marks signs (see
+ * {@link CueText.marksSigns}).
  */
 export const cleanWebVtt = (content: string) => {
 	/** A cue block's timing line, through its line break, and the text after it. */
@@ -109,8 +112,11 @@ export const cleanWebVtt = (content: string) => {
 		blocks.push(kept);
 	}
 
+	const marksSigns = CueText.marksSigns(blocks.flatMap(({ cue }) => cue?.text ?? []));
+	const isSign = (text: CueText) => marksSigns && text.sign;
+
 	const dialogue = blocks.flatMap(({ cue }) => {
-		if (cue && !cue.text.sign) {
+		if (cue && !isSign(cue.text)) {
 			return [cue];
 		}
 
@@ -119,7 +125,7 @@ export const cleanWebVtt = (content: string) => {
 
 	return blocks
 		.flatMap(({ block, cue }) => {
-			if (!cue?.text.sign) {
+			if (!cue || !isSign(cue.text)) {
 				return [block];
 			}
 
@@ -162,7 +168,8 @@ export const cleanWebVtt = (content: string) => {
  *   up long enough to read, so the two do not stack and jump. Lines spoken at
  *   once, or the next too soon to read this one, keep overlapping.
  *
- * Signs keep their timing, since they belong to what is on screen.
+ * Signs, as {@link cleanWebVtt} tells them, keep their timing, since they
+ * belong to what is on screen.
  *
  * Run it on the final timeline, after any retiming, so it measures the pauses
  * the viewer sees.
@@ -190,9 +197,15 @@ export const paceWebVtt = (content: string) => {
 		timing: readTiming(block),
 	}));
 
+	const marksSigns = CueText.marksSigns(
+		cues.filter(({ timing }) => timing).map(({ text }) => text),
+	);
+
+	const isSign = (text: CueText) => marksSigns && text.sign;
+
 	const starts = cues
 		.flatMap(({ text, timing }) => {
-			if (timing && !text.sign) {
+			if (timing && !isSign(text)) {
 				return [timing.start];
 			}
 
@@ -202,7 +215,7 @@ export const paceWebVtt = (content: string) => {
 
 	return cues
 		.map(({ block, text, timing }) => {
-			if (!timing || text.sign) {
+			if (!timing || isSign(text)) {
 				return block;
 			}
 

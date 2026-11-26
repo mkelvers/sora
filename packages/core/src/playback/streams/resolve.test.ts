@@ -111,6 +111,7 @@ class Fake {
 		getProviderUnits: (_anime, provider) =>
 			Promise.resolve([
 				{
+					addedAt: null,
 					id: `${provider.id}:3`,
 					isFiller: null,
 					languages: units.get(provider.id) ?? null,

@@ -266,6 +266,31 @@ describe("AniKoto.listEpisodes", () => {
 		]);
 	});
 
+	test("dates each episode by when AniKoto added it, as for Black Clover Season 2 episode 9", async () => {
+		const { provider } = new Site({
+			"/ajax/episode/list/1498": listing({
+				56: {
+					timestamp: "1795273607",
+				},
+				57: {
+					timestamp: "1795297591",
+				},
+				58: {
+					timestamp: "",
+				},
+			}),
+			"/series/1498": seriesResponse,
+		});
+
+		const units = await provider.listEpisodes("1498");
+
+		expect(units.map((unit) => [unit.number, unit.addedAt?.toISOString() ?? null])).toEqual([
+			[56, "2026-11-21T15:06:47.000Z"],
+			[57, "2026-11-21T21:46:31.000Z"],
+			[58, null],
+		]);
+	});
+
 	test("leaves filler unknown rather than false when the episode list has no episodes", async () => {
 		const { provider } = new Site({
 			"/ajax/episode/list/1498": listing({}),

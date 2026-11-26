@@ -410,6 +410,9 @@ test("cleanWebVtt drops copies of a cue drawn as stacked ASS layers", () => {
 	expect(
 		cleanWebVtt(`WEBVTT
 
+10:17.000 --> 10:19.000
+What are you listening to?
+
 10:19.510 --> 10:25.270
 <b>How I
 \\h\\h\\h\\hImagine</b>
@@ -422,6 +425,9 @@ test("cleanWebVtt drops copies of a cue drawn as stacked ASS layers", () => {
 <b>How I
 \\h\\h\\h\\hImagine</b>`),
 	).toBe(`WEBVTT
+
+10:17.000 --> 10:19.000
+What are you listening to?
 
 10:19.510 --> 10:25.270 line:0
 <b>How I
@@ -543,9 +549,28 @@ test("cleanWebVtt counts a sign whose bold is left unclosed or nested as a sign"
 <b>Run</b>, he said.`);
 });
 
+test("cleanWebVtt leaves the dialogue of a track bold throughout at the bottom", () => {
+	const content = `WEBVTT
+
+00:00:01.000 --> 00:00:03.000
+<b>Right now, as long as the two of us
+are together, we can fight.</b>
+
+00:00:03.500 --> 00:00:05.000
+<b>Right, Langris?</b>
+
+00:00:05.500 --> 00:00:07.000
+<b>Right, Langris.</b>`;
+
+	expect(cleanWebVtt(content)).toBe(content);
+});
+
 test("cleanWebVtt joins a cue shown again right as it ends into one", () => {
 	expect(
 		cleanWebVtt(`WEBVTT
+
+00:04:30.000 --> 00:04:31.000
+The analysis failed.
 
 00:04:32.080 --> 00:04:32.120
 <b>Consistency not found among theoretical values.</b>
@@ -559,6 +584,9 @@ test("cleanWebVtt joins a cue shown again right as it ends into one", () => {
 00:04:40.000 --> 00:04:41.000
 <b>Consistency not found among theoretical values.</b>`),
 	).toBe(`WEBVTT
+
+00:04:30.000 --> 00:04:31.000
+The analysis failed.
 
 00:04:32.080 --> 00:04:32.450 line:0
 <b>Consistency not found among theoretical values.</b>
@@ -659,5 +687,23 @@ Thank you!`;
 Okay, then...`;
 
 		expect(paceWebVtt(content)).toBe(content);
+	});
+
+	test("paces the dialogue of a track bold throughout", () => {
+		expect(
+			paceWebVtt(`WEBVTT
+
+00:00:01.000 --> 00:00:01.500
+<b>What a cheeky Nii-san!</b>
+
+00:00:05.000 --> 00:00:07.000
+<b>His spatial movement speed...</b>`),
+		).toBe(`WEBVTT
+
+00:00:01.000 --> 00:00:02.294
+<b>What a cheeky Nii-san!</b>
+
+00:00:05.000 --> 00:00:07.000
+<b>His spatial movement speed...</b>`);
 	});
 });

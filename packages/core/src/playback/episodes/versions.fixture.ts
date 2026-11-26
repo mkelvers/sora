@@ -20,6 +20,7 @@ export const unit = (
 	languages: ContentLanguage[] | null,
 	isFiller: boolean | null = null,
 ): ProviderUnit => ({
+	addedAt: null,
 	id: `unit-${number}`,
 	isFiller,
 	languages,

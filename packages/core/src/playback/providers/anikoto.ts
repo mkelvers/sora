@@ -21,6 +21,8 @@ const languageOrder = ["sub", "dub"] as const satisfies readonly ContentLanguage
 interface ListedEpisode {
 	languages: ContentLanguage[];
 	isFiller: boolean;
+	/** When AniKoto added the episode, or `null` when the list does not say. */
+	addedAt: Date | null;
 }
 
 /**
@@ -60,8 +62,8 @@ export class AniKoto implements StreamProvider {
 	}
 
 	/**
-	 * Lists the episodes as `anime-sdk` does, with the languages and filler
-	 * flags AniKoto's own episode list gives.
+	 * Lists the episodes as `anime-sdk` does, with the languages, filler
+	 * flags, and times added that AniKoto's own episode list gives.
 	 *
 	 * AniKoto's JSON API, which `anime-sdk` reads, leaves out many dubs its
 	 * player streams (Banished from the Hero's Party episodes 1–3, a quarter
@@ -70,7 +72,7 @@ export class AniKoto implements StreamProvider {
 	 *
 	 * Both are best-effort: when the episode list cannot be read, or leaves
 	 * an episode out, the episode keeps the API's languages and has no filler
-	 * flag.
+	 * flag or time added.
 	 */
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
 		const [units, { data, error }] = await Promise.all([
@@ -97,6 +99,7 @@ export class AniKoto implements StreamProvider {
 
 			return {
 				...episode,
+				addedAt: entry.addedAt,
 				isFiller: entry.isFiller,
 				languages: languageOrder.filter((language) => languages.has(language)),
 			};
@@ -131,9 +134,10 @@ export class AniKoto implements StreamProvider {
 	/**
 	 * Reads AniKoto's episode list, as its watch page loads it. Each episode's
 	 * link carries `data-sub` and `data-dub` flags, which the watch page's
-	 * language switch follows, and a `filler` class on filler episodes.
+	 * language switch follows, a `filler` class on filler episodes, and a
+	 * `data-timestamp` of when AniKoto added the episode, in Unix seconds.
 	 *
-	 * @returns Each listed episode's languages and filler flag, by number.
+	 * @returns Each listed episode's languages, filler flag, and time added, by number.
 	 * @throws {Error} when the list cannot be read or lists no episodes.
 	 */
 	private async episodes(mediaId: string): Promise<Map<number, ListedEpisode>> {
@@ -169,7 +173,16 @@ export class AniKoto implements StreamProvider {
 			}
 
 			const classes = /\bclass="(?<classes>[^"]*)"/u.exec(link)?.[1]?.split(/\s+/u) ?? [];
+			const addedSeconds = Number(/\bdata-timestamp="(?<seconds>\d+)"/u.exec(link)?.[1]);
+
+			let addedAt: Date | null = null;
+
+			if (addedSeconds > 0) {
+				addedAt = new Date(addedSeconds * 1000);
+			}
+
 			episodes.set(number, {
+				addedAt,
 				isFiller: classes.includes("filler"),
 				languages: languageOrder.filter((language) =>
 					new RegExp(`\\bdata-${language}="1"`, "u").test(link),

@@ -6,6 +6,7 @@ import type { ProviderCall } from "./calls";
 import type { ProviderEpisode, ProviderStream, StreamProvider } from "./provider";
 
 const episode: ProviderEpisode = {
+	addedAt: null,
 	id: "fake:1",
 	isFiller: null,
 	languages: ["sub"],

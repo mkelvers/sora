@@ -194,7 +194,12 @@ export const titleEpisode = pgTable(
 	{
 		/** `YYYY-MM-DD`, in the calendar of the country it aired in, as TMDB lists it. */
 		airDate: text("air_date"),
-		/** When the episode aired, from AniList's airing schedule; null when AniList has no schedule for it. */
+		/**
+		 * When the episode came out: when it aired, from AniList's airing
+		 * schedule, or when AniKoto added it, for an episode out before then.
+		 * Null when AniList does not schedule it and AniKoto did not have it
+		 * before its air date; see `store.save`.
+		 */
 		airedAt: timestamptz("aired_at"),
 		number: integer("number").notNull(),
 		overview: text("overview"),

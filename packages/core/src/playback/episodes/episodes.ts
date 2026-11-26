@@ -95,6 +95,7 @@ export const refreshProviderUnits = async (
 					(anime.episodes === null || unit.number <= episodeOffset + anime.episodes)),
 		)
 		.map((unit) => ({
+			addedAt: unit.addedAt,
 			id: unit.id,
 			isFiller: unit.isFiller,
 			languages: unit.languages,

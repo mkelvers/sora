@@ -1,4 +1,4 @@
-import { defined, chunked, sequence } from "@sora/shared";
+import { day, defined, chunked, sequence } from "@sora/shared";
 import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 
 import { catalog } from "../catalog/queries/anime";
@@ -7,6 +7,8 @@ import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
 import { episodeStill, series, titleEpisode, titleRelation } from "../database/schema/series";
 import { ids } from "../ids";
+import { getStoredUnits } from "../playback/episodes/episodes";
+import { aniKoto } from "../playback/providers/registry";
 import {
 	scheduleEpisodeLookups,
 	scheduleSeriesStore,
@@ -15,7 +17,7 @@ import {
 import { imageUrl } from "../tmdb/resources";
 import { edges } from "./edges";
 import { episodeDetails } from "./episode-details";
-import { anilistKey, aniKotoCarries } from "./episodes";
+import { anilistKey, aniKotoCarries, releasedAtOf } from "./episodes";
 import { layOut, parseKey } from "./series";
 
 export const store = {
@@ -42,7 +44,12 @@ export const store = {
 	 *
 	 * When each episode aired is read from AniList's airing schedule (see
 	 * {@link fetchEpisodeAirings}) the first time the entry is stored and while
-	 * it may still gain episodes; after that the stored times are kept.
+	 * it may still gain episodes; after that the stored times are kept. An
+	 * episode AniList's schedule leaves out then has no time, and is dated by
+	 * TMDB's air date alone: AniList drops the episodes of a schedule it
+	 * rewrote, so a time stored before would date them wrongly. An episode
+	 * AniKoto added up to two weeks before it aired is dated by when AniKoto
+	 * added it, since it came out then.
 	 *
 	 * Related entries that are not stored yet, and that can be watched or are
 	 * yet to come out, are queued for the scheduler to store, so a franchise is
@@ -58,6 +65,15 @@ export const store = {
 	async save(anilistId: number): Promise<string> {
 		/** Episode rows per insert, well under PostgreSQL's limit of 65,535 parameters. */
 		const episodeInsertBatch = 1000;
+
+		/**
+		 * How long before its broadcast an episode AniKoto added may have come
+		 * out. Streams ahead of a broadcast, such as Black Clover Season 2's
+		 * episode 9, come about a week early. AniKoto stamps some lists with one
+		 * time for every episode, long before most of them aired, and a time
+		 * further ahead than this is such a stamp.
+		 */
+		const maximumLeadMs = 14 * day;
 
 		/**
 		 * Serializes writes of one entry's series, with the entry's AniList ID.
@@ -77,6 +93,10 @@ export const store = {
 		if (readsAirings) {
 			airings = await fetchEpisodeAirings([anilistId]);
 		}
+
+		const storedUnits = await getStoredUnits([anilistId], [aniKoto.id]);
+		const onAniKoto = storedUnits.find((entry) => entry.provider === aniKoto.id);
+		const addedTimes = new Map(onAniKoto?.units.map((unit) => [unit.number, unit.addedAt]));
 
 		const storedId = await db.transaction(async (tx) => {
 			await tx.execute(sql`select pg_advisory_xact_lock(${lockKey}, ${anilistId})`);
@@ -158,13 +178,31 @@ export const store = {
 			await tx.delete(titleEpisode).where(eq(titleEpisode.seriesId, id));
 
 			const episodes = built.episodes.map((episode) => {
-				let airedAt: Date | null = null;
+				let broadcastAt: Date | null = null;
 
-				if (built.useAniListAirings) {
-					airedAt =
-						airings.get(anilistKey(anilistId, episode.number)) ??
-						airedBefore.get(episode.number) ??
-						null;
+				if (readsAirings) {
+					broadcastAt = airings.get(anilistKey(anilistId, episode.number)) ?? null;
+				} else if (built.useAniListAirings) {
+					broadcastAt = airedBefore.get(episode.number) ?? null;
+				}
+
+				const addedAt = addedTimes.get(episode.number) ?? null;
+
+				const scheduledAt = releasedAtOf({
+					airDate: episode.airDate,
+					airedAt: broadcastAt,
+				});
+
+				const cameOutEarly =
+					addedAt !== null &&
+					scheduledAt !== null &&
+					addedAt < scheduledAt &&
+					scheduledAt.getTime() - addedAt.getTime() <= maximumLeadMs;
+
+				let airedAt = broadcastAt;
+
+				if (cameOutEarly) {
+					airedAt = addedAt;
 				}
 
 				let runtimeMinutes: number | null = null;

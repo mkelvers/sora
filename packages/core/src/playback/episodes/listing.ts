@@ -12,6 +12,12 @@ import type { ProviderEpisode } from "../providers/provider";
  */
 export const ProviderUnitsSchema = z.array(
 	z.object({
+		/** Missing from lists stored before it was added, which stay valid. */
+		addedAt: z.iso
+			.datetime()
+			.transform((value) => new Date(value))
+			.nullable()
+			.default(null),
 		id: z.string(),
 		isFiller: z.boolean().nullable(),
 		languages: z.array(LanguageSchema).nullable(),
