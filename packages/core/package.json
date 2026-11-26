@@ -33,6 +33,7 @@
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",
 		"@huggingface/transformers": "^4.3.1",
+		"@pgtyped/parser": "^2.4.2",
 		"@pgtyped/runtime": "^2.4.2",
 		"@sora/shared": "workspace:*",
 		"anime-sdk": "^1.1.0",
