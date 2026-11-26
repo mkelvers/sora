@@ -1,7 +1,6 @@
-import { and, eq, inArray } from "drizzle-orm";
-
-import { db } from "../database/client";
-import { series, titleRelation } from "../database/schema/series";
+import { sqlConnection } from "../database/client";
+import { franchiseRelations } from "./sql/franchise-relations.generated";
+import type { IFranchiseRelationsResult } from "./sql/franchise-relations.generated";
 
 /** The AniList entries of an entry's franchise, found by following stored relations. */
 export class FranchiseWalk {
@@ -37,6 +36,37 @@ export class FranchiseWalk {
 		);
 	}
 
+	/** The entry a relation leads to from its `source`, and when it started; one never started sorts last. */
+	static #leadOf(relation: IFranchiseRelationsResult) {
+		if (relation.source === relation.from) {
+			return {
+				id: relation.to,
+				startDate: relation.toStartDate ?? "9999",
+			};
+		}
+
+		return {
+			id: relation.from,
+			startDate: relation.fromStartDate ?? "9999",
+		};
+	}
+
+	/**
+	 * The order relations are taken in within one step: sequels and prequels
+	 * first, then by when the entry they lead to started, then by its AniList
+	 * ID, so which entries make the limit is the same every time.
+	 */
+	static #order(left: IFranchiseRelationsResult, right: IFranchiseRelationsResult) {
+		const leftLead = FranchiseWalk.#leadOf(left);
+		const rightLead = FranchiseWalk.#leadOf(right);
+
+		return (
+			FranchiseWalk.#rank(left.relation) - FranchiseWalk.#rank(right.relation) ||
+			leftLead.startDate.localeCompare(rightLead.startDate) ||
+			leftLead.id - rightLead.id
+		);
+	}
+
 	/**
 	 * The AniList entries of an entry's franchise, itself left out, the closest
 	 * related first.
@@ -52,19 +82,31 @@ export class FranchiseWalk {
 	 * lists it as something else, such as `PARENT`, is a crossover and counts as
 	 * `OTHER` from both; a title in a sequel chain listing `OTHER` does not.
 	 *
-	 * Sequels and prequels are always followed, so a long-running franchise's
-	 * main path is never cut short by the entries around it; those are reached
-	 * up to a limit.
+	 * The walk goes one step of relations at a time, so a closer entry is always
+	 * reached first. Sequels and prequels are always followed, so a long-running
+	 * franchise's main path is never cut short by the entries around it; those
+	 * are reached up to a limit, in the order {@link FranchiseWalk.#order} gives.
 	 *
 	 * A spin-off, such as My Hero Academia: Vigilantes, is a story of its own:
 	 * an entry AniList lists as `SPIN_OFF` of another is reached from it, and it
 	 * from the spin-off, but neither is followed through. The spin-off's sequels
 	 * belong to its own franchise, and the original's seasons to the original's.
+	 * A remake and its original are kept apart the same way: two TV or web
+	 * series of two TMDB shows that AniList lists as alternatives, such as
+	 * Ranma ½ (2024) and Ranma ½ (1989). A film retelling a TV arc, an OVA with
+	 * another ending, and a recap stay with the show they belong to.
 	 *
 	 * `crossovers` holds the entries reached only as `OTHER`: they share a
 	 * universe with the entry but are not part of its story, so they never decide
 	 * where the franchise starts. `apart` holds the entries reached only across a
-	 * spin-off, which never start it either.
+	 * spin-off or from a remake to its original or back, which never start it
+	 * either.
+	 *
+	 * Every relation is read in one query (`sql/franchise-relations.sql`), which
+	 * follows the same relations this walk does but without its limit.
+	 *
+	 * @throws {Error} when the walk would follow an entry the query did not, so
+	 * the two disagree on which relations are followed.
 	 */
 	async reach(): Promise<{
 		ids: number[];
@@ -75,75 +117,40 @@ export class FranchiseWalk {
 		const franchiseLimit = 60;
 
 		const anilistId = this.#anilistId;
+
+		const rows = await franchiseRelations.run(
+			{
+				start: anilistId,
+			},
+			sqlConnection,
+		);
+
+		const relationsOf = Map.groupBy(rows, (row) => row.source);
 		const reached = new Set([anilistId]);
 		const outsiders = new Set<number>();
-		/** Entries reached only across a spin-off, not followed through yet. */
+		/** Entries reached only from another story, not followed through yet. */
 		const held = new Set<number>();
 		let around = 0;
+		let frontier = [anilistId];
 
-		const expand = async (frontier: number[]): Promise<void> => {
-			if (frontier.length === 0) {
-				return;
+		while (frontier.length > 0) {
+			const followed = [...new Set(frontier)];
+			const unread = followed.find((id) => id !== anilistId && !relationsOf.has(id));
+
+			if (unread !== undefined) {
+				throw new Error(
+					`The franchise of AniList ${anilistId} reaches ${unread}, whose relations franchise-relations.sql did not read`,
+				);
 			}
 
-			const columns = {
-				from: series.anilistId,
-				relation: titleRelation.relation,
-				to: titleRelation.anilistId,
-			};
-
-			const [outgoing, incoming] = await Promise.all([
-				db
-					.select(columns)
-					.from(series)
-					.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
-					.where(inArray(series.anilistId, frontier)),
-				db
-					.select(columns)
-					.from(titleRelation)
-					.innerJoin(series, eq(series.id, titleRelation.seriesId))
-					.where(inArray(titleRelation.anilistId, frontier)),
-			]);
-
-			const rawEdges = [...outgoing, ...incoming].filter(
-				({ from, to }) => !FranchiseWalk.#isUnrelated(from, to),
-			);
-
-			const listers = [
-				...new Set(
-					rawEdges
-						.values()
-						.filter(({ relation }) => relation === "OTHER")
-						.map(({ from }) => from)
-						.toArray(),
-				),
-			];
-
-			let chainedRows: {
-				anilistId: number;
-			}[] = [];
-
-			if (listers.length > 0) {
-				chainedRows = await db
-					.select({
-						anilistId: series.anilistId,
-					})
-					.from(series)
-					.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
-					.where(
-						and(
-							inArray(series.anilistId, listers),
-							inArray(titleRelation.relation, ["SEQUEL", "PREQUEL"]),
-						),
-					);
-			}
-
-			const chained = new Set(chainedRows.map((row) => row.anilistId));
+			const rawEdges = followed
+				.flatMap((id) => relationsOf.get(id) ?? [])
+				.filter(({ from, to }) => !FranchiseWalk.#isUnrelated(from, to));
 
 			const crossovers = new Set(
 				rawEdges
 					.values()
-					.filter(({ relation, from }) => relation === "OTHER" && !chained.has(from))
+					.filter(({ relation, fromChained }) => relation === "OTHER" && !fromChained)
 					.map(({ from, to }) => `${to}>${from}`)
 					.toArray(),
 			);
@@ -152,16 +159,17 @@ export class FranchiseWalk {
 				if (crossovers.has(`${rawEdge.from}>${rawEdge.to}`)) {
 					return {
 						...rawEdge,
-						relation: "OTHER" as const,
+						relation: "OTHER",
 					};
 				}
 
 				return rawEdge;
 			});
 
-			const spinOffs = new Set(
+			// The edges between two stories: a spin-off and its original, a remake and its original.
+			const separating = new Set(
 				rawEdges
-					.filter(({ relation }) => relation === "SPIN_OFF")
+					.filter(({ relation, remake }) => relation === "SPIN_OFF" || remake)
 					.flatMap(({ from, to }) => [`${from}>${to}`, `${to}>${from}`]),
 			);
 
@@ -173,11 +181,9 @@ export class FranchiseWalk {
 
 			const next: number[] = [];
 
-			for (const edge of edges.toSorted(
-				(left, right) => FranchiseWalk.#rank(left.relation) - FranchiseWalk.#rank(right.relation),
-			)) {
+			for (const edge of edges.toSorted(FranchiseWalk.#order)) {
 				const continues = FranchiseWalk.#rank(edge.relation) === 0;
-				const acrossSpinOff = spinOffs.has(`${edge.from}>${edge.to}`);
+				const acrossStories = separating.has(`${edge.from}>${edge.to}`);
 
 				for (const id of [edge.from, edge.to]) {
 					const reachable = !reached.has(id) && (continues || around < franchiseLimit);
@@ -189,7 +195,7 @@ export class FranchiseWalk {
 							around += 1;
 						}
 
-						if (acrossSpinOff) {
+						if (acrossStories) {
 							held.add(id);
 						} else if (edge.relation !== "OTHER") {
 							next.push(id);
@@ -201,7 +207,7 @@ export class FranchiseWalk {
 							outsiders.delete(id);
 						}
 
-						const continuing = held.has(id) && !acrossSpinOff && edge.relation !== "OTHER";
+						const continuing = held.has(id) && !acrossStories && edge.relation !== "OTHER";
 
 						if (continuing) {
 							held.delete(id);
@@ -211,10 +217,8 @@ export class FranchiseWalk {
 				}
 			}
 
-			await expand(next);
-		};
-
-		await expand([anilistId]);
+			frontier = next;
+		}
 
 		reached.delete(anilistId);
 

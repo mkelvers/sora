@@ -915,6 +915,7 @@ export const titles = {
 			// the one AniList announces after it.
 			next_episode: overdue ?? announced,
 			related: [
+				...franchise.filter((part) => part.role === "alternative" && part.series_id !== row.id),
 				...franchise.filter((part) => part.role === "spin_off"),
 				...franchise.filter((part) => part.role === "extra"),
 			],

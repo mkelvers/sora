@@ -582,6 +582,13 @@
       "when": 1794905035602,
       "tag": "0082_mean_emma_frost",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1795597609287,
+      "tag": "0083_upscale_method",
+      "breakpoints": true
     }
   ]
 }

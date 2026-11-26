@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import { integer, pgSchema, pgTable, text } from "drizzle-orm/pg-core";
 
-import { definedColumns, missingSchema } from "./schema-check";
+import { definedColumns, fileQueries, missingSchema } from "./schema-check";
 
 const series = pgTable("series", {
 	id: integer("id").primaryKey(),
@@ -57,4 +57,13 @@ test("missingSchema names a missing column", () => {
 	expect(missingSchema(definedColumns([{ series }]), live.slice(0, 1))).toEqual([
 		"column public.series.title",
 	]);
+});
+
+test("fileQueries reads each .sql query as the SQL it sends", async () => {
+	const queries = await fileQueries();
+	const relations = queries.find(({ name }) => name === "FranchiseRelations");
+
+	expect(relations?.file).toBe("series/sql/franchise-relations.sql");
+	expect(relations?.text).toContain("cast($1 as integer)");
+	expect(relations?.text).not.toContain(":start");
 });

@@ -282,7 +282,7 @@ export class Franchise {
 		const listed = seasons.filter((title) => !unlisted.has(title.anilistId));
 		const seasonOfSpecial = this.#specials(listed);
 		const storyName = new Name(selected?.title ?? "").story;
-		const shown = [...seasons, ...others];
+		const shown = [...seasons, ...others, ...this.#otherVersions(continuity)];
 
 		if (current && omitted.has(current.anilistId)) {
 			shown.push(current);
@@ -472,6 +472,44 @@ export class Franchise {
 		}
 
 		return omitted;
+	}
+
+	/**
+	 * The title each other version of the story starts with: a remake of it, or
+	 * the original it remakes, whose titles are a story apart (see
+	 * `FranchiseOptions.apart`). Listed as an `alternative`, so a viewer finds
+	 * the other version from this one.
+	 */
+	#otherVersions(continuity: ReadonlySet<number>) {
+		const options = this.#options;
+		const apart = new Set(options.apart);
+		const unlisted = new Set(options.unlisted);
+		const openings = new Set<FranchiseTitle>();
+
+		for (const pair of options.alternatives ?? []) {
+			const other = pair.find((id) => !continuity.has(id));
+
+			const isVersion =
+				other !== undefined && apart.has(other) && pair.some((id) => continuity.has(id));
+
+			if (!isVersion) {
+				continue;
+			}
+
+			const story = Franchise.#component(this.#links, other);
+
+			const titles = this.#byRelease.filter(
+				(title) => story.has(title.anilistId) && !unlisted.has(title.anilistId),
+			);
+
+			const opening = titles.find((title) => Franchise.#isSeason(title)) ?? titles[0];
+
+			if (opening) {
+				openings.add(opening);
+			}
+		}
+
+		return [...openings];
 	}
 
 	/** The titles reached from the start by following sequel links forward only. */

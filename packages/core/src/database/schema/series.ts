@@ -310,6 +310,12 @@ export const titleBackdropUpscale = pgTable(
 			.references(() => titleArtwork.key, {
 				onDelete: "cascade",
 			}),
+		/**
+		 * Which version of the upscaling made `image`, so the scheduler can remake
+		 * upscales an older one made; see `currentMethod` in `upscales`. 1 is a 2× pass of
+		 * realesr-animevideov3 over the original.
+		 */
+		method: integer("method").notNull().default(1),
 		/** The original on TMDB's image host, as {@link titleImage} lists it. */
 		sourceUrl: text("source_url").notNull(),
 		status: text("status").$type<UpscaleStatus>().notNull().default("pending"),

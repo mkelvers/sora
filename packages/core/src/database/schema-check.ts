@@ -1,3 +1,5 @@
+import { parseSQLFile, queryASTToIR } from "@pgtyped/parser";
+import { processSQLQueryIR } from "@pgtyped/runtime";
 import { is } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 
@@ -57,4 +59,45 @@ export const missingSchema = (defined: ColumnName[], live: ColumnName[]): string
 	}
 
 	return [...missing];
+};
+
+/** One query of a `.sql` file, as the SQL it sends, with `$1`-style parameters. */
+export interface FileQuery {
+	/** The file, relative to `src`, such as `series/sql/franchise-relations.sql`. */
+	file: string;
+	/** Its pgTyped `@name`. */
+	name: string;
+	text: string;
+}
+
+/**
+ * Every query of the `.sql` files under `src`: the ones `bun run sql:generate`
+ * types (see `pgtyped.config.json`), which `migrate` prepares against the
+ * database to check they still fit it. Generating checks them only against
+ * the database it ran on, which can differ from the one a deploy migrates.
+ *
+ * @throws {Error} when a file does not parse as pgTyped's annotated SQL.
+ */
+export const fileQueries = async (): Promise<FileQuery[]> => {
+	const source = new URL("..", import.meta.url).pathname;
+	const files = await Array.fromAsync(new Bun.Glob("**/*.sql").scan(source));
+
+	const queries = await Promise.all(
+		files.toSorted().map(async (file) => {
+			const { events, queries: parsed } = parseSQLFile(await Bun.file(`${source}${file}`).text());
+			const failure = events.find((event) => "critical" in event);
+
+			if (failure) {
+				throw new Error(`${file} does not parse as pgTyped SQL: ${failure.message.text}`);
+			}
+
+			return parsed.map((query) => ({
+				file,
+				name: query.name,
+				text: processSQLQueryIR(queryASTToIR(query)).query,
+			}));
+		}),
+	);
+
+	return queries.flat();
 };

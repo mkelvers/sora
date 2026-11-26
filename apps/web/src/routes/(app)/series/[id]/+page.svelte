@@ -90,9 +90,10 @@
 
 		const extras = series.related.filter((part) => part.role === "extra").map((part) => part.card);
 
-		const cards = series.related
-			.filter((part) => part.role === "spin_off")
-			.map((part) => part.card);
+		const cards = [
+			...series.related.filter((part) => part.role === "alternative"),
+			...series.related.filter((part) => part.role === "spin_off"),
+		].map((part) => part.card);
 
 		for (const [index, card] of similar.current.entries()) {
 			cards.push(card);

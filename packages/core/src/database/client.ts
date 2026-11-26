@@ -1,13 +1,15 @@
-import { attempt } from "@sora/shared";
+import type { IDatabaseConnection } from "@pgtyped/runtime";
+import { attempt, sequence } from "@sora/shared";
 import { SQL } from "bun";
-import type { TransactionSQL } from "bun";
+import type { ReservedSQL, TransactionSQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql";
 import { migrate as applyMigrations } from "drizzle-orm/bun-sql/migrator";
 import { runMigrations } from "graphile-worker";
 
 import { config } from "../config";
 import { readMigrationHistory, skippedMigrations } from "./migration-history";
-import { definedColumns, missingSchema } from "./schema-check";
+import { definedColumns, fileQueries, missingSchema } from "./schema-check";
+import type { FileQuery } from "./schema-check";
 import * as auth from "./schema/auth";
 import * as catalog from "./schema/catalog";
 import * as library from "./schema/library";
@@ -147,6 +149,43 @@ export const db = drizzle({
 	},
 });
 
+/**
+ * The connection the queries pgTyped generates from `.sql` files run on, as
+ * `franchiseRelations.run(params, sqlConnection)`; see `sql-codegen.ts`. Like
+ * every other query, it joins a test's held transaction.
+ */
+export const sqlConnection: IDatabaseConnection = {
+	query: async (text, bindings) => {
+		const rows: unknown[] & SQL.ResultMetadata = await db.$client.unsafe(text, bindings);
+
+		return {
+			rowCount: rows.count,
+			rows,
+		};
+	},
+};
+
+/**
+ * The queries among `queries` the database refuses, each as `file (name):
+ * reason`: one naming a table or column it lacks, or one that no longer
+ * type-checks against it. Each is prepared and dropped, never run.
+ */
+export const brokenQueries = async (session: ReservedSQL, queries: readonly FileQuery[]) => {
+	const reasons = await sequence.all(queries, async ({ file, name, text }) => {
+		const { error } = await attempt(session.unsafe(`prepare sql_file_check as ${text}`));
+
+		if (error) {
+			return [`${file} (${name}): ${error.message}`];
+		}
+
+		await session.unsafe("deallocate sql_file_check");
+
+		return [];
+	});
+
+	return reasons.flat();
+};
+
 /** The advisory lock replicas hold, one at a time, while they migrate. */
 export const migrationLockKey = 7_302_024_001;
 
@@ -161,7 +200,8 @@ export const migrationLockKey = 7_302_024_001;
  * Refuses to migrate when drizzle would skip a migration without saying so
  * (see {@link skippedMigrations}), and fails after migrating when the
  * database still lacks a table or column the code defines (see
- * {@link missingSchema}), naming each one; AGENTS.md says how to repair the
+ * {@link missingSchema}), or refuses a query of a `.sql` file (see
+ * {@link fileQueries}), naming each one; AGENTS.md says how to repair the
  * database.
  */
 export const migrate = async () => {
@@ -243,6 +283,14 @@ export const migrate = async () => {
 
 				throw new Error(
 					`The database lacks tables or columns this checkout's schema defines, so queries would fail. A migration from another branch or a dropped draft usually changed them. Repair it as AGENTS.md says under "Database migrations".\nMissing:\n${missing.map((name) => `- ${name}`).join("\n")}\nRecorded migrations with no file in this checkout (newest last):\n${foreign.map((name) => `- ${name}`).join("\n") || "- none"}`,
+				);
+			}
+
+			const broken = await brokenQueries(lock, await fileQueries());
+
+			if (broken.length > 0) {
+				throw new Error(
+					`The database refuses queries of this checkout's .sql files, so they would fail when they run. Either the query is wrong, or the database differs from this checkout's migrations; then repair it as AGENTS.md says under "Database migrations".\n${broken.map((reason) => `- ${reason}`).join("\n")}`,
 				);
 			}
 		})(),

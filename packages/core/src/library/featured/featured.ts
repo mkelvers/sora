@@ -3,7 +3,7 @@ import { and, asc, eq, gte, inArray, lt, lte, max, or, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { animeSearch, animeTrend } from "../../database/schema/catalog";
-import { featuredPick, seriesState } from "../../database/schema/library";
+import { featuredPick, seriesRating, seriesState } from "../../database/schema/library";
 import {
 	series,
 	titleEpisode,
@@ -16,21 +16,22 @@ import type { FeaturedCard, SeriesCard } from "../../models/series";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { effectiveBackdrop, effectiveLogo } from "../../series/edges";
 import { upscaledBackdropUrl } from "../../series/upscaled-backdrop";
+import { Taste } from "../recommendations/taste";
 import { Cards } from "./cards";
 import {
 	activityKeptFor,
 	activityOf,
+	affinityOf,
 	arrange,
 	currentFor,
 	currentThresholds,
 	dateBefore,
-	maximumCount,
 	remembered,
 	isCurrent,
 	longRunningAfter,
-	minimumCount,
 	order,
 	numberOf,
+	slideCount,
 	startOf,
 	spareCandidates,
 } from "./rotation";
@@ -107,6 +108,9 @@ class Picker {
 			) >= ${minBackdropSize.height}
 	)`;
 
+	/** The most stars a rating can have and still say the profile disliked the show. */
+	static readonly #dislikedRating = 2;
+
 	readonly #userId: string;
 	readonly #rotation: number;
 	readonly #now: Date;
@@ -115,6 +119,51 @@ class Picker {
 		this.#userId = userId;
 		this.#rotation = rotation;
 		this.#now = now;
+	}
+
+	/**
+	 * Series the profile is never featured: those it completed, which have
+	 * nothing new for it, and every season of a show it dropped or rated
+	 * {@link Picker.#dislikedRating} stars or fewer.
+	 */
+	async unwanted(): Promise<Set<string>> {
+		const userId = this.#userId;
+
+		const rejectedShows = db
+			.select({
+				key: series.key,
+			})
+			.from(seriesState)
+			.innerJoin(series, eq(series.id, seriesState.seriesId))
+			.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")))
+			.union(
+				db
+					.select({
+						key: series.key,
+					})
+					.from(seriesRating)
+					.innerJoin(series, eq(series.id, seriesRating.seriesId))
+					.where(
+						and(eq(seriesRating.userId, userId), lte(seriesRating.rating, Picker.#dislikedRating)),
+					),
+			);
+
+		const [rejected, completed] = await Promise.all([
+			db
+				.select({
+					id: series.id,
+				})
+				.from(series)
+				.where(inArray(series.key, rejectedShows)),
+			db
+				.select({
+					id: seriesState.seriesId,
+				})
+				.from(seriesState)
+				.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "completed"))),
+		]);
+
+		return new Set([...rejected, ...completed].map((row) => row.id));
 	}
 
 	/**
@@ -182,17 +231,20 @@ class Picker {
 	/**
 	 * Picks titles to feature for the rotation from the search index, leaving out
 	 * `excluded`, with their cards. `lastPicked` holds the rotation each title
-	 * was last featured in, and `shown` how many are featured this rotation
-	 * already; see {@link order} and {@link arrange}.
+	 * was last featured in, `shown` how many are featured this rotation
+	 * already, and `taste` the profile's genre weights (see `Taste.weights`);
+	 * see {@link order} and {@link arrange}.
 	 */
 	async pick({
 		excluded,
 		lastPicked,
 		shown,
+		taste,
 	}: {
 		excluded: ReadonlySet<string>;
 		lastPicked: ReadonlyMap<string, number>;
 		shown: number;
+		taste: ReadonlyMap<string, number>;
 	}) {
 		const userId = this.#userId;
 		const rotation = this.#rotation;
@@ -205,6 +257,7 @@ class Picker {
 			db
 				.select({
 					anilistId: animeSearch.anilistId,
+					genres: animeSearch.genres,
 					isDrawable: sql<boolean>`coalesce(
 						${effectiveLogo} is not null and ${Picker.#cleanBackdrop},
 						false
@@ -290,6 +343,7 @@ class Picker {
 					past: null,
 					recent: null,
 				},
+				affinity: affinityOf(entry.genres, taste),
 				id,
 				lastAiredAt: airings.get(id) ?? null,
 				lastPickedAt,
@@ -300,9 +354,9 @@ class Picker {
 
 		const ordered = order(candidates, userId, rotation, now);
 
-		const tried = [...ordered.news, ...ordered.repeats].slice(
+		const tried = [...ordered.news, ...ordered.repeats, ...ordered.rest].slice(
 			0,
-			maximumCount + minimumCount + spareCandidates,
+			slideCount + spareCandidates,
 		);
 
 		const cards = await Cards.load(tried);
@@ -367,20 +421,26 @@ class Picker {
 
 export const featured = {
 	/**
-	 * Titles to feature on a profile's home page, each with a reason to be there
-	 * now: it is airing, its season ended or its film came out in the last four
-	 * weeks, or people on AniList talk about it more than a month ago. A season
-	 * past its moment, however well liked, is not featured; see {@link reasonsOf}.
-	 * The seasons of one show share its backdrop and logo, so a show is featured
-	 * through its newest current season.
+	 * The {@link slideCount} titles to feature on a profile's home page, those
+	 * with a reason to be there now first: it is airing, its season ended or its
+	 * film came out in the last four weeks, many people watch it right now, or
+	 * people on AniList talk about it more than a month ago; see
+	 * {@link reasonsOf}. Every one is well liked and widely known, airing or
+	 * from the last year (see {@link isCurrent}). The seasons of one show share
+	 * its backdrop and logo, so a show is featured through its newest current
+	 * season.
 	 *
 	 * They are picked once a day, at 06:00 UTC (see `changeAt`), in each
-	 * profile's own order, the more talked-about titles more likely first, and
-	 * kept for the day: a title that can no longer be shown gives its place to
-	 * another, as does one the profile dropped from its watchlist. A title
-	 * featured before comes back only with something new: an episode aired since,
-	 * or it rises again a week or more later (see {@link hasNews}). The carousel
-	 * holds fewer titles rather than repeat others, down to {@link minimumCount}.
+	 * profile's own order, and kept for the day. Titles more talked about, and
+	 * those in the genres the profile completed, watched and rated well, are
+	 * more likely first; see {@link affinityOf}. A season the profile completed
+	 * is never featured, nor any season of a show it dropped or rated two stars
+	 * or fewer, and one that becomes so during the day gives its place to
+	 * another, as does one that can no longer be shown. A title featured before
+	 * comes back ahead of others only with something new: an episode aired
+	 * since, or it rises again a week or more later (see {@link hasNews});
+	 * otherwise it only fills the carousel when too few others can, airing
+	 * titles first; see {@link order}.
 	 *
 	 * Reads only the database: candidates come from the search index, and their
 	 * AniList activity from what `storeActivity` stores.
@@ -402,22 +462,15 @@ export const featured = {
 			)
 			.orderBy(asc(featuredPick.position));
 
-		const dropped = await db
-			.select({
-				seriesId: seriesState.seriesId,
-			})
-			.from(seriesState)
-			.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")));
-
-		const unwanted = new Set(dropped.map((row) => row.seriesId));
+		const unwanted = await picker.unwanted();
 
 		const current = picks.filter((pick) => pick.rotation === rotation);
 		const kept = current.map((pick) => pick.seriesId);
 		const keptCards = await Cards.load(kept);
 		const shown = kept.filter((id) => !unwanted.has(id) && keptCards.showable(id));
 
-		if (shown.length >= maximumCount) {
-			return picker.starts(shown.slice(0, maximumCount).flatMap((id) => keptCards.get(id) ?? []));
+		if (shown.length >= slideCount) {
+			return picker.starts(shown.slice(0, slideCount).flatMap((id) => keptCards.get(id) ?? []));
 		}
 
 		const lastPicked = new Map<string, number>();
@@ -428,10 +481,13 @@ export const featured = {
 			}
 		}
 
+		const taste = await Taste.of(userId);
+
 		const { picked: added, cards } = await picker.pick({
 			excluded: new Set([...kept, ...unwanted]),
 			lastPicked,
 			shown: shown.length,
+			taste: taste.weights,
 		});
 
 		if (added.length > 0) {
