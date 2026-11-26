@@ -1,6 +1,6 @@
 ---
 name: database-migrations
-description: Runs and repairs Sora's database migrations on the shared dev database; use after pulling or switching worktrees, when changing the schema, or when db:migrate refuses to run.
+description: Use when touching the database schema, migrations or db:migrate.
 ---
 
 # Database migrations
