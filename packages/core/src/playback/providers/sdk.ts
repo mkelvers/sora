@@ -72,6 +72,7 @@ export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, listed: nu
 
 /** An `anime-sdk` episode as a {@link ProviderEpisode}. */
 export const toEpisode = (unit: IContentUnit): ProviderEpisode => ({
+	addedAt: null,
 	id: unit.id,
 	isFiller: unit.isFiller ?? null,
 	languages: unit.availableLanguages ?? null,

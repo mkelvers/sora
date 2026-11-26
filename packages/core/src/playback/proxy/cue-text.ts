@@ -18,6 +18,22 @@ export class CueText {
 	}
 
 	/**
+	 * Whether bold marks signs in a track with these cues, as {@link sign}
+	 * assumes. Crunchyroll's conversions bold only text shown on screen, so
+	 * most of their cues are plain dialogue. A track with next to no plain cue,
+	 * as some fan translations are, bolds its dialogue too, and its bold tells
+	 * no sign apart.
+	 */
+	static marksSigns(texts: readonly CueText[]) {
+		/** The least share of a track's cues its plain dialogue makes up when bold marks signs. */
+		const dialogueShare = 0.1;
+
+		const plain = texts.filter((text) => !text.sign).length;
+
+		return plain >= texts.length * dialogueShare;
+	}
+
+	/**
 	 * The text with what ASS conversions leave behind turned into plain text:
 	 * override blocks removed, `\N` as a line break, `\n` as a space, and `\h` as a
 	 * non-breaking space. Hard spaces that only indent a line, which ASS uses to

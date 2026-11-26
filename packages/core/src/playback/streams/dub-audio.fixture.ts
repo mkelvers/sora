@@ -12,6 +12,7 @@ export const video = (url: string, format: ProviderVideo["format"] = "hls"): Pro
 
 /** An episode as a provider lists it, in `languages`. */
 export const unit = (number: number, languages: ProviderUnit["languages"]): ProviderUnit => ({
+	addedAt: null,
 	id: `anikoto:${number}`,
 	isFiller: false,
 	languages,

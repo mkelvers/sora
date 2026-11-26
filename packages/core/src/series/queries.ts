@@ -861,11 +861,12 @@ export const titles = {
 		const row = found.series;
 		const title = new Title(row);
 
-		const [anime, cards, franchise, overdue, [indexed]] = await Promise.all([
+		const [anime, cards, franchise, overdue, onAniKoto, [indexed]] = await Promise.all([
 			catalog.anime(row.anilistId),
 			toCards([row], [row.id]),
 			title.franchise(),
 			title.overdue(),
+			loadCarried([row.anilistId]),
 			db
 				.select({
 					scoreCount: animeSearch.scoreCount,
@@ -888,7 +889,11 @@ export const titles = {
 
 		const isAhead = airingAt !== null && airingAt > new Date();
 
-		if (isAhead && number !== null) {
+		// An episode out ahead of its broadcast is listed already, not to come.
+		const isListed = number !== null && onAniKoto.carried.has(anilistKey(row.anilistId, number));
+		const isComing = isAhead && !isListed;
+
+		if (isComing && number !== null) {
 			announced = {
 				airing_at: airingAt.toISOString(),
 				number,

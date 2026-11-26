@@ -28,6 +28,11 @@ export interface ProviderEpisode {
 	languages: ContentLanguage[] | null;
 	/** Whether the episode is filler, or `null` when the provider does not say. */
 	isFiller: boolean | null;
+	/**
+	 * When the provider added the episode, or `null` when it does not say. An
+	 * episode a provider added before its broadcast came out early.
+	 */
+	addedAt: Date | null;
 }
 
 export type StreamQuality = "1080p" | "720p" | "480p" | "360p" | "auto";

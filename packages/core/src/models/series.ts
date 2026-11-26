@@ -192,7 +192,8 @@ export const DetailSchema = CardSchema.extend({
 		})
 		.nullable()
 		.meta({
-			description: "The next episode to air, or null when none is announced.",
+			description:
+				"The next episode to air, or null when none is announced. An episode out ahead of its broadcast is listed instead, and not announced.",
 		}),
 	related: z.array(FranchisePartSchema).meta({
 		description:
@@ -326,7 +327,7 @@ export const EpisodeSchema = z
 		}),
 		aired_at: z.string().nullable().meta({
 			description:
-				"ISO 8601 timestamp of the broadcast, to show in the viewer's time zone. Null when it is not known, as for most older anime; air_date is then the only date known.",
+				"ISO 8601 timestamp of when the episode came out, to show in the viewer's time zone: its broadcast, or when it could be watched, for an episode out before its broadcast. Null when it is not known, as for most older anime; air_date is then the only date known.",
 			example: "2018-10-02T15:00:00.000Z",
 		}),
 		audio: z.array(LanguageSchema).nullable().meta({

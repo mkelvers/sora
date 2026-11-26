@@ -56,19 +56,23 @@ export const seriesResponseOf = (
 		ok: true,
 	});
 
-/** One link of AniKoto's episode list. `sub` and `dub` default to flagged and unflagged. */
+/**
+ * One link of AniKoto's episode list. `sub` and `dub` default to flagged and
+ * unflagged, and `timestamp`, in Unix seconds, to one in October 2024.
+ */
 export interface ListedLink {
 	className?: string;
 	sub?: "0" | "1";
 	dub?: "0" | "1";
+	timestamp?: string;
 }
 
 /** AniKoto's episode list, as its watch page loads it, with a link per episode number. */
 export const listing = (links: Record<number, ListedLink>) => {
 	const items = Object.entries(links).map(([number, link]) => {
-		const { className = "", sub = "1", dub = "0" } = link;
+		const { className = "", sub = "1", dub = "0", timestamp = "1729246208" } = link;
 
-		return `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-mal="44037" data-timestamp="1729246208" data-sub="${sub}" data-dub="${dub}" data-ids="SmV3" class="${className}" >${number}</a></li>`;
+		return `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-mal="44037" data-timestamp="${timestamp}" data-sub="${sub}" data-dub="${dub}" data-ids="SmV3" class="${className}" >${number}</a></li>`;
 	});
 
 	return JSON.stringify({
