@@ -22,6 +22,7 @@
 		"check": "tsc --noEmit -p .",
 		"graphql:generate": "graphql-codegen --config codegen.ts",
 		"tmdb:generate": "bun tmdb-codegen.ts",
+		"sql:generate": "bun --env-file=.env x pgtyped --config pgtyped.config.json",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "bun src/database/migrate.ts",
 		"auth:create-account": "bun src/auth/create-account.ts",
@@ -32,6 +33,7 @@
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",
 		"@huggingface/transformers": "^4.3.1",
+		"@pgtyped/runtime": "^2.4.2",
 		"@sora/shared": "workspace:*",
 		"anime-sdk": "^1.1.0",
 		"better-auth": "^1.7.20",
@@ -45,6 +47,7 @@
 		"@graphql-codegen/typed-document-node": "^7.1.0",
 		"@graphql-codegen/typescript-operations": "^6.1.7",
 		"@nxgt/graphql-codegen-zod": "^0.4.1",
+		"@pgtyped/cli": "^2.4.3",
 		"@types/bun": "^1.4.2",
 		"drizzle-kit": "^0.31.11",
 		"graphql": "^17.0.2"

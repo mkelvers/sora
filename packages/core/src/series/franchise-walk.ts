@@ -1,15 +1,9 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { sqlConnection } from "../database/client";
+import { franchiseRelations } from "./franchise-relations.generated";
+import type { IFranchiseRelationsResult } from "./franchise-relations.generated";
 
-import type { MediaFormat } from "../anilist/graphql.generated";
-import { db } from "../database/client";
-import { animeSearch } from "../database/schema/catalog";
-import { series, titleRelation } from "../database/schema/series";
-
-/** Which TMDB show a title is stored under, and its AniList format. */
-interface Show {
-	key: string;
-	format: MediaFormat | null;
-}
+/** One stored AniList relation, as one of the two entries it joins sees it (`source`). */
+type Relation = IFranchiseRelationsResult;
 
 /** The AniList entries of an entry's franchise, found by following stored relations. */
 export class FranchiseWalk {
@@ -39,56 +33,39 @@ export class FranchiseWalk {
 		return 1;
 	}
 
-	/**
-	 * Whether two titles AniList lists as alternatives of each other are a
-	 * remake and its original: TV or web series of two TMDB shows, such as
-	 * Ranma ½ (2024) and Ranma ½ (1989). Each is a story of its own. AniList
-	 * also lists a film retelling a TV arc, an OVA with another ending, and a
-	 * recap as alternatives; those stay with the show they belong to.
-	 */
-	static #isRemake(from: Show | undefined, to: Show | undefined) {
-		const showFormats = new Set<MediaFormat>(["TV", "TV_SHORT", "ONA"]);
-
-		if (!from || !to) {
-			return false;
-		}
-
-		return (
-			from.key !== to.key &&
-			[from, to].every(({ format }) => format !== null && showFormats.has(format))
-		);
-	}
-
-	/** The TMDB show and AniList format of each stored title among `ids`, by AniList ID. */
-	static async #showsOf(ids: readonly number[]) {
-		if (ids.length === 0) {
-			return new Map<number, Show>();
-		}
-
-		const rows = await db
-			.select({
-				anilistId: series.anilistId,
-				format: animeSearch.format,
-				key: series.key,
-			})
-			.from(series)
-			.leftJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
-			.where(inArray(series.anilistId, [...ids]));
-
-		return new Map(
-			rows.map(({ anilistId, format, key }) => [
-				anilistId,
-				{
-					format,
-					key,
-				},
-			]),
-		);
-	}
-
 	static #isUnrelated(from: number, to: number) {
 		return FranchiseWalk.#unrelated.some(
 			([left, right]) => (from === left && to === right) || (from === right && to === left),
+		);
+	}
+
+	/**
+	 * The order relations are taken in within one step: sequels and prequels
+	 * first, then by when the entry they lead to started, then by its AniList
+	 * ID, so which entries make the limit is the same every time.
+	 */
+	static #order(left: Relation, right: Relation) {
+		const lead = (relation: Relation) => {
+			if (relation.source === relation.from) {
+				return {
+					id: relation.to,
+					startDate: relation.toStartDate ?? "9999",
+				};
+			}
+
+			return {
+				id: relation.from,
+				startDate: relation.fromStartDate ?? "9999",
+			};
+		};
+
+		const leftLead = lead(left);
+		const rightLead = lead(right);
+
+		return (
+			FranchiseWalk.#rank(left.relation) - FranchiseWalk.#rank(right.relation) ||
+			leftLead.startDate.localeCompare(rightLead.startDate) ||
+			leftLead.id - rightLead.id
 		);
 	}
 
@@ -107,22 +84,31 @@ export class FranchiseWalk {
 	 * lists it as something else, such as `PARENT`, is a crossover and counts as
 	 * `OTHER` from both; a title in a sequel chain listing `OTHER` does not.
 	 *
-	 * Sequels and prequels are always followed, so a long-running franchise's
-	 * main path is never cut short by the entries around it; those are reached
-	 * up to a limit.
+	 * The walk goes one step of relations at a time, so a closer entry is always
+	 * reached first. Sequels and prequels are always followed, so a long-running
+	 * franchise's main path is never cut short by the entries around it; those
+	 * are reached up to a limit, in the order {@link FranchiseWalk.#order} gives.
 	 *
 	 * A spin-off, such as My Hero Academia: Vigilantes, is a story of its own:
 	 * an entry AniList lists as `SPIN_OFF` of another is reached from it, and it
 	 * from the spin-off, but neither is followed through. The spin-off's sequels
 	 * belong to its own franchise, and the original's seasons to the original's.
-	 * A remake and its original (see {@link FranchiseWalk.#isRemake}) are kept
-	 * apart the same way.
+	 * A remake and its original are kept apart the same way: two TV or web
+	 * series of two TMDB shows that AniList lists as alternatives, such as
+	 * Ranma ½ (2024) and Ranma ½ (1989). A film retelling a TV arc, an OVA with
+	 * another ending, and a recap stay with the show they belong to.
 	 *
 	 * `crossovers` holds the entries reached only as `OTHER`: they share a
 	 * universe with the entry but are not part of its story, so they never decide
 	 * where the franchise starts. `apart` holds the entries reached only across a
 	 * spin-off or from a remake to its original or back, which never start it
 	 * either.
+	 *
+	 * Every relation is read in one query (`franchise-relations.sql`), which
+	 * follows the same relations this walk does but without its limit.
+	 *
+	 * @throws {Error} when the walk would follow an entry the query did not, so
+	 * the two disagree on which relations are followed.
 	 */
 	async reach(): Promise<{
 		ids: number[];
@@ -133,75 +119,40 @@ export class FranchiseWalk {
 		const franchiseLimit = 60;
 
 		const anilistId = this.#anilistId;
+
+		const rows = await franchiseRelations.run(
+			{
+				start: anilistId,
+			},
+			sqlConnection,
+		);
+
+		const relationsOf = Map.groupBy(rows, (row) => row.source);
 		const reached = new Set([anilistId]);
 		const outsiders = new Set<number>();
 		/** Entries reached only from another story, not followed through yet. */
 		const held = new Set<number>();
 		let around = 0;
+		let frontier = [anilistId];
 
-		const expand = async (frontier: number[]): Promise<void> => {
-			if (frontier.length === 0) {
-				return;
+		while (frontier.length > 0) {
+			const followed = [...new Set(frontier)];
+			const unread = followed.find((id) => id !== anilistId && !relationsOf.has(id));
+
+			if (unread !== undefined) {
+				throw new Error(
+					`The franchise of AniList ${anilistId} reaches ${unread}, whose relations franchise-relations.sql did not read`,
+				);
 			}
 
-			const columns = {
-				from: series.anilistId,
-				relation: titleRelation.relation,
-				to: titleRelation.anilistId,
-			};
-
-			const [outgoing, incoming] = await Promise.all([
-				db
-					.select(columns)
-					.from(series)
-					.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
-					.where(inArray(series.anilistId, frontier)),
-				db
-					.select(columns)
-					.from(titleRelation)
-					.innerJoin(series, eq(series.id, titleRelation.seriesId))
-					.where(inArray(titleRelation.anilistId, frontier)),
-			]);
-
-			const rawEdges = [...outgoing, ...incoming].filter(
-				({ from, to }) => !FranchiseWalk.#isUnrelated(from, to),
-			);
-
-			const listers = [
-				...new Set(
-					rawEdges
-						.values()
-						.filter(({ relation }) => relation === "OTHER")
-						.map(({ from }) => from)
-						.toArray(),
-				),
-			];
-
-			let chainedRows: {
-				anilistId: number;
-			}[] = [];
-
-			if (listers.length > 0) {
-				chainedRows = await db
-					.select({
-						anilistId: series.anilistId,
-					})
-					.from(series)
-					.innerJoin(titleRelation, eq(titleRelation.seriesId, series.id))
-					.where(
-						and(
-							inArray(series.anilistId, listers),
-							inArray(titleRelation.relation, ["SEQUEL", "PREQUEL"]),
-						),
-					);
-			}
-
-			const chained = new Set(chainedRows.map((row) => row.anilistId));
+			const rawEdges = followed
+				.flatMap((id) => relationsOf.get(id) ?? [])
+				.filter(({ from, to }) => !FranchiseWalk.#isUnrelated(from, to));
 
 			const crossovers = new Set(
 				rawEdges
 					.values()
-					.filter(({ relation, from }) => relation === "OTHER" && !chained.has(from))
+					.filter(({ relation, fromChained }) => relation === "OTHER" && !fromChained)
 					.map(({ from, to }) => `${to}>${from}`)
 					.toArray(),
 			);
@@ -210,27 +161,18 @@ export class FranchiseWalk {
 				if (crossovers.has(`${rawEdge.from}>${rawEdge.to}`)) {
 					return {
 						...rawEdge,
-						relation: "OTHER" as const,
+						relation: "OTHER",
 					};
 				}
 
 				return rawEdge;
 			});
 
-			const alternatives = rawEdges.filter(({ relation }) => relation === "ALTERNATIVE");
-
-			const showOf = await FranchiseWalk.#showsOf([
-				...new Set(alternatives.flatMap(({ from, to }) => [from, to])),
-			]);
-
 			// The edges between two stories: a spin-off and its original, a remake and its original.
 			const separating = new Set(
-				[
-					...rawEdges.filter(({ relation }) => relation === "SPIN_OFF"),
-					...alternatives.filter(({ from, to }) =>
-						FranchiseWalk.#isRemake(showOf.get(from), showOf.get(to)),
-					),
-				].flatMap(({ from, to }) => [`${from}>${to}`, `${to}>${from}`]),
+				rawEdges
+					.filter(({ relation, remake }) => relation === "SPIN_OFF" || remake)
+					.flatMap(({ from, to }) => [`${from}>${to}`, `${to}>${from}`]),
 			);
 
 			const storyIds = new Set(
@@ -241,9 +183,7 @@ export class FranchiseWalk {
 
 			const next: number[] = [];
 
-			for (const edge of edges.toSorted(
-				(left, right) => FranchiseWalk.#rank(left.relation) - FranchiseWalk.#rank(right.relation),
-			)) {
+			for (const edge of edges.toSorted(FranchiseWalk.#order)) {
 				const continues = FranchiseWalk.#rank(edge.relation) === 0;
 				const acrossStories = separating.has(`${edge.from}>${edge.to}`);
 
@@ -279,10 +219,8 @@ export class FranchiseWalk {
 				}
 			}
 
-			await expand(next);
-		};
-
-		await expand([anilistId]);
+			frontier = next;
+		}
 
 		reached.delete(anilistId);
 

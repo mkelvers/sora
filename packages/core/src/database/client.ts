@@ -1,3 +1,4 @@
+import type { IDatabaseConnection } from "@pgtyped/runtime";
 import { attempt } from "@sora/shared";
 import { SQL } from "bun";
 import type { TransactionSQL } from "bun";
@@ -146,6 +147,22 @@ export const db = drizzle({
 		...series,
 	},
 });
+
+/**
+ * The connection the queries pgTyped generates from `.sql` files run on, as
+ * `franchiseRelations.run(params, sqlConnection)`; see `sql-codegen.ts`. Like
+ * every other query, it joins a test's held transaction.
+ */
+export const sqlConnection: IDatabaseConnection = {
+	query: async (text, bindings) => {
+		const rows: unknown[] & SQL.ResultMetadata = await db.$client.unsafe(text, bindings);
+
+		return {
+			rowCount: rows.count,
+			rows,
+		};
+	},
+};
 
 /** The advisory lock replicas hold, one at a time, while they migrate. */
 export const migrationLockKey = 7_302_024_001;
