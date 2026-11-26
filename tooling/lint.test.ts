@@ -22,10 +22,6 @@ class Fixture {
 
 		const result = Bun.spawnSync(args);
 
-		if (result.error) {
-			throw result.error;
-		}
-
 		return {
 			output: result.stdout.toString() + result.stderr.toString(),
 			status: result.exitCode,
