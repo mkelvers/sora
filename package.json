@@ -36,6 +36,11 @@
 			"esbuild": "~0.25.4"
 		},
 		"@graphql-tools/utils": "^12.0.1",
+		"@pgtyped/cli": {
+			"glob": "^14.0.6",
+			"minimatch": "^11.0.9",
+			"tinypool": "^2.2.0"
+		},
 		"graphql-config": {
 			"minimatch": "^11.0.9"
 		}
