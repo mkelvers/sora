@@ -1,5 +1,5 @@
-import { attempt } from "@sora/shared";
-import { and, eq, sql } from "drizzle-orm";
+import { attempt, sequence } from "@sora/shared";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { db } from "../database/client";
@@ -8,9 +8,24 @@ import type { UpscaleStatus } from "../database/schema/series";
 import { InvalidInputError, UnknownSeriesError } from "../errors";
 import { hasLiveUpscale, requestUpscale } from "../scheduler/queue";
 import { collage } from "./collage";
+import { trueWidth } from "./detail";
 import { edges } from "./edges";
-import { upscale } from "./realesrgan";
+import { models, upscale } from "./realesrgan";
+import type { Model } from "./realesrgan";
 import { upscaledBackdropUrl } from "./upscaled-backdrop";
+
+/**
+ * The version of the upscaling {@link upscales.run} makes, kept as
+ * `titleBackdropUpscale.method`. Raise it when the upscaling changes, and
+ * the scheduler makes every older upscale again; see
+ * {@link upscales.remakeOutdated}.
+ *
+ * 2 shrinks a picture to the size its detail was drawn at (see
+ * {@link trueWidth}) and redraws it four times larger with
+ * `models.restore` when that is at most 1080p; a picture with more detail
+ * than that gets the 2× `models.cleanup` pass of 1.
+ */
+const currentMethod = 2;
 
 /**
  * Where each upscale stands, by the original's URL. A pending row with no
@@ -48,6 +63,67 @@ class Upscale {
 		this.#sourceUrl = sourceUrl;
 	}
 
+	/**
+	 * Keeps a finished picture under a new ID, and so a new URL, since a URL's
+	 * picture is cached as never changing: a remade upscale must not reach
+	 * viewers under the old one. Chooses it for its title where the original
+	 * or the picture made before is still the chosen backdrop. Returns whether
+	 * it was kept: the title may have been deleted meanwhile.
+	 */
+	async keep(picture: { image: Buffer; width: number; height: number }) {
+		const before = upscaledBackdropUrl(this.#id);
+
+		const kept = await db.transaction(async (tx) => {
+			const [row] = await tx
+				.update(titleBackdropUpscale)
+				.set({
+					failure: null,
+					height: picture.height,
+					id: sql`gen_random_uuid()`,
+					image: picture.image,
+					method: currentMethod,
+					status: "done" satisfies UpscaleStatus,
+					width: picture.width,
+				})
+				.where(eq(titleBackdropUpscale.id, this.#id))
+				.returning({
+					id: titleBackdropUpscale.id,
+				});
+
+			if (!row) {
+				return null;
+			}
+
+			const url = upscaledBackdropUrl(row.id);
+
+			const chosen = await tx
+				.update(titleArtwork)
+				.set({
+					backdropUrlOverride: url,
+				})
+				.where(
+					and(
+						eq(titleArtwork.key, this.#key),
+						inArray(titleArtwork.backdropUrlOverride, [this.#sourceUrl, before]),
+					),
+				)
+				.returning({
+					key: titleArtwork.key,
+				});
+
+			return {
+				chosen: chosen.length > 0,
+				url,
+			};
+		});
+
+		if (kept?.chosen) {
+			await edges.store(kept.url);
+		}
+
+		return kept !== null;
+	}
+
 	/** Chooses the upscaled backdrop for its title, unless another backdrop has been chosen since. */
 	async choose() {
 		const url = upscaledBackdropUrl(this.#id);
@@ -69,13 +145,16 @@ class Upscale {
 		}
 	}
 
-	/** Records that the upscale failed, and why. */
+	/**
+	 * Records that the upscale failed, and why. A remake that fails keeps the
+	 * picture made before and stays done, so its title keeps its backdrop.
+	 */
 	async fail(failure: string) {
 		await db
 			.update(titleBackdropUpscale)
 			.set({
 				failure,
-				status: "failed" satisfies UpscaleStatus,
+				status: sql<UpscaleStatus>`case when ${titleBackdropUpscale.status} = 'done' then 'done' else 'failed' end`,
 			})
 			.where(eq(titleBackdropUpscale.id, this.#id));
 	}
@@ -132,6 +211,30 @@ class Upscale {
 }
 
 export const upscales = {
+	/**
+	 * Queues every upscale an older version of the upscaling made (see
+	 * {@link currentMethod}) to be made again, one at a time like every
+	 * upscale. Each keeps its picture until the new one is ready.
+	 * Runs when the scheduler starts; an upscale already queued is left alone.
+	 */
+	async remakeOutdated() {
+		const outdated = await db
+			.select({
+				id: titleBackdropUpscale.id,
+			})
+			.from(titleBackdropUpscale)
+			.where(
+				and(
+					eq(titleBackdropUpscale.status, "done"),
+					lt(titleBackdropUpscale.method, currentMethod),
+				),
+			);
+
+		await sequence.all(outdated, ({ id }) =>
+			db.transaction((tx) => requestUpscale(tx, { id }, false)),
+		);
+	},
+
 	/**
 	 * Asks for one of a series' title's backdrops to be upscaled. The scheduler
 	 * makes it (see {@link upscales.run}) and, when it is ready and the
@@ -218,9 +321,11 @@ export const upscales = {
 	},
 
 	/**
-	 * Makes one requested upscale: fetches the original from TMDB, upscales it,
-	 * and keeps it as a JPEG. Records a failure on the upscale rather than
-	 * throwing, so whoever asked sees it.
+	 * Makes one requested upscale, or makes again one an older version of the
+	 * upscaling made (see {@link currentMethod}): fetches the original from
+	 * TMDB, upscales it, and keeps it as a JPEG under a new ID (see
+	 * `Upscale.keep`). Records a failure on the upscale rather than throwing,
+	 * so whoever asked sees it.
 	 */
 	async run(id: string) {
 		/** JPEG quality an upscaled backdrop is stored at. */
@@ -228,14 +333,23 @@ export const upscales = {
 
 		/**
 		 * The widest an upscaled backdrop is kept: 4K, which is as sharp as a screen
-		 * shows it. A larger original is cleaned up at twice its size and then
-		 * brought back down to this, which is what removes its blur.
+		 * shows it. The upscaler makes it larger than that, and bringing it back
+		 * down is what removes what blur is left.
 		 */
 		const maxUpscaledWidth = 3840;
+
+		/**
+		 * The widest a picture's detail may be to be redrawn with `models.restore`:
+		 * 1080p, which it makes 4K. A picture with more detail of its own keeps
+		 * it better with `models.cleanup`, which also costs a processor a third
+		 * as much per pixel.
+		 */
+		const restoreUpTo = 1920;
 
 		const [row] = await db
 			.select({
 				key: titleBackdropUpscale.key,
+				method: titleBackdropUpscale.method,
 				sourceUrl: titleBackdropUpscale.sourceUrl,
 				status: titleBackdropUpscale.status,
 			})
@@ -243,7 +357,13 @@ export const upscales = {
 			.where(eq(titleBackdropUpscale.id, id))
 			.limit(1);
 
-		if (row?.status !== "pending") {
+		if (!row) {
+			return;
+		}
+
+		const isOutdated = row.status === "done" && row.method < currentMethod;
+
+		if (row.status !== "pending" && !isOutdated) {
 			return;
 		}
 
@@ -260,7 +380,23 @@ export const upscales = {
 				return;
 			}
 
-			const png = await upscale(new Uint8Array(await response.arrayBuffer()));
+			const original = new Uint8Array(await response.arrayBuffer());
+			const width = await trueWidth(original);
+			let model: Model = models.cleanup;
+			let source = original;
+
+			if (width <= restoreUpTo) {
+				model = models.restore;
+				source = await sharp(original)
+					.resize({
+						kernel: "lanczos3",
+						width,
+					})
+					.png()
+					.toBuffer();
+			}
+
+			const png = await upscale(source, model);
 
 			const { data, info } = await sharp(png)
 				.resize({
@@ -276,16 +412,15 @@ export const upscales = {
 					resolveWithObject: true,
 				});
 
-			await db
-				.update(titleBackdropUpscale)
-				.set({
-					failure: null,
-					height: info.height,
-					image: data,
-					status: "done",
-					width: info.width,
-				})
-				.where(eq(titleBackdropUpscale.id, id));
+			const kept = await job.keep({
+				height: info.height,
+				image: data,
+				width: info.width,
+			});
+
+			if (!kept) {
+				return;
+			}
 		} catch (error) {
 			let failure = "Upscaling failed";
 
@@ -299,6 +434,5 @@ export const upscales = {
 		}
 
 		await job.lookAtOriginal();
-		await job.choose();
 	},
 };

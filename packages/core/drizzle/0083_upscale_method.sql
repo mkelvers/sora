@@ -1,0 +1,1 @@
+ALTER TABLE "title_backdrop_upscale" ADD COLUMN "method" integer DEFAULT 1 NOT NULL;

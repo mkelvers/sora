@@ -3,6 +3,7 @@ import type { Task } from "graphile-worker";
 
 import { aniListPriority } from "../anilist/client";
 import { config } from "../config";
+import { upscales } from "../series/upscale";
 import { fillEmptyCatalog } from "./first-start";
 import { reviveChecks, reviveChecksTask, track } from "./jobs/airing";
 import { checkHealth, healthTask, pruneLog, pruneLogTask } from "./jobs/calls";
@@ -292,6 +293,8 @@ export const scheduler = {
 				},
 			}),
 		});
+
+		await upscales.remakeOutdated();
 
 		return {
 			promise: (async () => {

@@ -59,7 +59,7 @@ export const contract = {
 	}),
 	getFeatured: createRoute({
 		description:
-			"Up to six titles to feature on the profile's home page: what is popular right now, seasons and films that are airing or started in the last year and are well liked, never old favourites without a new season. They are picked every day at 06:00 UTC, in each profile's own order, and kept all day. A title is rested for a week after it was featured unless too few others are current. Long-running titles are left out, as are those without a backdrop and logo, and those nothing streams.",
+			"Five titles to feature on the profile's home page, fewer only when fewer can be shown: well-liked seasons and films that are airing or started in the last year, airing ones and what is popular right now first, never old favourites without a new season. They are picked every day at 06:00 UTC, in an order of the profile's own that favours the genres it completed, watched and rated well, and kept all day. Seasons the profile completed are left out, as is every season of a show it dropped or rated two stars or fewer. A title featured before comes back first only with a new episode. Long-running titles are left out, as are those without a clean 4K backdrop and a logo, and those nothing streams.",
 		method: "get",
 		operationId: "getFeatured",
 		path: "/profiles/{profile_id}/featured",

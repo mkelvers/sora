@@ -50,14 +50,8 @@ const changeAt = 6 * hour;
  */
 export const remembered = 35;
 
-/** How many titles are featured, at most. */
-export const maximumCount = 6;
-
-/**
- * How few titles the carousel may hold before titles with nothing new since
- * they were last featured fill it, those featured longest ago first.
- */
-export const minimumCount = 3;
+/** How many titles are featured: always this many, as long as that many can be shown. */
+export const slideCount = 5;
 
 /** Candidates kept beyond what is shown, so titles that turn out unsuitable, such as having nothing to stream, can be passed over. */
 export const spareCandidates = 12;
@@ -93,6 +87,15 @@ export const rising = {
 	minimumDaily: 200,
 	ratio: 1.25,
 };
+
+/**
+ * How much daily AniList activity a title needs, at least, to count as
+ * popular right now, whether or not it is airing: about what a season that
+ * finished in the last few months and is still widely watched sees, such as
+ * Daemons of the Shadow Realm or Slime's fourth season, against well under
+ * this for most others.
+ */
+export const popularDaily = 300;
 
 /** How long a rising title rests after it was featured, while it has nothing else new. */
 export const risingRestFor = 7 * day;
@@ -170,9 +173,44 @@ export const isRising = ({ past, recent }: Activity) =>
 	recent >= rising.minimumDaily &&
 	recent >= past * rising.ratio;
 
+/**
+ * How well a title suits a profile's taste, as a factor on how often it is
+ * drawn: the share of the profile's genre weights (see `Taste.weights`) its
+ * genres cover. 1 for a profile that has watched nothing yet, or a title
+ * sharing nothing with it; more for one it likes; less, down to a
+ * quarter, for one in genres it dropped or rated low.
+ */
+export const affinityOf = (genres: readonly string[], weights: ReadonlyMap<string, number>) => {
+	/**
+	 * How strongly a profile's taste steers which titles it is shown: a title
+	 * whose genres cover all of what the profile watches is drawn this much
+	 * more often than one sharing none of them.
+	 */
+	const strength = 3;
+
+	/** The least a title can weigh in a draw, so one in genres the profile seems to dislike can still lead the page when little else can. */
+	const minimum = 0.25;
+
+	let total = 0;
+
+	for (const weight of weights.values()) {
+		total += Math.max(0, weight);
+	}
+
+	if (total === 0) {
+		return 1;
+	}
+
+	const shared = genres.reduce((sum, genre) => sum + (weights.get(genre) ?? 0), 0);
+
+	return Math.max(minimum, 1 + (strength * shared) / total);
+};
+
 /** A title that may be featured, with what tells whether it has something new to show. */
 export interface Candidate {
 	id: string;
+	/** How well it suits the profile's taste; see {@link affinityOf}. */
+	affinity: number;
 	status: string | null;
 	startDate: string | null;
 	/** When its newest episode aired, if any has and AniList schedules them. */
@@ -183,13 +221,15 @@ export interface Candidate {
 }
 
 /** Why a title is worth featuring now. */
-export type Reason = "airing" | "fresh" | "rising";
+export type Reason = "airing" | "fresh" | "popular" | "rising";
 
 /**
  * Why a title is worth featuring now: it is airing, it finished or came out
- * within {@link freshFor}, or people are coming back to it (see
+ * within {@link freshFor}, many people watch it right now (see
+ * {@link popularDaily}), or people are coming back to it (see
  * {@link isRising}). A title with none of these, such as a season that ended
- * months ago and is past its moment, is not featured at all.
+ * months ago and is past its moment, is featured only when too few others
+ * can be; see {@link order}.
  */
 export const reasonsOf = (candidate: Candidate, now: Date): Reason[] => {
 	const reasons: Reason[] = [];
@@ -208,6 +248,10 @@ export const reasonsOf = (candidate: Candidate, now: Date): Reason[] => {
 
 	if (candidate.status !== "RELEASING" && isFresh) {
 		reasons.push("fresh");
+	}
+
+	if ((candidate.activity.recent ?? 0) >= popularDaily) {
+		reasons.push("popular");
 	}
 
 	if (isRising(candidate.activity)) {
@@ -238,8 +282,9 @@ export const hasNews = (candidate: Candidate, now: Date) => {
 
 /**
  * Shuffles candidates anew for each `seed` and rotation, each profile in its
- * own order, the more talked-about ones more likely first: an
- * Efraimidis–Spirakis draw with a seeded number in place of a random one.
+ * own order, the more talked-about ones and those that suit the profile's
+ * taste more likely first: an Efraimidis–Spirakis draw with a seeded number
+ * in place of a random one.
  */
 export const shuffle = (
 	candidates: readonly Candidate[],
@@ -256,7 +301,7 @@ export const shuffle = (
 
 			const draw = (hash + 1) / 2 ** 32;
 			// More talked about, more often, without drowning out the rest.
-			const weight = Math.sqrt((candidate.activity.recent ?? 0) + 25);
+			const weight = Math.sqrt((candidate.activity.recent ?? 0) + 25) * candidate.affinity;
 
 			return {
 				candidate,
@@ -267,11 +312,12 @@ export const shuffle = (
 		.map(({ candidate }) => candidate);
 
 /**
- * The order titles are tried in for a rotation: those with a reason to be
- * featured and something new since they last were, shuffled by
- * {@link shuffle}; then, in case too few of them can be shown, those with a
- * reason but nothing new, featured longest ago first. Titles without a
- * reason are left out.
+ * The order titles are tried in for a rotation, each group shuffled by
+ * {@link shuffle}: those with a reason to be featured and something new
+ * since they last were; then, in case too few of them can be shown, those
+ * with a reason but nothing new, airing ones first, since a profile is
+ * shown what airs ahead of what has finished; and last those without a
+ * reason.
  */
 export const order = (
 	candidates: readonly Candidate[],
@@ -279,45 +325,38 @@ export const order = (
 	rotation: number,
 	now: Date,
 ) => {
+	const ids = (group: readonly Candidate[]) => shuffle(group, seed, rotation).map(({ id }) => id);
 	const reasoned = candidates.filter((candidate) => reasonsOf(candidate, now).length > 0);
-	const news = reasoned.filter((candidate) => hasNews(candidate, now));
-
-	const repeats = reasoned
-		.filter((candidate) => !hasNews(candidate, now))
-		.toSorted(
-			(a, b) =>
-				(a.lastPickedAt?.getTime() ?? 0) - (b.lastPickedAt?.getTime() ?? 0) ||
-				a.id.localeCompare(b.id),
-		);
+	const repeats = reasoned.filter((candidate) => !hasNews(candidate, now));
 
 	return {
-		news: shuffle(news, seed, rotation).map(({ id }) => id),
-		repeats: repeats.map(({ id }) => id),
+		news: ids(reasoned.filter((candidate) => hasNews(candidate, now))),
+		repeats: [
+			...ids(repeats.filter((candidate) => candidate.status === "RELEASING")),
+			...ids(repeats.filter((candidate) => candidate.status !== "RELEASING")),
+		],
+		rest: ids(candidates.filter((candidate) => reasonsOf(candidate, now).length === 0)),
 	};
 };
 
 /**
- * Titles `isUsable` accepts from `news`, as many as fit beside the
- * `shown` already featured this rotation, then from `repeats` only as far as
- * needed to reach {@link minimumCount}.
+ * Titles `isUsable` accepts, as many as fill {@link slideCount} beside the
+ * `shown` already featured this rotation: from `news` first, then from
+ * `repeats`, then from `rest`.
  */
 export const arrange = (
 	{
 		news,
 		repeats,
+		rest,
 	}: {
 		news: readonly string[];
 		repeats: readonly string[];
+		rest: readonly string[];
 	},
 	isUsable: (id: string) => boolean,
 	shown = 0,
-) => {
-	const picked = [...new Set(news)].filter(isUsable).slice(0, Math.max(0, maximumCount - shown));
-	const fill = Math.max(0, minimumCount - shown - picked.length);
-
-	const extra = [...new Set(repeats)]
-		.filter((id) => !picked.includes(id) && isUsable(id))
-		.slice(0, fill);
-
-	return [...picked, ...extra];
-};
+) =>
+	[...new Set([...news, ...repeats, ...rest])]
+		.filter(isUsable)
+		.slice(0, Math.max(0, slideCount - shown));

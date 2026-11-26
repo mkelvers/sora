@@ -4,16 +4,16 @@ import { day } from "@sora/shared";
 
 import {
 	activityOf,
+	affinityOf,
 	arrange,
-	maximumCount,
 	hasNews,
 	isCurrent,
-	minimumCount,
 	order,
 	reasonsOf,
 	numberOf,
 	period,
 	shuffle,
+	slideCount,
 } from "./rotation";
 import type { Candidate } from "./rotation";
 
@@ -33,6 +33,14 @@ const repeatIds = Array.from(
 		length: 5,
 	},
 	(_, index) => `r${index}`,
+);
+
+/** Titles without a reason to be featured, `x0` to `x4`. */
+const restIds = Array.from(
+	{
+		length: 5,
+	},
+	(_, index) => `x${index}`,
 );
 
 describe("isCurrent", () => {
@@ -197,6 +205,7 @@ const quiet = {
 
 const base: Candidate = {
 	activity: quiet,
+	affinity: 1,
 	id: "c",
 	lastAiredAt: null,
 	lastPickedAt: null,
@@ -263,8 +272,8 @@ describe("reasonsOf", () => {
 				{
 					...base,
 					activity: {
-						past: 1224,
-						recent: 589,
+						past: 400,
+						recent: 120,
 					},
 					lastAiredAt: past.ago(120 * day),
 				},
@@ -273,14 +282,30 @@ describe("reasonsOf", () => {
 		).toEqual([]);
 	});
 
+	test("features a finished season many people watch right now", () => {
+		expect(
+			reasonsOf(
+				{
+					...base,
+					activity: {
+						past: 1224,
+						recent: 589,
+					},
+					lastAiredAt: past.ago(120 * day),
+				},
+				now,
+			),
+		).toEqual(["popular"]);
+	});
+
 	test("features an older season people are coming back to", () => {
 		expect(
 			reasonsOf(
 				{
 					...base,
 					activity: {
-						past: 300,
-						recent: 900,
+						past: 100,
+						recent: 250,
 					},
 					lastAiredAt: past.ago(120 * day),
 				},
@@ -407,11 +432,57 @@ describe("shuffle", () => {
 		const first = rotations.filter((list) => list[0]?.id === "hot").length;
 		expect(first).toBeGreaterThan(100);
 	});
+
+	test("puts a title suiting the profile first more often", () => {
+		const suited = {
+			...base,
+			affinity: 4,
+			id: "suited",
+		};
+
+		const rotations = Array.from(
+			{
+				length: 200,
+			},
+			(_, rotation) => shuffle([suited, ...candidates.slice(0, 3)], "profile", rotation),
+		);
+
+		const first = rotations.filter((list) => list[0]?.id === "suited").length;
+		expect(first).toBeGreaterThan(100);
+	});
+});
+
+describe("affinityOf", () => {
+	const weights = new Map([
+		["Action", 6],
+		["Fantasy", 3],
+		["Romance", -3],
+		["Comedy", 1],
+	]);
+
+	test("is neutral for a profile that has watched nothing", () => {
+		expect(affinityOf(["Action"], new Map())).toBe(1);
+	});
+
+	test("favours a title in the genres the profile watches most", () => {
+		expect(affinityOf(["Action", "Fantasy"], weights)).toBeGreaterThan(
+			affinityOf(["Comedy"], weights),
+		);
+		expect(affinityOf(["Comedy"], weights)).toBeGreaterThan(1);
+	});
+
+	test("disfavours a title in genres the profile dropped or rated low", () => {
+		expect(affinityOf(["Romance"], weights)).toBeLessThan(1);
+	});
+
+	test("never rules a title out", () => {
+		expect(affinityOf(["Romance"], new Map([["Romance", -50]]))).toBeGreaterThan(0);
+	});
 });
 
 describe("order", () => {
-	test("leaves out titles without a reason and keeps repeats for last", () => {
-		const { news, repeats } = order(
+	test("keeps repeats, airing ones first, and then titles without a reason for last", () => {
+		const { news, repeats, rest } = order(
 			[
 				{
 					...base,
@@ -427,16 +498,19 @@ describe("order", () => {
 				},
 				{
 					...base,
-					id: "same",
-					lastAiredAt: past.ago(4 * day),
-					lastPickedAt: past.ago(3 * day),
-					status: "RELEASING",
+					activity: {
+						past: null,
+						recent: 500,
+					},
+					id: "popular",
+					lastAiredAt: past.ago(90 * day),
+					lastPickedAt: past.ago(20 * day),
 				},
 				{
 					...base,
-					id: "older",
-					lastAiredAt: past.ago(6 * day),
-					lastPickedAt: past.ago(5 * day),
+					id: "airing",
+					lastAiredAt: past.ago(4 * day),
+					lastPickedAt: past.ago(3 * day),
 					status: "RELEASING",
 				},
 			],
@@ -446,7 +520,8 @@ describe("order", () => {
 		);
 
 		expect(news).toEqual(["new"]);
-		expect(repeats).toEqual(["older", "same"]);
+		expect(repeats).toEqual(["airing", "popular"]);
+		expect(rest).toEqual(["past"]);
 	});
 });
 
@@ -457,34 +532,37 @@ describe("arrange", () => {
 				{
 					news: newIds.slice(0, 9),
 					repeats: [],
+					rest: [],
 				},
 				(id) => id !== "c1",
 			),
-		).toEqual(["c0", "c2", "c3", "c4", "c5", "c6"]);
+		).toEqual(["c0", "c2", "c3", "c4", "c5"]);
 	});
 
-	test("never places more than the carousel holds", () => {
+	test("always fills the carousel when enough titles can be shown", () => {
 		expect(
 			arrange(
 				{
 					news: newIds,
 					repeats: repeatIds,
+					rest: restIds,
 				},
 				() => true,
 			),
-		).toHaveLength(maximumCount);
+		).toHaveLength(slideCount);
 	});
 
-	test("repeats titles only to reach the minimum", () => {
+	test("fills with repeats first, then titles without a reason", () => {
 		expect(
 			arrange(
 				{
 					news: ["c0"],
-					repeats: repeatIds,
+					repeats: repeatIds.slice(0, 2),
+					rest: restIds,
 				},
 				() => true,
 			),
-		).toEqual(["c0", ...repeatIds.slice(0, minimumCount - 1)]);
+		).toEqual(["c0", "r0", "r1", "x0", "x1"]);
 	});
 
 	test("counts titles already featured this rotation", () => {
@@ -493,9 +571,10 @@ describe("arrange", () => {
 				{
 					news: newIds.slice(0, 9),
 					repeats: repeatIds,
+					rest: [],
 				},
 				() => true,
-				4,
+				3,
 			),
 		).toEqual(["c0", "c1"]);
 		expect(
@@ -503,10 +582,11 @@ describe("arrange", () => {
 				{
 					news: [],
 					repeats: repeatIds,
+					rest: [],
 				},
 				() => true,
-				2,
+				slideCount,
 			),
-		).toEqual(["r0"]);
+		).toEqual([]);
 	});
 });
