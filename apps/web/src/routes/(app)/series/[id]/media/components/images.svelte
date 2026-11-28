@@ -3,6 +3,7 @@
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
+	import { SparkleIcon } from "phosphor-svelte";
 
 	let {
 		series,
@@ -84,6 +85,19 @@
 									: "object-cover brightness-90 group-hover:brightness-100",
 							)}
 						/>
+						{#if image.upscaled}
+							<span
+								class="absolute top-0 right-0 isolate size-10 text-accent after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
+							>
+								<SparkleIcon
+									class="absolute top-0.5 right-1"
+									size="1rem"
+									weight="fill"
+									aria-hidden="true"
+								/>
+								<span class="sr-only">Upscaled</span>
+							</span>
+						{/if}
 					{:else if media.type === "logo"}
 						<span
 							class="grid size-full place-items-center p-4 text-center text-2xl leading-tight font-bold text-white"

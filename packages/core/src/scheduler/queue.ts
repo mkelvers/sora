@@ -389,12 +389,29 @@ export const hasLiveUpscale = (id: string | SQLWrapper) => sql<boolean>`exists (
  * A pending request keeps its live job, including a running final attempt.
  * An explicit retry after failure queues a new attempt even if the previous
  * job still holds its lock while reporting completion to Graphile Worker.
+ *
+ * Upscales run one at a time and each can take half an hour, so a remake
+ * waits behind every upscale a viewer asked for. An upscale records its own
+ * failures instead of throwing, so a job only loses an attempt when the
+ * scheduler stops in the middle of it, as every deploy and reboot does; it
+ * then starts again once the stopped worker's lock is released.
  */
 export const requestUpscale = async (
 	tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
 	payload: UpscaleBackdropPayload,
-	newAttempt: boolean,
+	options: {
+		/** Queue a new attempt even when the upscale already has a live job. */
+		newAttempt: boolean;
+		/** Whether this makes again an upscale an older version of the upscaling made. */
+		remake: boolean;
+	},
 ) => {
+	let priority = 0;
+
+	if (options.remake) {
+		priority = 10;
+	}
+
 	await tx.execute(sql`
     select graphile_worker.add_job(
       identifier => ${upscaleBackdropTask},
@@ -402,9 +419,9 @@ export const requestUpscale = async (
       queue_name => 'upscale-backdrop',
       job_key => 'upscale-backdrop:' || ${payload.id}::text,
       job_key_mode => 'replace',
-      max_attempts => 1,
-      priority => 0
+      max_attempts => 3,
+      priority => ${priority}::int
     )
-    where ${newAttempt}::boolean or not ${hasLiveUpscale(payload.id)}
+    where ${options.newAttempt}::boolean or not ${hasLiveUpscale(payload.id)}
   `);
 };

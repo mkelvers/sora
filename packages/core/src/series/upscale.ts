@@ -214,7 +214,8 @@ export const upscales = {
 	/**
 	 * Queues every upscale an older version of the upscaling made (see
 	 * {@link currentMethod}) to be made again, one at a time like every
-	 * upscale. Each keeps its picture until the new one is ready.
+	 * upscale and behind every upscale a viewer asked for. Each keeps its
+	 * picture until the new one is ready.
 	 * Runs when the scheduler starts; an upscale already queued is left alone.
 	 */
 	async remakeOutdated() {
@@ -231,7 +232,18 @@ export const upscales = {
 			);
 
 		await sequence.all(outdated, ({ id }) =>
-			db.transaction((tx) => requestUpscale(tx, { id }, false)),
+			db.transaction((tx) =>
+				requestUpscale(
+					tx,
+					{
+						id,
+					},
+					{
+						newAttempt: false,
+						remake: true,
+					},
+				),
+			),
 		);
 	},
 
@@ -292,7 +304,16 @@ export const upscales = {
 				.returning({ id: titleBackdropUpscale.id });
 
 			if (stored) {
-				await requestUpscale(tx, { id: stored.id }, true);
+				await requestUpscale(
+					tx,
+					{
+						id: stored.id,
+					},
+					{
+						newAttempt: true,
+						remake: false,
+					},
+				);
 
 				return;
 			}
@@ -307,7 +328,16 @@ export const upscales = {
 				.limit(1);
 
 			if (existing?.status === "pending") {
-				await requestUpscale(tx, { id: existing.id }, false);
+				await requestUpscale(
+					tx,
+					{
+						id: existing.id,
+					},
+					{
+						newAttempt: false,
+						remake: false,
+					},
+				);
 			}
 
 			if (existing?.status === "done") {
