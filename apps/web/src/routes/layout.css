@@ -57,7 +57,7 @@
 	--color-danger: #ff5c3f;
 	--color-success: #8fdc9c;
 	--color-on-status: #1a0f08;
-	--animate-sweep: sweep 1.8s ease-in-out infinite;
+	--animate-sweep: sweep 1.8s ease-in-out -0.9s infinite;
 
 	@keyframes sweep {
 		from {

@@ -37,7 +37,7 @@
 		const timer = setInterval(() => {
 			getImages(series.id).refresh();
 			getDetails(series.id).refresh();
-		}, 5000);
+		}, 2000);
 
 		return () => clearInterval(timer);
 	});
