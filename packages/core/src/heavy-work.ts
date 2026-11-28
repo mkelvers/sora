@@ -65,8 +65,12 @@ export class HeavyWork {
 	readonly #checkEveryMs: number;
 	readonly #running = new Set<Running>();
 	readonly #supplies: PowerSupplies;
-	/** Starts out waiting, so a scheduler started on a drained battery lets it charge first. */
-	#waiting = true;
+	/**
+	 * `null` until the battery is first read, which counts as waiting, so a
+	 * scheduler started on a drained battery lets it charge first, and the
+	 * first reading is logged whichever way it goes.
+	 */
+	#waiting: boolean | null = null;
 	#watching = false;
 
 	constructor(supplies: PowerSupplies, checkEveryMs: number) {
@@ -122,7 +126,7 @@ export class HeavyWork {
 	async #untilPowered(): Promise<void> {
 		await this.#check();
 
-		if (!this.#waiting) {
+		if (this.#waiting === false) {
 			return;
 		}
 
@@ -148,7 +152,7 @@ export class HeavyWork {
 
 		const now = performance.now();
 
-		if (!this.#waiting) {
+		if (this.#waiting === false) {
 			for (const running of this.#running) {
 				running.ranMs += now - since;
 			}
@@ -182,7 +186,7 @@ export class HeavyWork {
 			return;
 		}
 
-		const waiting = mustWait(reading, this.#waiting);
+		const waiting = mustWait(reading, this.#waiting ?? true);
 
 		if (waiting === this.#waiting) {
 			return;
