@@ -69,7 +69,7 @@
 							: "bg-surface",
 						chosen ? "outline-accent" : "outline-transparent group-hover:outline-border-strong",
 						image?.upscale === "upscaling" &&
-							"after:absolute after:inset-0 after:animate-sweep after:bg-linear-to-r after:from-transparent after:from-25% after:via-white/45 after:to-transparent after:to-75% motion-reduce:after:animate-none motion-reduce:after:bg-white/15",
+							"after:absolute after:inset-0 after:animate-sweep after:bg-linear-to-r after:from-transparent after:via-white/20 after:to-transparent motion-reduce:after:animate-none motion-reduce:after:bg-white/10",
 					)}
 				>
 					{#if image}
