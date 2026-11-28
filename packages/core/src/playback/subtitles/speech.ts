@@ -1,22 +1,27 @@
 import { fileURLToPath } from "node:url";
 
-import { second } from "@sora/shared";
+import { minute } from "@sora/shared";
 import { z } from "zod";
 
 import { config } from "../../config";
+import { heavyWork } from "../../heavy-work";
 import { SubtitleRefinementError } from "./audio";
 import type { SpokenWord } from "./refine";
 
 /**
  * The words spoken in a 16 kHz mono WAV file and when, found by running
- * `faster-whisper` through the Python in `SUBTITLE_ALIGNMENT_PYTHON`.
+ * `faster-whisper` through the Python in `SUBTITLE_ALIGNMENT_PYTHON`. Waits,
+ * and pauses, while the machine's battery cannot carry it; see {@link heavyWork}.
  *
  * @throws {SubtitleRefinementError} when no Python is configured or
  *   transcribing fails.
  */
 export const transcribe = async (path: string): Promise<SpokenWord[]> => {
-	/** Listening runs at several times real time on a laptop; this leaves room for a slow server. */
-	const timeoutMs = 90 * 60 * second;
+	/**
+	 * Listening runs at several times real time on a laptop; this leaves room
+	 * for a slow server. Counts only the time it runs; see {@link heavyWork}.
+	 */
+	const timeoutMinutes = 90;
 
 	const OutputSchema = z.object({
 		words: z.array(
@@ -34,24 +39,20 @@ export const transcribe = async (path: string): Promise<SpokenWord[]> => {
 		throw new SubtitleRefinementError("SUBTITLE_ALIGNMENT_PYTHON is not set");
 	}
 
-	const child = Bun.spawn(
+	const finished = await heavyWork.run(
 		[config.subtitleAlignmentPython, script, path, config.subtitleAlignmentModel],
-		{
-			stderr: "pipe",
-			stdout: "pipe",
-			timeout: timeoutMs,
-		},
+		timeoutMinutes * minute,
 	);
 
-	const [output, failure, code] = await Promise.all([
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
-		child.exited,
-	]);
-
-	if (code !== 0) {
-		throw new SubtitleRefinementError(`Transcribing failed: ${failure.trim().split("\n").at(-1)}`);
+	if (finished.timedOut) {
+		throw new SubtitleRefinementError(`Transcribing ran longer than ${timeoutMinutes} minutes`);
 	}
 
-	return OutputSchema.parse(JSON.parse(output)).words;
+	if (finished.code !== 0) {
+		throw new SubtitleRefinementError(
+			`Transcribing failed: ${finished.stderr.trim().split("\n").at(-1)}`,
+		);
+	}
+
+	return OutputSchema.parse(JSON.parse(finished.stdout)).words;
 };
