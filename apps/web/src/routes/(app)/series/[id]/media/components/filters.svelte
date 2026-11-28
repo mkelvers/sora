@@ -36,7 +36,7 @@
 
 {#if languages.length > 1}
 	<section>
-		<h2 class="mb-1 px-2 text-sm text-subtle">Language</h2>
+		<h2 class="mb-1 text-sm text-subtle">Language</h2>
 		<div class="grid" role="group" aria-label="Language">
 			{@render row("All", images.length, !media.languages.length, () => (media.languages = []))}
 			{#each languages as { code, label, count } (code)}

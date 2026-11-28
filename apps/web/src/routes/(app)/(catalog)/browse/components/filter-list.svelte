@@ -62,7 +62,7 @@
 
 {#if filters.studios.length}
 	<section>
-		<h2 class="mb-1 px-2 text-sm text-subtle">Studios</h2>
+		<h2 class="mb-1 text-sm text-subtle">Studios</h2>
 		<div class="grid" role="group" aria-label="Studios">
 			{#each filters.studios as studio (studio)}
 				{@render row(studio, true, () =>
@@ -78,7 +78,7 @@
 
 {#each sections as section (section.id)}
 	<section>
-		<h2 class="mb-1 px-2 text-sm text-subtle">{section.label}</h2>
+		<h2 class="mb-1 text-sm text-subtle">{section.label}</h2>
 		<div class="grid" role="group" aria-label={section.label}>
 			{#if section.id === "genres" || section.id === "sources"}
 				{@render row("All", !section.choices.some((choice) => choice.checked), () =>

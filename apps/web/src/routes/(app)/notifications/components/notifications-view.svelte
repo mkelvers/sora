@@ -58,7 +58,7 @@
 					{#if view === "new" && unread.length}
 						<Button
 							variant="ghost"
-							class="ml-auto"
+							class="ml-auto hover:bg-transparent"
 							onclick={() => markRead(unread.map((item) => item.id))}
 						>
 							<ChecksIcon size="1.125rem" />

@@ -248,6 +248,8 @@ export const DetailSchema = CardSchema.extend({
 
 export const ImageTypeSchema = z.enum(["poster", "backdrop", "logo"]);
 
+export const UpscaleStateSchema = z.enum(["queued", "upscaling", "done", "failed"]);
+
 export const ImageSchema = z
 	.object({
 		height: z.number().int().meta({
@@ -265,9 +267,9 @@ export const ImageSchema = z
 			description: "TMDB's number of the season a poster is for; null for the title's own.",
 		}),
 		type: ImageTypeSchema,
-		upscale: z.enum(["pending", "done", "failed"]).nullable().meta({
+		upscale: UpscaleStateSchema.nullable().meta({
 			description:
-				"Where upscaling this backdrop stands (see `upscaleBackdrop`); `done` when the upscaled one is listed too. Null when it was not asked for, and always for posters, logos, and upscaled backdrops.",
+				"Where upscaling this backdrop stands (see `upscaleBackdrop`): `queued` while it waits for the upscales ahead of it, `upscaling` while it is being made, `done` when the upscaled one is listed too, and `failed` when it can be asked for again. Null when it was not asked for, and always for posters, logos, and upscaled backdrops.",
 		}),
 		upscaled: z.boolean().meta({
 			description:
@@ -625,6 +627,8 @@ export type FranchisePart = z.infer<typeof FranchisePartSchema>;
 export type Series = z.infer<typeof DetailSchema>;
 
 export type ImageType = z.infer<typeof ImageTypeSchema>;
+
+export type UpscaleState = z.infer<typeof UpscaleStateSchema>;
 
 export type SeriesImage = z.infer<typeof ImageSchema>;
 

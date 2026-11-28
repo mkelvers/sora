@@ -98,7 +98,12 @@
 						<Upscale {series} {media} />
 					</svelte:boundary>
 				{/if}
-				<Button variant="ghost" disabled={media.refreshing} onclick={() => media.refresh()}>
+				<Button
+					variant="ghost"
+					class="hover:bg-transparent"
+					disabled={media.refreshing}
+					onclick={() => media.refresh()}
+				>
 					<ArrowsClockwiseIcon
 						size="1rem"
 						weight="bold"
@@ -145,7 +150,7 @@
 			{:else}
 				<div class="mt-8 grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
 					<aside
-						class="-mx-2 grid content-start gap-6 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:scrollbar-thin lg:self-start lg:overflow-y-auto"
+						class="grid content-start gap-6 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:scrollbar-thin lg:self-start lg:overflow-y-auto"
 					>
 						{#if media.type === "logo" && series.logo_url}
 							<Button variant="ghost" class="justify-self-start" onclick={() => (sizing = true)}>
@@ -166,7 +171,7 @@
 							{#snippet pending()}
 								<ul
 									class={cn(
-										"grid gap-x-5 gap-y-6",
+										"grid gap-5",
 										media.type === "poster"
 											? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
 											: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
@@ -177,7 +182,6 @@
 									{#each { length: 12 }, index (index)}
 										<li>
 											<Skeleton class={media.type === "poster" ? "aspect-2/3" : "aspect-video"} />
-											<Skeleton class="mt-2.5 h-3 w-1/2" />
 										</li>
 									{/each}
 								</ul>

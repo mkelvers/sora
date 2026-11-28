@@ -3,6 +3,7 @@
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
+	import { HourglassSimpleIcon, ProhibitIcon, SparkleIcon, WarningIcon } from "phosphor-svelte";
 
 	let {
 		series,
@@ -42,7 +43,7 @@
 <ul
 	aria-label="Available {media.type}s"
 	class={cn(
-		"grid gap-x-5 gap-y-6",
+		"grid gap-5",
 		media.type === "poster"
 			? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
 			: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
@@ -55,7 +56,7 @@
 		<li>
 			<button
 				type="button"
-				class="group grid w-full min-w-0 cursor-pointer content-start justify-stretch gap-2.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+				class="group grid w-full min-w-0 cursor-pointer content-start justify-stretch text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 				aria-pressed={chosen}
 				onclick={() => media.choose(image?.url ?? false)}
 			>
@@ -67,14 +68,17 @@
 							? "bg-[repeating-conic-gradient(var(--color-raised)_0_25%,var(--color-surface)_0_50%)] bg-size-[1rem_1rem]"
 							: "bg-surface",
 						chosen ? "outline-accent" : "outline-transparent group-hover:outline-border-strong",
+						image?.upscale === "upscaling" &&
+							"after:absolute after:inset-0 after:animate-sweep after:bg-linear-to-r after:from-transparent after:via-white/20 after:to-transparent motion-reduce:after:animate-none motion-reduce:after:bg-white/10",
 					)}
 				>
 					{#if image}
+						{@const marked = image.upscaled || (image.upscale !== null && image.upscale !== "done")}
 						<img
 							src={tmdbImage(image.url, "w500")}
 							srcset={tmdbSrcset(image.url, srcsets[media.type])}
 							sizes={media.type === "poster" ? sizes.poster : sizes.wide}
-							alt="{series.title} {media.type}"
+							alt="{series.title} {media.type}, {image.language_name}, {image.width}×{image.height}"
 							loading="lazy"
 							decoding="async"
 							class={cn(
@@ -84,27 +88,60 @@
 									: "object-cover brightness-90 group-hover:brightness-100",
 							)}
 						/>
+						{#if marked}
+							<span
+								class={cn(
+									"absolute top-0 right-0 isolate z-1 size-10 after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]",
+									image.upscale === "failed" ? "text-danger" : "text-accent",
+								)}
+							>
+								{#if image.upscale === "queued"}
+									<HourglassSimpleIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="fill"
+										aria-hidden="true"
+									/>
+									<span class="sr-only">Waiting to be upscaled</span>
+								{:else if image.upscale === "upscaling"}
+									<SparkleIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="bold"
+										aria-hidden="true"
+									/>
+									<span class="sr-only">Being upscaled</span>
+								{:else if image.upscale === "failed"}
+									<WarningIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="fill"
+										aria-hidden="true"
+									/>
+									<span class="sr-only">Upscaling failed</span>
+								{:else if image.upscaled}
+									<SparkleIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="fill"
+										aria-hidden="true"
+									/>
+									<span class="sr-only">Upscaled</span>
+								{/if}
+							</span>
+						{/if}
 					{:else if media.type === "logo"}
 						<span
 							class="grid size-full place-items-center p-4 text-center text-2xl leading-tight font-bold text-white"
 						>
 							<span class="line-clamp-3">{series.title}</span>
 						</span>
-					{/if}
-				</span>
-				<span
-					class={cn(
-						"flex flex-wrap items-center text-xs tabular-nums transition-colors",
-						chosen ? "text-foreground" : "text-subtle group-hover:text-muted",
-					)}
-				>
-					{#if image}
-						<span class="metadata-tag">
-							{image.language_name}
-						</span>
-						<span class="metadata-tag">{image.width}×{image.height}</span>
+						<span class="sr-only">No logo</span>
 					{:else}
-						No {media.type}
+						<span class="grid size-full place-items-center text-subtle">
+							<ProhibitIcon size="2rem" weight="bold" aria-hidden="true" />
+						</span>
+						<span class="sr-only">No {media.type}</span>
 					{/if}
 				</span>
 			</button>

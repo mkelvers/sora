@@ -8,6 +8,7 @@ export class Media {
 	#type = $state<SeriesImage["type"]>("poster");
 	languages = $state<string[]>([]);
 	refreshing = $state(false);
+	upscaling = $state(false);
 	error = $state<string>();
 
 	private readonly id: () => string;
@@ -83,6 +84,7 @@ export class Media {
 	}
 
 	async upscale(url: string) {
+		this.upscaling = true;
 		await this.#save(
 			upscaleBackdrop({
 				seriesId: this.id(),
@@ -90,6 +92,7 @@ export class Media {
 			}),
 			"That backdrop couldn’t be upscaled.",
 		);
+		this.upscaling = false;
 	}
 
 	async refresh() {
