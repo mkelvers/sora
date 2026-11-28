@@ -3,7 +3,7 @@
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
-	import { HourglassSimpleIcon, SparkleIcon, WarningIcon } from "phosphor-svelte";
+	import { HourglassSimpleIcon, ProhibitIcon, SparkleIcon, WarningIcon } from "phosphor-svelte";
 
 	let {
 		series,
@@ -43,7 +43,7 @@
 <ul
 	aria-label="Available {media.type}s"
 	class={cn(
-		"grid gap-x-5 gap-y-6",
+		"grid gap-5",
 		media.type === "poster"
 			? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
 			: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
@@ -56,7 +56,7 @@
 		<li>
 			<button
 				type="button"
-				class="group grid w-full min-w-0 cursor-pointer content-start justify-stretch gap-2.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+				class="group grid w-full min-w-0 cursor-pointer content-start justify-stretch text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 				aria-pressed={chosen}
 				onclick={() => media.choose(image?.url ?? false)}
 			>
@@ -78,7 +78,7 @@
 							src={tmdbImage(image.url, "w500")}
 							srcset={tmdbSrcset(image.url, srcsets[media.type])}
 							sizes={media.type === "poster" ? sizes.poster : sizes.wide}
-							alt="{series.title} {media.type}"
+							alt="{series.title} {media.type}, {image.language_name}, {image.width}×{image.height}"
 							loading="lazy"
 							decoding="async"
 							class={cn(
@@ -136,21 +136,12 @@
 						>
 							<span class="line-clamp-3">{series.title}</span>
 						</span>
-					{/if}
-				</span>
-				<span
-					class={cn(
-						"flex flex-wrap items-center text-xs tabular-nums transition-colors",
-						chosen ? "text-foreground" : "text-subtle group-hover:text-muted",
-					)}
-				>
-					{#if image}
-						<span class="metadata-tag">
-							{image.language_name}
-						</span>
-						<span class="metadata-tag">{image.width}×{image.height}</span>
+						<span class="sr-only">No logo</span>
 					{:else}
-						No {media.type}
+						<span class="grid size-full place-items-center text-subtle">
+							<ProhibitIcon size="2rem" weight="bold" aria-hidden="true" />
+						</span>
+						<span class="sr-only">No {media.type}</span>
 					{/if}
 				</span>
 			</button>

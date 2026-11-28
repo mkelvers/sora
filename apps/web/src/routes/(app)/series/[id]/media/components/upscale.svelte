@@ -44,7 +44,12 @@
 </script>
 
 {#if selected && (selected.upscale === null || selected.upscale === "failed")}
-	<Button variant="ghost" disabled={media.upscaling} onclick={() => media.upscale(selected.url)}>
+	<Button
+		variant="ghost"
+		class="hover:bg-transparent"
+		disabled={media.upscaling}
+		onclick={() => media.upscale(selected.url)}
+	>
 		<SparkleIcon size="1rem" weight="bold" />
 		<span class="max-sm:sr-only">
 			{selected.upscale === "failed" ? "Retry upscale" : "Upscale"}
