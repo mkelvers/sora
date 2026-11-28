@@ -3,7 +3,7 @@
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
-	import { SparkleIcon } from "phosphor-svelte";
+	import { HourglassSimpleIcon, SparkleIcon, WarningIcon } from "phosphor-svelte";
 
 	let {
 		series,
@@ -68,9 +68,12 @@
 							? "bg-[repeating-conic-gradient(var(--color-raised)_0_25%,var(--color-surface)_0_50%)] bg-size-[1rem_1rem]"
 							: "bg-surface",
 						chosen ? "outline-accent" : "outline-transparent group-hover:outline-border-strong",
+						image?.upscale === "upscaling" &&
+							"after:absolute after:inset-0 after:animate-sweep after:bg-linear-to-r after:from-transparent after:from-25% after:via-white/45 after:to-transparent after:to-75% motion-reduce:after:animate-none motion-reduce:after:bg-white/15",
 					)}
 				>
 					{#if image}
+						{@const marked = image.upscaled || (image.upscale !== null && image.upscale !== "done")}
 						<img
 							src={tmdbImage(image.url, "w500")}
 							srcset={tmdbSrcset(image.url, srcsets[media.type])}
@@ -85,20 +88,44 @@
 									: "object-cover brightness-90 group-hover:brightness-100",
 							)}
 						/>
-						{#if image.upscaled || image.upscale === "queued" || image.upscale === "upscaling"}
+						{#if marked}
 							<span
-								class="absolute top-0 right-0 isolate size-10 text-accent after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
+								class={cn(
+									"absolute top-0 right-0 isolate z-1 size-10 after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]",
+									image.upscale === "failed" ? "text-danger" : "text-accent",
+								)}
 							>
-								<SparkleIcon
-									class={cn(
-										"absolute top-0.5 right-1",
-										image.upscale === "upscaling" && "animate-pulse motion-reduce:animate-none",
-									)}
-									size="1rem"
-									weight={image.upscaled ? "fill" : "bold"}
-									aria-hidden="true"
-								/>
-								{#if image.upscaled}
+								{#if image.upscale === "queued"}
+									<HourglassSimpleIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="fill"
+										aria-hidden="true"
+									/>
+									<span class="sr-only">Waiting to be upscaled</span>
+								{:else if image.upscale === "upscaling"}
+									<SparkleIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="bold"
+										aria-hidden="true"
+									/>
+									<span class="sr-only">Being upscaled</span>
+								{:else if image.upscale === "failed"}
+									<WarningIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="fill"
+										aria-hidden="true"
+									/>
+									<span class="sr-only">Upscaling failed</span>
+								{:else if image.upscaled}
+									<SparkleIcon
+										class="absolute top-0.5 right-1"
+										size="1rem"
+										weight="fill"
+										aria-hidden="true"
+									/>
 									<span class="sr-only">Upscaled</span>
 								{/if}
 							</span>
@@ -122,13 +149,6 @@
 							{image.language_name}
 						</span>
 						<span class="metadata-tag">{image.width}×{image.height}</span>
-						{#if image.upscale === "queued"}
-							<span class="metadata-tag">Upscale queued</span>
-						{:else if image.upscale === "upscaling"}
-							<span class="metadata-tag">Upscaling</span>
-						{:else if image.upscale === "failed"}
-							<span class="metadata-tag">Upscale failed</span>
-						{/if}
 					{:else}
 						No {media.type}
 					{/if}
