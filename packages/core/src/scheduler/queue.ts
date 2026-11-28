@@ -385,6 +385,18 @@ export const hasLiveUpscale = (id: string | SQLWrapper) => sql<boolean>`exists (
   )`;
 
 /**
+ * A job is running the upscale now. A scheduler that stopped mid-upscale
+ * holds its lock for a minute or two more, until a running scheduler sees it
+ * stopped and releases it.
+ */
+export const isUpscaling = (id: string | SQLWrapper) => sql<boolean>`exists (
+    select 1 from graphile_worker.jobs
+    where key = 'upscale-backdrop:' || ${id}::text
+      and task_identifier = ${upscaleBackdropTask}
+      and locked_at is not null
+  )`;
+
+/**
  * Queues an upscale in the same transaction that locks or creates its row.
  * A pending request keeps its live job, including a running final attempt.
  * An explicit retry after failure queues a new attempt even if the previous

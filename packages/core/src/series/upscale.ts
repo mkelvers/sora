@@ -6,7 +6,8 @@ import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import type { UpscaleStatus } from "../database/schema/series";
 import { InvalidInputError, UnknownSeriesError } from "../errors";
-import { hasLiveUpscale, requestUpscale } from "../scheduler/queue";
+import type { UpscaleState } from "../models/series";
+import { hasLiveUpscale, isUpscaling, requestUpscale } from "../scheduler/queue";
 import { collage } from "./collage";
 import { trueWidth } from "./detail";
 import { edges } from "./edges";
@@ -28,8 +29,9 @@ import { upscaledBackdropUrl } from "./upscaled-backdrop";
 const currentMethod = 2;
 
 /**
- * Where each upscale stands, by the original's URL. A pending row with no
- * live job is shown as failed so the viewer can retry it. Reading status
+ * Where each upscale stands, by the original's URL. A pending row is
+ * `upscaling` while its job runs and `queued` while the job waits; with no
+ * live job it is shown as failed so the viewer can retry it. Reading status
  * leaves the row alone and sees the row and queue in the same SQL snapshot.
  */
 export const statusesOf = async (key: string) => {
@@ -38,10 +40,11 @@ export const statusesOf = async (key: string) => {
 			height: titleBackdropUpscale.height,
 			id: titleBackdropUpscale.id,
 			sourceUrl: titleBackdropUpscale.sourceUrl,
-			status: sql<UpscaleStatus>`case
-				when ${titleBackdropUpscale.status} = 'pending' and not ${hasLiveUpscale(titleBackdropUpscale.id)}
-				then 'failed'
-				else ${titleBackdropUpscale.status}
+			status: sql<UpscaleState>`case
+				when ${titleBackdropUpscale.status} <> 'pending' then ${titleBackdropUpscale.status}
+				when ${isUpscaling(titleBackdropUpscale.id)} then 'upscaling'
+				when ${hasLiveUpscale(titleBackdropUpscale.id)} then 'queued'
+				else 'failed'
 			end`,
 			width: titleBackdropUpscale.width,
 		})

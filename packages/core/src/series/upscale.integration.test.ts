@@ -134,7 +134,7 @@ describe("backdrop upscale queue", () => {
 		}
 
 		await request();
-		expect(await status()).toBe("pending");
+		expect(await status()).toBe("queued");
 		expect(await jobs()).toHaveLength(1);
 	});
 
@@ -147,7 +147,7 @@ describe("backdrop upscale queue", () => {
 				revision: 0,
 			},
 		]);
-		expect(await status()).toBe("pending");
+		expect(await status()).toBe("queued");
 	});
 
 	test("makes an orphan pending upscale retryable and requeues it once", async () => {
@@ -163,7 +163,7 @@ describe("backdrop upscale queue", () => {
 		expect(await jobs()).toEqual([]);
 
 		await Promise.all([request(), request(), request(), request()]);
-		expect(await status()).toBe("pending");
+		expect(await status()).toBe("queued");
 		const statuses = await statusesOf(key);
 		expect(statuses.get(sourceUrl)?.id).toBe(orphan?.id);
 		expect(await jobs()).toMatchObject([
@@ -185,7 +185,7 @@ describe("backdrop upscale queue", () => {
 		});
 		await request();
 		expect(await jobs()).toEqual(running);
-		expect(await status()).toBe("pending");
+		expect(await status()).toBe("upscaling");
 
 		await claim(new Date(0));
 		await pools.watch().stop();
@@ -204,7 +204,7 @@ describe("backdrop upscale queue", () => {
 			attempts: 0,
 			locked_by: null,
 		});
-		expect(await status()).toBe("pending");
+		expect(await status()).toBe("queued");
 	});
 
 	test("queues a retry even while the failed job is still locked", async () => {
@@ -246,7 +246,7 @@ describe("backdrop upscale queue", () => {
 
 		await request();
 		expect(await jobs()).toHaveLength(1);
-		expect(await status()).toBe("pending");
+		expect(await status()).toBe("queued");
 	});
 
 	test("makes an exhausted job retryable when the worker cannot save its result", async () => {
@@ -293,7 +293,7 @@ describe("backdrop upscale queue", () => {
 				locked_by: null,
 			},
 		]);
-		expect(await status()).toBe("pending");
+		expect(await status()).toBe("queued");
 	});
 
 	test("leaves a completed upscale alone", async () => {

@@ -85,17 +85,22 @@
 									: "object-cover brightness-90 group-hover:brightness-100",
 							)}
 						/>
-						{#if image.upscaled}
+						{#if image.upscaled || image.upscale === "queued" || image.upscale === "upscaling"}
 							<span
 								class="absolute top-0 right-0 isolate size-10 text-accent after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
 							>
 								<SparkleIcon
-									class="absolute top-0.5 right-1"
+									class={cn(
+										"absolute top-0.5 right-1",
+										image.upscale === "upscaling" && "animate-pulse motion-reduce:animate-none",
+									)}
 									size="1rem"
-									weight="fill"
+									weight={image.upscaled ? "fill" : "bold"}
 									aria-hidden="true"
 								/>
-								<span class="sr-only">Upscaled</span>
+								{#if image.upscaled}
+									<span class="sr-only">Upscaled</span>
+								{/if}
 							</span>
 						{/if}
 					{:else if media.type === "logo"}
@@ -117,6 +122,13 @@
 							{image.language_name}
 						</span>
 						<span class="metadata-tag">{image.width}×{image.height}</span>
+						{#if image.upscale === "queued"}
+							<span class="metadata-tag">Upscale queued</span>
+						{:else if image.upscale === "upscaling"}
+							<span class="metadata-tag">Upscaling</span>
+						{:else if image.upscale === "failed"}
+							<span class="metadata-tag">Upscale failed</span>
+						{/if}
 					{:else}
 						No {media.type}
 					{/if}
